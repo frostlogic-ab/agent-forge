@@ -1,3 +1,10 @@
+# [1.1.0](https://github.com/frostlogic-ab/agent-forge/compare/v1.0.0...v1.1.0) (2025-03-07)
+
+
+### Features
+
+* refactor team runs with a more sophisticated solution and add rate limiting ([68675ec](https://github.com/frostlogic-ab/agent-forge/commit/68675eced3141ee48c595e4089a83ce5b7a019c8))
+
 # 1.0.0 (2025-03-07)
 
 
