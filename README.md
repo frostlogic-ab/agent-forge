@@ -11,6 +11,7 @@ Agent Forge is a TypeScript framework for creating, configuring, and orchestrati
   - Hierarchical execution (manager AI delegates to specialized agents)
 - **LLM Integration**: Connect to various language models through a unified interface
 - **Rate Limiting**: Control API usage with built-in rate limiting to avoid quota issues
+- **Debugging Features**: Verbose logging of agent interactions to help troubleshoot complex workflows
 - **TypeScript Support**: Built with TypeScript for type safety and better developer experience
 
 ## Installation
@@ -107,6 +108,42 @@ const result = await team.run(
   { rate_limit: 20 }
 );
 console.log(result);
+```
+
+### 6. Debug team interactions with verbose logging:
+
+```typescript
+import { Team, loadAgentFromYaml } from "agent-forge";
+
+// Load manager and specialized agents
+const managerAgent = await loadAgentFromYaml("./manager-agent.yaml");
+const researchAgent = await loadAgentFromYaml("./research-agent.yaml");
+const summaryAgent = await loadAgentFromYaml("./summary-agent.yaml");
+
+// Create a team with a manager
+const team = new Team(managerAgent)
+  .addAgent(researchAgent)
+  .addAgent(summaryAgent);
+
+// Run the team with verbose logging to see all agent communications
+const result = await team.run(
+  "What are the ethical implications of AI in healthcare?",
+  { verbose: true }
+);
+console.log("Final result:", result.output);
+```
+
+You can also combine options:
+
+```typescript
+// Run with both rate limiting and verbose logging
+const result = await team.run(
+  "Explain the impact of blockchain on financial systems",
+  {
+    rate_limit: 15,
+    verbose: true,
+  }
+);
 ```
 
 ## Development

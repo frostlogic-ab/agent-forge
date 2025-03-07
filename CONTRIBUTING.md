@@ -15,7 +15,7 @@ Please be respectful and considerate of others when contributing to this project
 5. Run the tests: `npm test`
 6. Commit your changes using the conventional commit format (see below)
 7. Push to the branch: `git push origin feature/your-feature-name`
-8. Submit a pull request
+8. Submit a pull request to the `beta` branch
 
 ## Commit Message Guidelines
 
