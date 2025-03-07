@@ -10,6 +10,7 @@ Agent Forge is a TypeScript framework for creating, configuring, and orchestrati
   - Sequential execution (workflow-based)
   - Hierarchical execution (manager AI delegates to specialized agents)
 - **LLM Integration**: Connect to various language models through a unified interface
+- **Rate Limiting**: Control API usage with built-in rate limiting to avoid quota issues
 - **TypeScript Support**: Built with TypeScript for type safety and better developer experience
 
 ## Installation
@@ -82,6 +83,29 @@ const team = new Team(managerAgent).addAgent(codeAgent).addAgent(designAgent);
 
 // Run the team
 const result = await team.run("Create a landing page for our new product");
+console.log(result);
+```
+
+### 5. Use rate limiting to avoid API quota issues:
+
+```typescript
+import { Team, loadAgentFromYaml } from "agent-forge";
+
+// Load manager and specialized agents
+const managerAgent = await loadAgentFromYaml("./manager-agent.yaml");
+const researchAgent = await loadAgentFromYaml("./research-agent.yaml");
+const summaryAgent = await loadAgentFromYaml("./summary-agent.yaml");
+
+// Create a team with a manager
+const team = new Team(managerAgent)
+  .addAgent(researchAgent)
+  .addAgent(summaryAgent);
+
+// Run the team with rate limiting (max 20 LLM calls per minute)
+const result = await team.run(
+  "What is quantum computing and how might it affect cybersecurity?",
+  { rate_limit: 20 }
+);
 console.log(result);
 ```
 

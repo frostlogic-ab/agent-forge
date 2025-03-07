@@ -1,5 +1,4 @@
 import dotenv from "dotenv";
-import path from "path";
 import { AgentForge, OpenAIProvider, Agent } from "../index";
 
 // Load environment variables
@@ -31,8 +30,8 @@ async function main() {
           "A specialized agent for gathering and analyzing information.",
         objective:
           "Find accurate and relevant information on requested topics.",
-        model: "gpt-4",
-        temperature: 0.7,
+        model: "gpt-4o-mini",
+        temperature: 0.4,
       },
       [],
       llmProvider
@@ -46,8 +45,8 @@ async function main() {
         description:
           "An agent that specializes in distilling information into clear summaries.",
         objective: "Create concise, accurate summaries of complex information.",
-        model: "gpt-3.5-turbo",
-        temperature: 0.5,
+        model: "gpt-4o-mini",
+        temperature: 0.4,
       },
       [],
       llmProvider
@@ -117,7 +116,8 @@ async function main() {
     team.addAgent(summaryAgent);
 
     const teamResult = await team.run(
-      "What is quantum computing and how might it affect cybersecurity?"
+      "What is quantum computing and how might it affect cybersecurity?",
+      { rate_limit: 10 } // Limit to 10 LLM calls per minute to avoid rate limit errors
     );
     console.log("\nTeam Result:");
     console.log(teamResult.output);
