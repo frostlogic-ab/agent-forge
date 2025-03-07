@@ -99,6 +99,11 @@ export class AnthropicProvider extends LLMProvider {
         for (const content of data.content) {
           if (content.type === "tool_use") {
             toolCalls.push({
+              id:
+                content.id ||
+                `anthropic_call_${Date.now()}_${Math.random()
+                  .toString(36)
+                  .substring(2, 11)}`,
               toolName: content.name,
               parameters: content.input || {},
               result: null, // Results are filled in later when tools are executed
@@ -160,40 +165,49 @@ export class AnthropicProvider extends LLMProvider {
   }
 
   /**
-   * Formats messages to match Anthropic's expected format
+   * Formats messages for Anthropic's Messages API
    * @param messages The messages to format
    * @returns Formatted messages for Anthropic's API
    */
   private formatMessages(messages: any[]): any[] {
-    const formattedMessages = [];
-
-    for (const message of messages) {
-      // Map roles from our standard format to Anthropic's format
-      let role: string;
-      switch (message.role) {
-        case "user":
-          role = "user";
-          break;
-        case "assistant":
-          role = "assistant";
-          break;
-        case "system":
-          // System message is handled differently in Anthropic
-          continue;
-        case "tool":
-          // We'll handle tool responses differently
-          continue;
-        default:
-          role = "user";
+    return messages.map((message) => {
+      if (message.role === "system") {
+        return { role: "system", content: message.content };
       }
 
-      formattedMessages.push({
-        role,
-        content: message.content,
-      });
-    }
+      if (message.role === "user") {
+        return { role: "user", content: message.content };
+      }
 
-    return formattedMessages;
+      if (message.role === "assistant") {
+        const content: any[] = [{ type: "text", text: message.content }];
+
+        // Add tool_calls if present
+        if (message.tool_calls && message.tool_calls.length > 0) {
+          for (const tool_call of message.tool_calls) {
+            content.push({
+              type: "tool_use",
+              id: tool_call.id,
+              name: tool_call.function.name,
+              input: JSON.parse(tool_call.function.arguments),
+            });
+          }
+        }
+
+        return { role: "assistant", content };
+      }
+
+      if (message.role === "tool") {
+        return {
+          role: "tool",
+          content: message.content,
+          tool_call_id: message.tool_call_id || undefined,
+        };
+      }
+
+      // Default case
+      return { role: "user", content: message.content };
+    });
   }
 
   /**

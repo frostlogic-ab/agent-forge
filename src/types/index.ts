@@ -62,6 +62,7 @@ export interface ToolCall {
   parameters: Record<string, any>;
   result: any;
   timestamp: number;
+  id?: string;
 }
 
 /**
@@ -82,6 +83,19 @@ export interface Message {
   role: "system" | "user" | "assistant" | "tool";
   content: string;
   name?: string;
+
+  // For assistant messages with tool calls
+  tool_calls?: Array<{
+    id: string;
+    type: "function";
+    function: {
+      name: string;
+      arguments: string;
+    };
+  }>;
+
+  // For tool messages (responses to tool calls)
+  tool_call_id?: string;
 }
 
 /**

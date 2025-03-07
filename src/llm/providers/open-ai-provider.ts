@@ -84,15 +84,41 @@ export class OpenAIProvider extends LLMProvider {
     try {
       const payload: any = {
         model: options.model,
-        messages: options.messages.map((m) => ({
-          role: m.role,
-          content: m.content,
-          ...(m.name ? { name: m.name } : {}),
-        })),
+        messages: options.messages.map((m) => {
+          // Base message structure
+          const message: any = {
+            role: m.role,
+            content: m.content,
+          };
+
+          // Add name if provided
+          if (m.name) {
+            message.name = m.name;
+          }
+
+          // Add tool_call_id for tool messages
+          if (m.role === "tool" && m.tool_call_id) {
+            message.tool_call_id = m.tool_call_id;
+          }
+
+          // Add tool_calls for assistant messages
+          if (
+            m.role === "assistant" &&
+            m.tool_calls &&
+            m.tool_calls.length > 0
+          ) {
+            message.tool_calls = m.tool_calls;
+          }
+
+          return message;
+        }),
         temperature: options.temperature ?? 0.7,
         max_tokens: options.maxTokens ?? 1024,
         ...(options.stopSequences ? { stop: options.stopSequences } : {}),
       };
+
+      // Debug output
+      // console.log("Sending to OpenAI API:", JSON.stringify(payload.messages, null, 2));
 
       // If tool definitions are provided, convert them to OpenAI's function format
       if (options.toolDefinitions && options.toolDefinitions.length > 0) {
@@ -113,9 +139,10 @@ export class OpenAIProvider extends LLMProvider {
           try {
             const parsedArgs = JSON.parse(toolCall.function.arguments);
             toolCalls.push({
+              id: toolCall.id,
               toolName: toolCall.function.name,
               parameters: parsedArgs,
-              result: null, // Results are filled in later when tools are executed
+              result: null,
               timestamp: Date.now(),
             });
           } catch (e) {

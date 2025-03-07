@@ -1,7 +1,13 @@
 import type { LLMProvider } from "../llm/llm-provider";
 import type { Tool } from "../tools/tool";
 import { ToolRegistry } from "../tools/tool-registry";
-import type { AgentConfig, AgentResult, Message, ToolCall } from "../types";
+import type {
+  AgentConfig,
+  AgentResult,
+  Message,
+  ToolCall,
+  ToolConfig,
+} from "../types";
 
 /**
  * Represents an agent that can use LLMs and tools to accomplish tasks
@@ -15,7 +21,7 @@ export class Agent {
   /**
    * Creates a new agent
    * @param config Configuration for the agent
-   * @param tools Optional tools to provide to the agent
+   * @param tools Optional additional tools to provide to the agent
    * @param llmProvider Optional LLM provider for the agent
    */
   constructor(
@@ -24,7 +30,23 @@ export class Agent {
     llmProvider?: LLMProvider
   ) {
     this.config = config;
+
+    // Initialize the tool registry with provided tools
     this.tools = new ToolRegistry(tools);
+
+    // Add tools from config if they are Tool instances
+    // This handles the case where Tool instances are mistakenly added to config.tools
+    if (this.config.tools && this.config.tools.length > 0) {
+      for (const configTool of this.config.tools) {
+        // If it's already a Tool instance (has execute method), register it
+        if (typeof (configTool as any).execute === "function") {
+          this.tools.register(configTool as unknown as Tool);
+        }
+        // For ToolConfig objects, we can't do anything here as they're just data
+        // and can't be executed like actual Tool instances
+      }
+    }
+
     this.llmProvider = llmProvider;
 
     // Initialize conversation with system message
@@ -141,6 +163,7 @@ export class Agent {
       currentTurn++;
 
       // Get response from LLM
+      // console.log("CONVERSATION BEFORE LLM CALL:", JSON.stringify(this.conversation, null, 2));
       const response = await this.llmProvider.chat({
         model: this.config.model,
         messages: this.conversation,
@@ -155,50 +178,92 @@ export class Agent {
 
       // If there are tool calls, execute them
       if (response.toolCalls && response.toolCalls.length > 0) {
-        // Add the assistant's message with tool calls
-        this.conversation.push({
-          role: "assistant",
-          content: response.content,
+        // Create properly formatted tool calls for the assistant message
+        const formattedToolCalls = response.toolCalls.map((call) => {
+          // Ensure each tool call has a unique ID
+          const id =
+            call.id ||
+            `call_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+          return {
+            id,
+            type: "function" as const,
+            function: {
+              name: call.toolName,
+              arguments: JSON.stringify(call.parameters),
+            },
+          };
         });
 
-        // Execute each tool call
-        for (const toolCall of response.toolCalls) {
+        // Add the assistant's message with properly formatted tool_calls
+        this.conversation.push({
+          role: "assistant",
+          content: response.content || "",
+          tool_calls: formattedToolCalls,
+        });
+
+        // Process each tool call
+        for (const toolCall of formattedToolCalls) {
           try {
-            // Execute the tool
-            const result = await this.tools.execute(
-              toolCall.toolName,
-              toolCall.parameters
+            // Find the corresponding toolCall from the response
+            const responseToolCall = response.toolCalls.find(
+              (tc) => tc.toolName === toolCall.function.name
             );
 
-            // Add the result to the tool call
-            toolCall.result = result;
+            if (!responseToolCall) {
+              throw new Error(
+                `Tool call for ${toolCall.function.name} not found in response`
+              );
+            }
 
-            // Add the tool response to the conversation
+            // Extract parameters
+            const params = responseToolCall.parameters;
+
+            // Execute the tool
+            const result = await this.tools.execute(
+              toolCall.function.name,
+              params
+            );
+
+            // Add the tool response as a properly formatted tool message
             this.conversation.push({
               role: "tool",
-              name: toolCall.toolName,
+              tool_call_id: toolCall.id,
               content: JSON.stringify(result),
             });
 
+            // Store the result in the original tool call
+            responseToolCall.result = result;
+
             // Add to our list of tool calls
-            toolCalls.push(toolCall);
+            toolCalls.push({
+              ...responseToolCall,
+              id: toolCall.id,
+            });
           } catch (error) {
-            // If the tool execution fails, add the error to the conversation
+            // If the tool execution fails, add an error message
             this.conversation.push({
               role: "tool",
-              name: toolCall.toolName,
+              tool_call_id: toolCall.id,
               content: `Error: ${
                 error instanceof Error ? error.message : String(error)
               }`,
             });
 
-            // Add the failed tool call to our list
-            toolCalls.push({
-              ...toolCall,
-              result: `Error: ${
-                error instanceof Error ? error.message : String(error)
-              }`,
-            });
+            // Find the responseToolCall
+            const responseToolCall = response.toolCalls.find(
+              (tc) => tc.toolName === toolCall.function.name
+            );
+
+            if (responseToolCall) {
+              // Add to our list of tool calls with the error
+              toolCalls.push({
+                ...responseToolCall,
+                id: toolCall.id,
+                result: `Error: ${
+                  error instanceof Error ? error.message : String(error)
+                }`,
+              });
+            }
           }
         }
       } else {
