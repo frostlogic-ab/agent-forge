@@ -13,9 +13,50 @@ Please be respectful and considerate of others when contributing to this project
 3. Make your changes
 4. Write tests for your changes
 5. Run the tests: `npm test`
-6. Commit your changes: `git commit -m "Add some feature"`
+6. Commit your changes using the conventional commit format (see below)
 7. Push to the branch: `git push origin feature/your-feature-name`
 8. Submit a pull request
+
+## Commit Message Guidelines
+
+We follow [Conventional Commits](https://www.conventionalcommits.org/) for commit messages. This leads to more readable messages that are easy to follow when looking through the project history and enables automatic versioning and changelog generation.
+
+Each commit message consists of a **header**, a **body**, and a **footer**:
+
+```
+<type>(<scope>): <subject>
+<BLANK LINE>
+<body>
+<BLANK LINE>
+<footer>
+```
+
+The **header** is mandatory and the **scope** is optional.
+
+### Type
+
+Must be one of the following:
+
+- **feat**: A new feature
+- **fix**: A bug fix
+- **docs**: Documentation only changes
+- **style**: Changes that do not affect the meaning of the code (white-space, formatting, etc)
+- **refactor**: A code change that neither fixes a bug nor adds a feature
+- **perf**: A code change that improves performance
+- **test**: Adding missing tests or correcting existing tests
+- **build**: Changes that affect the build system or external dependencies
+- **ci**: Changes to our CI configuration files and scripts
+- **chore**: Other changes that don't modify src or test files
+
+### Examples
+
+```
+feat(agent): add ability to process multimodal inputs
+
+fix(llm): resolve token counting issue with non-ASCII characters
+
+docs: update README with new installation instructions
+```
 
 ## Development Environment
 
