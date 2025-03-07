@@ -8,6 +8,7 @@ import { ToolRegistry } from "../tools/tool-registry";
 import { ExecutionMode } from "../types";
 import type { Agent } from "./agent";
 import { Team } from "./team";
+import type { TeamRunOptions } from "./team";
 import { Workflow } from "./workflow";
 
 /**
@@ -204,12 +205,14 @@ export class AgentForge {
    * @param managerName Name of the manager agent
    * @param agentNames Names of team member agents
    * @param input Input for the team
+   * @param options Optional configuration for team execution
    * @returns The team's result
    */
   async runTeam(
     managerName: string,
     agentNames: string[],
-    input: string
+    input: string,
+    options?: TeamRunOptions
   ): Promise<any> {
     const team = this.createTeam(managerName);
 
@@ -222,7 +225,7 @@ export class AgentForge {
       team.addAgent(agent);
     }
 
-    return await team.run(input);
+    return await team.run(input, options);
   }
 
   /**
@@ -231,17 +234,19 @@ export class AgentForge {
    * @param managerOrFirst Name of the manager (hierarchical) or first agent (sequential)
    * @param agentNames Names of other agents to include
    * @param input Input for the execution
+   * @param options Optional configuration for team execution (only used in hierarchical mode)
    * @returns The execution result
    */
   async runWithMode(
     mode: ExecutionMode,
     managerOrFirst: string,
     agentNames: string[],
-    input: string
+    input: string,
+    options?: TeamRunOptions
   ): Promise<any> {
     if (mode === ExecutionMode.SEQUENTIAL) {
       return await this.runWorkflow([managerOrFirst, ...agentNames], input);
     }
-    return await this.runTeam(managerOrFirst, agentNames, input);
+    return await this.runTeam(managerOrFirst, agentNames, input, options);
   }
 }

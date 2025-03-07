@@ -3,7 +3,6 @@ import {
   AgentForge,
   OpenAIProvider,
   Agent,
-  loadAgentFromYaml,
   ToolCall,
 } from "../index";
 import { WebSearchTool } from "../tools/web-search-tool";
