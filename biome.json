@@ -27,7 +27,7 @@
         "useNodejsImportProtocol": "warn"
       },
       "suspicious": {
-        "noConsoleLog": "warn",
+        "noConsoleLog": "off",
         "noEmptyInterface": "error",
         "noExplicitAny": "off"
       }

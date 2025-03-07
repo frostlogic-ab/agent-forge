@@ -11,6 +11,11 @@ Agent Forge is a TypeScript framework for creating, configuring, and orchestrati
   - Hierarchical execution (manager AI delegates to specialized agents)
 - **LLM Integration**: Connect to various language models through a unified interface
 - **Rate Limiting**: Control API usage with built-in rate limiting to avoid quota issues
+- **Debugging Features**:
+  - Verbose logging of agent interactions with detailed execution flow
+  - Real-time visibility into task assignments and dependencies
+  - Comprehensive progress tracking and error reporting
+  - Visual indicators for task status and execution timing
 - **TypeScript Support**: Built with TypeScript for type safety and better developer experience
 
 ## Installation
@@ -107,6 +112,79 @@ const result = await team.run(
   { rate_limit: 20 }
 );
 console.log(result);
+```
+
+### 6. Debug team interactions with verbose logging:
+
+```typescript
+import { Team, loadAgentFromYaml } from "agent-forge";
+
+// Load manager and specialized agents
+const managerAgent = await loadAgentFromYaml("./manager-agent.yaml");
+const researchAgent = await loadAgentFromYaml("./research-agent.yaml");
+const summaryAgent = await loadAgentFromYaml("./summary-agent.yaml");
+
+// Create a team with a manager
+const team = new Team(managerAgent)
+  .addAgent(researchAgent)
+  .addAgent(summaryAgent);
+
+// Run the team with verbose logging to see all agent communications
+const result = await team.run(
+  "What are the ethical implications of AI in healthcare?",
+  { verbose: true }
+);
+console.log("Final result:", result.output);
+```
+
+When verbose logging is enabled, you'll see detailed information about:
+
+- Team initialization and task assignment
+- Task creation and dependency tracking
+- Agent execution progress and timing
+- Manager decisions and instructions
+- Error handling and recovery attempts
+- Final result generation
+
+Example verbose output:
+
+```
+🚀 Starting team execution with 2 agents and 1 manager
+📋 Task: "What are the ethical implications of AI in healthcare?"
+
+👨‍💼 Manager (Initial Plan):
+Assigning tasks to team members...
+
+🔄 System: Created task task-0 for Researcher: Research current AI applications in healthcare
+📌 Dependencies: none
+
+⏳ Starting task task-0 for agent "Researcher"...
+👤 Researcher (Task task-0):
+[Research findings...]
+✅ Task task-0 completed in 2.34s
+
+📊 Progress Report:
+Completed Tasks:
+- Task task-0 (Researcher): [Research results...]
+
+👨‍💼 Manager:
+[Next instructions...]
+
+🏁 All tasks completed. Generating final result...
+✅ Team execution completed successfully
+```
+
+You can also combine options:
+
+```typescript
+// Run with both rate limiting and verbose logging
+const result = await team.run(
+  "Explain the impact of blockchain on financial systems",
+  {
+    rate_limit: 15, // Limit to 15 LLM calls per minute
+    verbose: true, // Enable detailed logging of team interactions
+  }
+);
 ```
 
 ## Development

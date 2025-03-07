@@ -1,3 +1,10 @@
+# [1.2.0-beta.1](https://github.com/frostlogic-ab/agent-forge/compare/v1.1.0...v1.2.0-beta.1) (2025-03-07)
+
+
+### Features
+
+* add verbose option parameter for teams ([1f6ce59](https://github.com/frostlogic-ab/agent-forge/commit/1f6ce5904528b19eb816c1ef940c63f657bee361))
+
 # [1.1.0](https://github.com/frostlogic-ab/agent-forge/compare/v1.0.0...v1.1.0) (2025-03-07)
 
 

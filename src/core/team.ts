@@ -10,6 +10,12 @@ export interface TeamRunOptions {
    * Used to prevent hitting API rate limits
    */
   rate_limit?: number;
+
+  /**
+   * Enable detailed logging of communication between manager and agents (default: false)
+   * Useful for debugging team interactions
+   */
+  verbose?: boolean;
 }
 
 /**
@@ -25,6 +31,7 @@ export class Team {
     lastResetTime: number;
     waitingQueue: Array<() => void>;
   };
+  private verbose = false;
 
   /**
    * Creates a new team with a manager agent
@@ -129,9 +136,19 @@ export class Team {
     // Reset all agent conversations
     this.reset();
 
+    // Set verbose mode if specified
+    this.verbose = options?.verbose || false;
+
     // Initialize rate limiter if needed
     if (options?.rate_limit) {
       this.setupRateLimiter(options.rate_limit);
+    }
+
+    if (this.verbose) {
+      console.log(
+        `\n🚀 Starting team execution with ${this.agents.size} agents and 1 manager`
+      );
+      console.log(`📋 Task: "${input}"\n`);
     }
 
     // Enhanced system message for the manager
@@ -379,6 +396,12 @@ When all subtasks are completed, provide a final comprehensive response to the o
     const initialAssignments = this.extractAgentAssignments(currentResponse);
 
     if (initialAssignments.length === 0) {
+      if (this.verbose) {
+        console.log(
+          "🔄 No explicit task assignments found. Asking manager for clear assignments..."
+        );
+      }
+
       const explicitAssignmentPrompt = `
 You need to assign specific tasks to team members to complete this work.
 
@@ -397,7 +420,19 @@ What tasks would you like to assign to each team member?
 
       const newResponse = explicitAssignmentResult.output;
       conversationHistory.push(`Manager (Task Assignment): ${newResponse}`);
+
+      if (this.verbose) {
+        console.log(`\n👨‍💼 Manager (Task Assignment):\n${newResponse}\n`);
+      }
+
       return newResponse;
+    }
+
+    if (this.verbose && initialAssignments.length > 0) {
+      console.log(`\n👨‍💼 Manager (Initial Plan):\n${currentResponse}\n`);
+      console.log(
+        `✅ Found ${initialAssignments.length} explicit task assignments`
+      );
     }
 
     return currentResponse;
@@ -417,6 +452,12 @@ What tasks would you like to assign to each team member?
 
     // If no assignments found after explicit prompt, create default tasks for all agents
     if (rawAssignments.length === 0 && tasks.size === 0) {
+      if (this.verbose) {
+        console.log(
+          "⚠️ Still no explicit assignments. Creating default tasks for all agents..."
+        );
+      }
+
       for (const agent of this.agents.values()) {
         const taskId = `task-${counter++}`;
         const description = `Based on the manager's instructions, please work on: ${managerResponse}`;
@@ -434,6 +475,12 @@ What tasks would you like to assign to each team member?
             agent.name
           }: ${description.substring(0, 100)}...`
         );
+
+        if (this.verbose) {
+          console.log(
+            `🤖 System: Created default task ${taskId} for ${agent.name}`
+          );
+        }
       }
     } else {
       // Process new tasks from the manager
@@ -445,6 +492,13 @@ What tasks would you like to assign to each team member?
           conversationHistory.push(
             `System: Agent "${agentName}" does not exist. Task skipped.`
           );
+
+          if (this.verbose) {
+            console.log(
+              `⚠️ System: Agent "${agentName}" does not exist. Task skipped.`
+            );
+          }
+
           continue;
         }
 
@@ -473,6 +527,18 @@ What tasks would you like to assign to each team member?
         conversationHistory.push(
           `System: Created task ${taskId} for ${agentName}: ${description}`
         );
+
+        if (this.verbose) {
+          console.log(
+            `🔄 System: Created task ${taskId} for ${agentName}: ${description.substring(
+              0,
+              100
+            )}${description.length > 100 ? "..." : ""}`
+          );
+          if (dependencies.length > 0) {
+            console.log(`📌 Dependencies: ${dependencies.join(", ")}`);
+          }
+        }
       }
     }
 
@@ -583,6 +649,12 @@ What tasks would you like to assign to each team member?
     conversationHistory: string[]
   ): Promise<any> {
     try {
+      if (this.verbose) {
+        console.log(
+          `\n⏳ Starting task ${task.id} for agent "${task.agentName}"...`
+        );
+      }
+
       // Build context for the agent based on dependencies
       let taskContext = `Your task: ${task.description}\n\n`;
 
@@ -616,6 +688,18 @@ What tasks would you like to assign to each team member?
         `${task.agentName} (Task ${task.id}): ${agentResult.output}`
       );
 
+      if (this.verbose) {
+        console.log(
+          `\n👤 ${task.agentName} (Task ${task.id}):\n${agentResult.output}\n`
+        );
+        console.log(
+          `✅ Task ${task.id} completed in ${(
+            (task.endTime - task.startTime) /
+            1000
+          ).toFixed(2)}s`
+        );
+      }
+
       return {
         taskId: task.id,
         agentName: task.agentName,
@@ -634,6 +718,12 @@ What tasks would you like to assign to each team member?
       conversationHistory.push(
         `System: Task ${task.id} for ${task.agentName} failed with error: ${task.result}`
       );
+
+      if (this.verbose) {
+        console.log(
+          `\n❌ System: Task ${task.id} for ${task.agentName} failed with error: ${task.result}`
+        );
+      }
 
       return {
         taskId: task.id,
@@ -685,6 +775,11 @@ What tasks would you like to assign to each team member?
     progressReport: string,
     conversationHistory: string[]
   ): Promise<any> {
+    if (this.verbose) {
+      console.log(`\n📊 Progress Report:\n${progressReport}`);
+      console.log("\n🔄 Getting manager's next instructions...");
+    }
+
     const managerPromptWithProgress = `
 Here is a progress report on the team's work:
 
@@ -698,6 +793,11 @@ Based on this progress, please provide:
 
     const nextManagerResult = await this.manager.run(managerPromptWithProgress);
     conversationHistory.push(`Manager: ${nextManagerResult.output}`);
+
+    if (this.verbose) {
+      console.log(`\n👨‍💼 Manager:\n${nextManagerResult.output}\n`);
+    }
+
     return nextManagerResult;
   }
 
@@ -717,6 +817,12 @@ Based on this progress, please provide:
     tasks: Map<string, any>,
     conversationHistory: string[]
   ): Promise<any> {
+    if (this.verbose) {
+      console.log(
+        "\n⚠️ Potential deadlock detected in workflow. Requesting manager guidance..."
+      );
+    }
+
     const deadlockedPrompt = `
 There appears to be a deadlock in the workflow. Some tasks have dependencies that cannot be satisfied.
 
@@ -740,6 +846,13 @@ Please provide revised instructions to resolve this situation. You can:
     conversationHistory.push(
       `Manager (Deadlock Resolution): ${deadlockResult.output}`
     );
+
+    if (this.verbose) {
+      console.log(
+        `\n👨‍💼 Manager (Deadlock Resolution):\n${deadlockResult.output}\n`
+      );
+    }
+
     return deadlockResult;
   }
 
@@ -750,6 +863,10 @@ Please provide revised instructions to resolve this situation. You can:
     tasks: Map<string, any>,
     conversationHistory: string[]
   ): Promise<any> {
+    if (this.verbose) {
+      console.log("\n🏁 All tasks completed. Generating final result...");
+    }
+
     const taskSummary = [...tasks.values()]
       .map((task) => {
         const executionTime =
@@ -776,6 +893,11 @@ Include key insights, conclusions, and recommendations.
 
     const finalResult = await this.manager.run(finalPrompt);
     conversationHistory.push(`Manager (Final): ${finalResult.output}`);
+
+    if (this.verbose) {
+      console.log(`\n👨‍💼 Manager (Final Summary):\n${finalResult.output}\n`);
+      console.log("\n✅ Team execution completed successfully\n");
+    }
 
     return finalResult;
   }

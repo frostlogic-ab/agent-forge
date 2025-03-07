@@ -117,7 +117,10 @@ async function main() {
 
     const teamResult = await team.run(
       "What is quantum computing and how might it affect cybersecurity?",
-      { rate_limit: 10 } // Limit to 10 LLM calls per minute to avoid rate limit errors
+      { 
+        rate_limit: 10,  // Limit to 10 LLM calls per minute to avoid rate limit errors
+        verbose: true     // Enable detailed logging of team interactions
+      }
     );
     console.log("\nTeam Result:");
     console.log(teamResult.output);
