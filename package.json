@@ -8,7 +8,7 @@
   "scripts": {
     "build": "tsc",
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
-    "test": "jest",
+    "test": "jest --passWithNoTests",
     "lint": "biome check src/",
     "format": "biome format --write src/",
     "lint:fix": "biome check --apply src/",
