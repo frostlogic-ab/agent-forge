@@ -1,0 +1,59 @@
+{
+  "name": "agent-forge",
+  "version": "0.1.0",
+  "description": "A TypeScript framework for creating and orchestrating AI agents with LLM integration",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "test": "jest",
+    "lint": "biome check src/",
+    "format": "biome format --write src/",
+    "lint:fix": "biome check --apply src/",
+    "lint:fix:all": "biome check --apply-unsafe src/",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "ai",
+    "agents",
+    "llm",
+    "framework",
+    "typescript",
+    "yaml"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@types/node": "^22.13.9",
+    "axios": "^1.8.2",
+    "dotenv": "^16.4.7",
+    "ts-node": "^10.9.2",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.8.2",
+    "yaml": "^2.7.0",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "1.7.0",
+    "@types/jest": "^29.5.14",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.2.6"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yourusername/agent-forge.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/agent-forge/issues"
+  },
+  "homepage": "https://github.com/yourusername/agent-forge#readme"
+}
