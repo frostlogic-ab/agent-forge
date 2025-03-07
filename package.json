@@ -1,6 +1,6 @@
 {
   "name": "agent-forge",
-  "version": "1.2.0-beta.1",
+  "version": "1.2.0",
   "description": "A TypeScript framework for creating and orchestrating AI agents with LLM integration",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
