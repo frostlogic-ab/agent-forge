@@ -43,10 +43,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/yourusername/agent-forge.git"
+    "url": "git+https://github.com/frostlogic-ab/agent-forge.git"
   },
   "bugs": {
-    "url": "https://github.com/yourusername/agent-forge/issues"
+    "url": "https://github.com/frostlogic-ab/agent-forge/issues"
   },
-  "homepage": "https://github.com/yourusername/agent-forge#readme"
+  "homepage": "https://github.com/frostlogic-ab/agent-forge#readme"
 }
