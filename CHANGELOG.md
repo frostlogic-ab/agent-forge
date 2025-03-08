@@ -1,3 +1,16 @@
+# [1.3.0-beta.1](https://github.com/frostlogic-ab/agent-forge/compare/v1.2.0...v1.3.0-beta.1) (2025-03-08)
+
+
+### Bug Fixes
+
+* issue with tools not being properly sent in LLM messages ([170c2cc](https://github.com/frostlogic-ab/agent-forge/commit/170c2ccd7a9ca2bedbe1128ef37815bdf0388076))
+
+
+### Features
+
+* add verbose and rate_limit to workflows ([050227c](https://github.com/frostlogic-ab/agent-forge/commit/050227c4cbf78ce2b20020761d20b7e262f254db))
+* new stock analysis sample with new sec api tool ([b65085e](https://github.com/frostlogic-ab/agent-forge/commit/b65085eae1650ec2d46300b8424ef97d2ec201a5))
+
 # [1.2.0](https://github.com/frostlogic-ab/agent-forge/compare/v1.1.0...v1.2.0) (2025-03-07)
 # [1.2.0-beta.2](https://github.com/frostlogic-ab/agent-forge/compare/v1.2.0-beta.1...v1.2.0-beta.2) (2025-03-07)
 
