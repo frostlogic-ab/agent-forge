@@ -10,8 +10,12 @@ export { loadAgentFromYaml } from "./config/yaml-loader";
 export { AgentForge } from "./core/agent-forge";
 
 // Tool system exports
-export { Tool } from "./tools/tool";
-export { ToolRegistry } from "./tools/tool-registry";
+export {
+  Tool,
+  ToolRegistry,
+  SECApiTool,
+  WebSearchTool,
+} from "./tools";
 
 // LLM provider exports
 export { LLMProvider } from "./llm/llm-provider";
