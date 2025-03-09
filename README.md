@@ -11,6 +11,9 @@ Agent Forge is a TypeScript framework for creating, configuring, and orchestrati
   - Hierarchical execution (manager AI delegates to specialized agents)
 - **LLM Integration**: Connect to various language models through a unified interface
 - **Rate Limiting**: Control API usage with built-in rate limiting to avoid quota issues
+- **Streaming Support**:
+  - Stream agent communications in real-time
+  - Console streaming for immediate visibility of agent outputs
 - **Debugging Features**:
   - Verbose logging of agent interactions with detailed execution flow
   - Real-time visibility into task assignments and dependencies
@@ -181,6 +184,73 @@ You can also combine options:
 const result = await team.run(
   "Explain the impact of blockchain on financial systems",
   {
+    rate_limit: 15, // Limit to 15 LLM calls per minute
+    verbose: true, // Enable detailed logging of team interactions
+  }
+);
+```
+
+### 7. Stream agent communications in real-time:
+
+```typescript
+import { Workflow, loadAgentFromYaml } from "agent-forge";
+import { AgentForgeEvents, globalEventEmitter } from "agent-forge";
+
+// Load multiple agents
+const researchAgent = await loadAgentFromYaml("./research-agent.yaml");
+const summaryAgent = await loadAgentFromYaml("./summary-agent.yaml");
+
+// Set up event listeners for streaming
+globalEventEmitter.on(AgentForgeEvents.AGENT_THINKING, (data) => {
+  console.log(`Agent ${data.name} thinking: ${data.thought}`);
+});
+
+globalEventEmitter.on(AgentForgeEvents.AGENT_RESPONSE, (data) => {
+  console.log(`Agent ${data.name} responded: ${data.response}`);
+});
+
+globalEventEmitter.on(AgentForgeEvents.EXECUTION_COMPLETE, (data) => {
+  console.log(`Execution complete for ${data.type} "${data.name}"`);
+});
+
+// Create a workflow with streaming enabled
+const workflow = new Workflow().addStep(researchAgent).addStep(summaryAgent);
+
+// Run the workflow with streaming enabled
+const result = await workflow.run(
+  "Explain quantum computing advancements in 2023",
+  { stream: true }
+);
+
+// For console streaming, you can also use:
+// const result = await workflow.run(
+//   "Explain quantum computing advancements in 2023",
+//   { stream: true, enableConsoleStream: true }
+// );
+```
+
+With streaming enabled, you'll receive real-time updates about:
+
+- Agent thinking processes
+- Agent responses
+- Execution completion events
+
+This is particularly useful for:
+
+- Building reactive UIs that show progress to users
+- Debugging complex agent interactions
+- Creating logging systems for agent behavior
+- Providing immediate feedback during long-running tasks
+
+You can combine streaming with other options:
+
+```typescript
+// Run with streaming, rate limiting, and verbose logging
+const result = await workflow.run(
+  "Explain the impact of blockchain on financial systems",
+  {
+    stream: true, // Enable streaming of agent communications
+    enableConsoleStream: true, // Enable console streaming for immediate visibility
     rate_limit: 15, // Limit to 15 LLM calls per minute
     verbose: true, // Enable detailed logging of team interactions
   }
