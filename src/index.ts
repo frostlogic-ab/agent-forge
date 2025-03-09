@@ -10,13 +10,21 @@ export { loadAgentFromYaml } from "./config/yaml-loader";
 export { AgentForge } from "./core/agent-forge";
 
 // Tool system exports
-export { Tool } from "./tools/tool";
-export { ToolRegistry } from "./tools/tool-registry";
+export {
+  Tool,
+  ToolRegistry,
+  SECApiTool,
+  WebSearchTool,
+  WebPageContentTool,
+} from "./tools";
 
 // LLM provider exports
 export { LLMProvider } from "./llm/llm-provider";
 export { OpenAIProvider } from "./llm/providers/open-ai-provider";
-export { AnthropicProvider } from "./llm/providers/anthropic-provider";
+
+// Streaming exports
+export { globalEventEmitter, EventEmitter } from "./utils/event-emitter";
+export { enableConsoleStreaming } from "./utils/streaming";
 
 // Types
 export * from "./types";

@@ -1,18 +1,18 @@
-import {
-  loadAgentFromYaml,
-  loadAgentsFromDirectory,
-} from "../config/yaml-loader";
+import { loadAgentsFromDirectory } from "../config/yaml-loader";
 import type { LLMProvider } from "../llm/llm-provider";
 import type { Tool } from "../tools/tool";
 import { ToolRegistry } from "../tools/tool-registry";
-import { ExecutionMode } from "../types";
+import {
+  ExecutionMode,
+  type TeamRunOptions,
+  type WorkflowRunOptions,
+} from "../types";
+import { enableConsoleStreaming } from "../utils/streaming";
 import type { Agent } from "./agent";
 import { Team } from "./team";
-import type { TeamRunOptions } from "./team";
 import { Workflow } from "./workflow";
 
 /**
- * Main class for the Agent Forge framework
  */
 export class AgentForge {
   private agents: Map<string, Agent> = new Map();
@@ -180,33 +180,51 @@ export class AgentForge {
   }
 
   /**
-   * Creates and runs a workflow with the specified agents
+   * Runs a workflow with the given agents and input
    * @param agentNames Names of agents to include in the workflow
-   * @param input Input for the workflow
-   * @returns The workflow's result
+   * @param input Input to the workflow
+   * @param options Optional settings for workflow execution
+   * @returns The result of running the workflow
    */
-  async runWorkflow(agentNames: string[], input: string): Promise<any> {
-    const workflow = this.createWorkflow();
+  async runWorkflow(
+    agentNames: string[],
+    input: string,
+    options?: WorkflowRunOptions
+  ): Promise<any> {
+    if (agentNames.length === 0) {
+      throw new Error("No agents specified for workflow");
+    }
 
-    for (const name of agentNames) {
-      const agent = this.getAgent(name);
+    // If console streaming is enabled, initialize it
+    if (options?.stream && options?.enableConsoleStream) {
+      enableConsoleStreaming();
+    }
+
+    // Create a workflow with the specified agents
+    const workflow = new Workflow(
+      "Dynamic Workflow",
+      "Dynamically created workflow"
+    );
+
+    for (const agentName of agentNames) {
+      const agent = this.getAgent(agentName);
       if (!agent) {
-        throw new Error(`Agent with name '${name}' is not registered`);
+        throw new Error(`Agent "${agentName}" not found`);
       }
-
       workflow.addStep(agent);
     }
 
-    return await workflow.run(input);
+    // Run the workflow
+    return await workflow.run(input, options);
   }
 
   /**
-   * Creates and runs a team with the specified manager and agents
+   * Runs a team with the given manager, agents, and input
    * @param managerName Name of the manager agent
    * @param agentNames Names of team member agents
-   * @param input Input for the team
+   * @param input Input to the team
    * @param options Optional configuration for team execution
-   * @returns The team's result
+   * @returns The result of running the team
    */
   async runTeam(
     managerName: string,
@@ -214,17 +232,35 @@ export class AgentForge {
     input: string,
     options?: TeamRunOptions
   ): Promise<any> {
-    const team = this.createTeam(managerName);
+    if (agentNames.length === 0) {
+      throw new Error("No agents specified for team");
+    }
 
-    for (const name of agentNames) {
-      const agent = this.getAgent(name);
+    // If console streaming is enabled, initialize it
+    if (options?.stream && options?.enableConsoleStream) {
+      enableConsoleStreaming();
+    }
+
+    // Get the manager agent
+    const manager = this.getAgent(managerName);
+    if (!manager) {
+      throw new Error(`Manager agent "${managerName}" not found`);
+    }
+
+    // Create a team with the manager
+    const team = new Team(manager, "Dynamic Team", "Dynamically created team");
+
+    // Add team members
+    for (const agentName of agentNames) {
+      if (agentName === managerName) continue; // Skip manager
+      const agent = this.getAgent(agentName);
       if (!agent) {
-        throw new Error(`Agent with name '${name}' is not registered`);
+        throw new Error(`Agent "${agentName}" not found`);
       }
-
       team.addAgent(agent);
     }
 
+    // Run the team
     return await team.run(input, options);
   }
 
@@ -232,21 +268,34 @@ export class AgentForge {
    * Runs agents in the specified execution mode
    * @param mode Execution mode (sequential or hierarchical)
    * @param managerOrFirst Name of the manager (hierarchical) or first agent (sequential)
-   * @param agentNames Names of other agents to include
-   * @param input Input for the execution
-   * @param options Optional configuration for team execution (only used in hierarchical mode)
-   * @returns The execution result
+   * @param agentNames Names of agents to run
+   * @param input Input to the agents
+   * @param options Optional execution options
+   * @returns The result of running the agents
    */
   async runWithMode(
     mode: ExecutionMode,
     managerOrFirst: string,
     agentNames: string[],
     input: string,
-    options?: TeamRunOptions
+    options?: TeamRunOptions | WorkflowRunOptions
   ): Promise<any> {
-    if (mode === ExecutionMode.SEQUENTIAL) {
-      return await this.runWorkflow([managerOrFirst, ...agentNames], input);
+    switch (mode) {
+      case ExecutionMode.SEQUENTIAL:
+        return this.runWorkflow(
+          [managerOrFirst, ...agentNames],
+          input,
+          options as WorkflowRunOptions
+        );
+      case ExecutionMode.HIERARCHICAL:
+        return this.runTeam(
+          managerOrFirst,
+          agentNames,
+          input,
+          options as TeamRunOptions
+        );
+      default:
+        throw new Error(`Unsupported execution mode: ${mode}`);
     }
-    return await this.runTeam(managerOrFirst, agentNames, input, options);
   }
 }
