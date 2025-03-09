@@ -24,6 +24,20 @@ const webPageContentTool = new WebPageContentTool();
 agentForge.registerTool(webSearchTool);
 agentForge.registerTool(webPageContentTool);
 
+const managerAgent = new Agent(
+  {
+    name: "Manager",
+    role: "Manager",
+    description: "A manager that coordinates the team.",
+    objective: "Ensure the team completes the task.",
+    model: "gpt-3.5-turbo",
+    temperature: 0.2,
+  },
+  [],
+  llmProvider
+);
+
+agentForge.registerAgent(managerAgent);
 // Create the researcher agent
 const researcherAgent = new Agent(
   {
@@ -38,7 +52,7 @@ const researcherAgent = new Agent(
   [webSearchTool, webPageContentTool], // Pass tools as second argument
   llmProvider
 );
-agentForge.registerAgent(researcherAgent);
+
 
 // Create the writer agent
 const writerAgent = new Agent(
@@ -54,7 +68,7 @@ const writerAgent = new Agent(
   [], // No tools
   llmProvider
 );
-agentForge.registerAgent(writerAgent);
+
 
 // Create the fact checker agent
 const factCheckerAgent = new Agent(
@@ -65,41 +79,26 @@ const factCheckerAgent = new Agent(
     objective: "Ensure all information is factually correct.",
     model: "gpt-3.5-turbo",
     temperature: 0.3,
-    tools: [{ 
-      name: "web_search",
-      description: "Search the web for fact verification"
-    }],
+    tools: [webSearchTool.getConfig()],
   },
   [webSearchTool], // Pass tools as second argument
   llmProvider
 );
-agentForge.registerAgent(factCheckerAgent);
+
 
 // Streaming with custom visualization
 async function runCustomStreamingExample() {
-  // Custom event handlers
-  globalEventEmitter.on(AgentForgeEvents.LLM_STREAM_CHUNK, (event) => {
-    // Show actual content with formatting
-    if (event.chunk && !event.isDelta) {
-      if (event.isComplete) {
-        process.stdout.write("\n"); // Add newline when stream completes
-      } else {
-        process.stdout.write(event.chunk);
-      }
-    }
-  });
+  const team = agentForge.createTeam(
+    "Manager",
+    "Research Team",
+    "A team that researches and summarizes topics"
+  );
 
-  // Show clear agent communication
-  globalEventEmitter.on(AgentForgeEvents.AGENT_COMMUNICATION, (event) => {
-    console.log(`\n\n>>${event.sender} ${event.recipient ? `→ ${event.recipient}` : ""}: Communication received`);
-  });
+  team.addAgent(researcherAgent);
+  team.addAgent(factCheckerAgent);
+  team.addAgent(writerAgent);
 
-  
-
-  
-  const result = await agentForge.runTeam(
-    "Writer", // Manager
-    ["Researcher", "FactChecker"],
+  const result = await team.run(
     "Who is Frostlogic AB and what do they do?",
     {
       verbose: false,
