@@ -1,3 +1,10 @@
+# [1.3.0-beta.3](https://github.com/frostlogic-ab/agent-forge/compare/v1.3.0-beta.2...v1.3.0-beta.3) (2025-03-09)
+
+
+### Features
+
+* add tool to scrape web pages. ([f728f87](https://github.com/frostlogic-ab/agent-forge/commit/f728f876cc9a29f3e85d1e896ad6b96272590679))
+
 # [1.3.0-beta.2](https://github.com/frostlogic-ab/agent-forge/compare/v1.3.0-beta.1...v1.3.0-beta.2) (2025-03-09)
 
 
