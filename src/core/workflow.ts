@@ -1,5 +1,7 @@
-import type { AgentResult } from "../types";
-import type { Agent } from "./agent";
+import { AgentForgeEvents, type AgentResult } from "../types";
+import { globalEventEmitter } from "../utils/event-emitter";
+import { enableConsoleStreaming } from "../utils/streaming";
+import type { Agent, AgentRunOptions } from "./agent";
 
 /**
  * Options for running a workflow
@@ -16,6 +18,16 @@ export interface WorkflowRunOptions {
    * Useful for debugging workflow steps
    */
   verbose?: boolean;
+
+  /**
+   * Enable streaming of agent communications (default: false)
+   */
+  stream?: boolean;
+
+  /**
+   * Enable console streaming (default: false)
+   */
+  enableConsoleStream?: boolean;
 }
 
 /**
@@ -126,6 +138,14 @@ export class Workflow {
     // Set verbose mode if specified
     this.verbose = options?.verbose || false;
 
+    // Set streaming mode if specified
+    const stream = options?.stream || false;
+
+    // Initialize console streaming if requested
+    if (stream && options?.enableConsoleStream) {
+      enableConsoleStreaming();
+    }
+
     // Initialize rate limiter if needed
     if (options?.rate_limit) {
       this.setupRateLimiter(options.rate_limit);
@@ -168,9 +188,28 @@ export class Workflow {
           }
         }
 
-        // Execute the agent
+        // If streaming is enabled, emit an event to indicate agent is about to run
+        if (stream) {
+          globalEventEmitter.emit(AgentForgeEvents.AGENT_COMMUNICATION, {
+            sender: "Workflow",
+            recipient: agent.name,
+            message: `Step ${i + 1}/${
+              this.steps.length
+            }: Running agent with input: ${
+              currentInput.length > 100
+                ? `${currentInput.substring(0, 100)}...`
+                : currentInput
+            }`,
+            timestamp: Date.now(),
+          });
+        }
+
+        // Execute the agent with streaming if enabled
         const startTime = Date.now();
-        const result = await step.agent.run(currentInput);
+        const result = await agent.run(currentInput, {
+          stream,
+          maxTurns: undefined, // Use agent default
+        });
         const duration = Date.now() - startTime;
 
         // Store the result
@@ -187,12 +226,32 @@ export class Workflow {
           );
         }
 
+        // If streaming is enabled, emit a step complete event
+        if (stream) {
+          globalEventEmitter.emit(AgentForgeEvents.WORKFLOW_STEP_COMPLETE, {
+            stepIndex: i,
+            totalSteps: this.steps.length,
+            agentName: agent.name,
+            result: result,
+            duration,
+          });
+        }
+
         // Use the output as input for the next step
         currentInput = result.output;
       }
 
       if (this.verbose) {
         console.log(`\n🏁 Workflow "${this.name}" completed successfully\n`);
+      }
+
+      // If streaming is enabled, emit a completion event
+      if (stream) {
+        globalEventEmitter.emit(AgentForgeEvents.EXECUTION_COMPLETE, {
+          type: "workflow",
+          name: this.name,
+          result: results[results.length - 1],
+        });
       }
 
       // Return the result of the last step
@@ -218,9 +277,9 @@ export class Workflow {
     for (const step of this.steps) {
       const agent = step.agent;
       const originalAgentRun = agent.run;
-      agent.run = async (input: string, maxTurns?: number) => {
+      agent.run = async (input: string, options?: AgentRunOptions) => {
         await this.waitForRateLimit();
-        return originalAgentRun.call(agent, input, maxTurns);
+        return originalAgentRun.call(agent, input, options);
       };
     }
   }

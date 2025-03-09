@@ -1,13 +1,35 @@
 import type { LLMProvider } from "../llm/llm-provider";
 import type { Tool } from "../tools/tool";
 import { ToolRegistry } from "../tools/tool-registry";
-import type {
-  AgentConfig,
-  AgentResult,
-  Message,
-  ToolCall,
-  ToolConfig,
+import {
+  type AgentConfig,
+  AgentForgeEvents,
+  type AgentResult,
+  type LLMResponse,
+  type Message,
+  type ToolCall,
 } from "../types";
+import { globalEventEmitter } from "../utils/event-emitter";
+
+/**
+ * Agent run options
+ */
+export interface AgentRunOptions {
+  /**
+   * Enable streaming of LLM responses (default: false)
+   */
+  stream?: boolean;
+
+  /**
+   * Maximum number of turns to run
+   */
+  maxTurns?: number;
+
+  /**
+   * Maximum execution time in milliseconds (default: 2 minutes)
+   */
+  maxExecutionTime?: number;
+}
 
 /**
  * Represents an agent that can use LLMs and tools to accomplish tasks
@@ -132,17 +154,20 @@ export class Agent {
   }
 
   /**
-   * Runs the agent with a user input
-   * @param input The user's input
-   * @param maxTurns Maximum number of tool use turns allowed
-   * @returns The agent's result
+   * Runs the agent on the given input
+   * @param input The input to the agent
+   * @param options Options for agent execution
+   * @returns A promise that resolves to the result of the agent's execution
    */
-  async run(input: string, maxTurns = 10): Promise<AgentResult> {
+  async run(input: string, options?: AgentRunOptions): Promise<AgentResult> {
     if (!this.llmProvider) {
       throw new Error("No LLM provider set for the agent");
     }
 
+    const stream = options?.stream || false;
+    const maxTurns = options?.maxTurns || 10;
     const startTime = Date.now();
+    const maxExecutionTime = options?.maxExecutionTime || 120000; // Default 2 minute timeout
 
     // Add user message to conversation
     this.conversation.push({
@@ -156,25 +181,145 @@ export class Agent {
     const toolCalls: ToolCall[] = [];
 
     // Agent loop: generate a response, maybe use tools, repeat until done
-    let currentTurn = 0;
     let finalAnswer = "";
+
+    try {
+      // Create a timeout promise
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => {
+          reject(
+            new Error(`Agent execution timed out after ${maxExecutionTime}ms`)
+          );
+        }, maxExecutionTime);
+      });
+
+      const agentPromise = this.runAgentLoop(
+        stream,
+        maxTurns,
+        toolCalls,
+        totalPromptTokens,
+        totalCompletionTokens
+      );
+
+      // Race between agent execution and timeout
+      const { finalResponse, promptTokens, completionTokens, agentToolCalls } =
+        await Promise.race([agentPromise, timeoutPromise]);
+
+      finalAnswer = finalResponse;
+      totalPromptTokens = promptTokens;
+      totalCompletionTokens = completionTokens;
+
+      // Copy tool calls
+      for (const call of agentToolCalls) {
+        toolCalls.push(call);
+      }
+    } catch (error) {
+      if (error instanceof Error && error.message.includes("timed out")) {
+        finalAnswer = `The agent process was terminated due to timeout (${
+          maxExecutionTime / 1000
+        }s). Here's what was determined so far: ${
+          finalAnswer || "No conclusion reached yet."
+        }`;
+      } else {
+        throw error; // Re-throw other errors
+      }
+    }
+
+    const endTime = Date.now();
+
+    // Create the final result
+    const result: AgentResult = {
+      output: finalAnswer,
+      metadata: {
+        tokenUsage: {
+          prompt: totalPromptTokens,
+          completion: totalCompletionTokens,
+          total: totalPromptTokens + totalCompletionTokens,
+        },
+        executionTime: endTime - startTime,
+        modelName: this.config.model,
+        toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
+      },
+    };
+
+    return result;
+  }
+
+  /**
+   * Runs the main agent loop
+   * @private
+   */
+  private async runAgentLoop(
+    stream: boolean,
+    maxTurns: number,
+    toolCalls: ToolCall[],
+    totalPromptTokens: number,
+    totalCompletionTokens: number
+  ): Promise<{
+    finalResponse: string;
+    promptTokens: number;
+    completionTokens: number;
+    agentToolCalls: ToolCall[];
+  }> {
+    let finalResponse = "";
+    let currentTurn = 0;
+    let promptTokens = totalPromptTokens;
+    let completionTokens = totalCompletionTokens;
+    const agentToolCalls: ToolCall[] = [...toolCalls];
 
     while (currentTurn < maxTurns) {
       currentTurn++;
 
-      // Get response from LLM
-      // console.log("CONVERSATION BEFORE LLM CALL:", JSON.stringify(this.conversation, null, 2));
-      const response = await this.llmProvider.chat({
-        model: this.config.model,
-        messages: this.conversation,
-        temperature: this.config.temperature,
-        maxTokens: this.config.maxTokens,
-        toolDefinitions: this.tools.getAllConfigs(),
-      });
+      // Get response from LLM - choose between streaming and non-streaming
+      let response: LLMResponse;
+
+      if (stream) {
+        // Use streaming chat
+        if (!this.llmProvider) {
+          throw new Error("LLM provider is not set");
+        }
+
+        // Define the agent name for use in the callback
+        const agentName = this.name;
+
+        response = await this.llmProvider.chatStream({
+          model: this.config.model,
+          messages: this.conversation,
+          temperature: this.config.temperature,
+          maxTokens: this.config.maxTokens,
+          toolDefinitions: this.tools.getAllConfigs(),
+          stream: true,
+          onChunk: (chunk) => {
+            // Process the chunk to remove common formatting issues
+            const cleanedChunk = this.cleanStreamedText(chunk);
+
+            // This is just for convenience - events will also be emitted
+            // from the provider for more advanced use cases
+            globalEventEmitter.emit(AgentForgeEvents.LLM_STREAM_CHUNK, {
+              agentName: agentName, // Use the captured agent name
+              chunk: cleanedChunk,
+              isDelta: true,
+              isComplete: false,
+            });
+          },
+        });
+      } else {
+        // Use regular chat
+        if (!this.llmProvider) {
+          throw new Error("LLM provider is not set");
+        }
+        response = await this.llmProvider.chat({
+          model: this.config.model,
+          messages: this.conversation,
+          temperature: this.config.temperature,
+          maxTokens: this.config.maxTokens,
+          toolDefinitions: this.tools.getAllConfigs(),
+        });
+      }
 
       // Update token usage
-      totalPromptTokens += response.tokenUsage.prompt;
-      totalCompletionTokens += response.tokenUsage.completion;
+      promptTokens += response.tokenUsage.prompt;
+      completionTokens += response.tokenUsage.completion;
 
       // If there are tool calls, execute them
       if (response.toolCalls && response.toolCalls.length > 0) {
@@ -201,20 +346,31 @@ export class Agent {
           tool_calls: formattedToolCalls,
         });
 
+        if (stream) {
+          // Emit agent communication event if streaming
+          globalEventEmitter.emit(AgentForgeEvents.AGENT_COMMUNICATION, {
+            sender: this.name,
+            message: `I'll use the following tools: ${response.toolCalls
+              .map((tc) => tc.toolName)
+              .join(", ")}`,
+            timestamp: Date.now(),
+          });
+        }
+
         // Process each tool call
         for (const toolCall of formattedToolCalls) {
-          try {
-            // Find the corresponding toolCall from the response
-            const responseToolCall = response.toolCalls.find(
-              (tc) => tc.toolName === toolCall.function.name
+          // Find the corresponding toolCall from the response
+          const responseToolCall = response.toolCalls.find(
+            (tc) => tc.toolName === toolCall.function.name
+          );
+
+          if (!responseToolCall) {
+            throw new Error(
+              `Tool call for ${toolCall.function.name} not found in response`
             );
+          }
 
-            if (!responseToolCall) {
-              throw new Error(
-                `Tool call for ${toolCall.function.name} not found in response`
-              );
-            }
-
+          try {
             // Extract parameters
             const params = responseToolCall.parameters;
 
@@ -235,18 +391,33 @@ export class Agent {
             responseToolCall.result = result;
 
             // Add to our list of tool calls
-            toolCalls.push({
+            agentToolCalls.push({
               ...responseToolCall,
               id: toolCall.id,
             });
+
+            if (stream) {
+              // Emit tool call result if streaming
+              globalEventEmitter.emit(AgentForgeEvents.AGENT_COMMUNICATION, {
+                sender: `Tool: ${toolCall.function.name}`,
+                recipient: this.name,
+                message:
+                  typeof result === "object"
+                    ? JSON.stringify(result, null, 2)
+                    : String(result),
+                timestamp: Date.now(),
+              });
+            }
           } catch (error) {
             // If the tool execution fails, add an error message
+            const errorMessage = `Error: ${
+              error instanceof Error ? error.message : String(error)
+            }`;
+
             this.conversation.push({
               role: "tool",
               tool_call_id: toolCall.id,
-              content: `Error: ${
-                error instanceof Error ? error.message : String(error)
-              }`,
+              content: errorMessage,
             });
 
             // Find the responseToolCall
@@ -256,25 +427,42 @@ export class Agent {
 
             if (responseToolCall) {
               // Add to our list of tool calls with the error
-              toolCalls.push({
+              agentToolCalls.push({
                 ...responseToolCall,
                 id: toolCall.id,
-                result: `Error: ${
-                  error instanceof Error ? error.message : String(error)
-                }`,
+                result: errorMessage,
               });
+
+              if (stream) {
+                // Emit tool error if streaming
+                globalEventEmitter.emit(AgentForgeEvents.AGENT_COMMUNICATION, {
+                  sender: `Tool: ${toolCall.function.name}`,
+                  recipient: this.name,
+                  message: errorMessage,
+                  timestamp: Date.now(),
+                });
+              }
             }
           }
         }
       } else {
         // No tool calls, so this is the final answer
-        finalAnswer = response.content;
+        finalResponse = response.content;
 
         // Add the assistant's final message
         this.conversation.push({
           role: "assistant",
-          content: finalAnswer,
+          content: finalResponse,
         });
+
+        if (stream) {
+          // Emit final answer communication if streaming
+          globalEventEmitter.emit(AgentForgeEvents.AGENT_COMMUNICATION, {
+            sender: this.name,
+            message: finalResponse,
+            timestamp: Date.now(),
+          });
+        }
 
         // We're done!
         break;
@@ -282,49 +470,97 @@ export class Agent {
     }
 
     // If we ran out of turns, get a final answer
-    if (currentTurn >= maxTurns && !finalAnswer) {
+    if (currentTurn >= maxTurns && !finalResponse) {
       // Get final response from LLM
-      const finalResponse = await this.llmProvider.chat({
-        model: this.config.model,
-        messages: [
-          ...this.conversation,
-          {
-            role: "system",
-            content:
-              "You have used the maximum number of tool calls. Please provide your final answer based on the information you have.",
-          },
-        ],
-        temperature: this.config.temperature,
-        maxTokens: this.config.maxTokens,
-      });
+      const finalMessage = {
+        role: "system" as const,
+        content:
+          "You have used the maximum number of tool calls. Please provide your final answer based on the information you have.",
+      };
 
-      finalAnswer = finalResponse.content;
+      let finalLLMResponse: LLMResponse;
+
+      if (stream) {
+        // Use streaming for final response
+        if (!this.llmProvider) {
+          throw new Error("LLM provider is not set");
+        }
+        finalLLMResponse = await this.llmProvider.chatStream({
+          model: this.config.model,
+          messages: [...this.conversation, finalMessage],
+          temperature: this.config.temperature,
+          maxTokens: this.config.maxTokens,
+          stream: true,
+          onChunk: (chunk) => {
+            globalEventEmitter.emit(AgentForgeEvents.LLM_STREAM_CHUNK, {
+              agentName: this.name,
+              chunk: this.cleanStreamedText(chunk),
+              isDelta: true,
+              isComplete: false,
+            });
+          },
+        });
+      } else {
+        // Use regular chat
+        if (!this.llmProvider) {
+          throw new Error("LLM provider is not set");
+        }
+        finalLLMResponse = await this.llmProvider.chat({
+          model: this.config.model,
+          messages: [...this.conversation, finalMessage],
+          temperature: this.config.temperature,
+          maxTokens: this.config.maxTokens,
+        });
+      }
+
+      finalResponse = finalLLMResponse.content;
 
       // Update token usage
-      totalPromptTokens += finalResponse.tokenUsage.prompt;
-      totalCompletionTokens += finalResponse.tokenUsage.completion;
+      promptTokens += finalLLMResponse.tokenUsage.prompt;
+      completionTokens += finalLLMResponse.tokenUsage.completion;
 
       // Add the assistant's final message
       this.conversation.push({
         role: "assistant",
-        content: finalAnswer,
+        content: finalResponse,
       });
+
+      if (stream) {
+        // Emit final answer communication if streaming
+        globalEventEmitter.emit(AgentForgeEvents.AGENT_COMMUNICATION, {
+          sender: this.name,
+          message: `Final answer (max turns reached): ${finalResponse}`,
+          timestamp: Date.now(),
+        });
+      }
     }
 
-    const endTime = Date.now();
-
     return {
-      output: finalAnswer,
-      metadata: {
-        tokenUsage: {
-          prompt: totalPromptTokens,
-          completion: totalCompletionTokens,
-          total: totalPromptTokens + totalCompletionTokens,
-        },
-        executionTime: endTime - startTime,
-        modelName: this.config.model,
-        toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
-      },
+      finalResponse,
+      promptTokens,
+      completionTokens,
+      agentToolCalls,
     };
+  }
+
+  /**
+   * Cleans streamed text to fix common formatting issues
+   */
+  private cleanStreamedText(text: string): string {
+    if (!text) {
+      return "";
+    }
+
+    // Fix repeated words with periods (e.g., "word.word.")
+    let cleaned = text.replace(/(\w+)\.(\1)\./g, "$1");
+
+    // Fix cases where words are duplicated with a space (e.g., "word word")
+    cleaned = cleaned.replace(/\b(\w+)(\s+\1)+\b/g, "$1");
+
+    // Remove excessive punctuation
+    cleaned = cleaned.replace(/\.{2,}/g, ".");
+    cleaned = cleaned.replace(/\,{2,}/g, ",");
+
+    return cleaned;
   }
 }

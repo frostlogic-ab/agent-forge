@@ -20,7 +20,10 @@ export {
 // LLM provider exports
 export { LLMProvider } from "./llm/llm-provider";
 export { OpenAIProvider } from "./llm/providers/open-ai-provider";
-export { AnthropicProvider } from "./llm/providers/anthropic-provider";
+
+// Streaming exports
+export { globalEventEmitter, EventEmitter } from "./utils/event-emitter";
+export { enableConsoleStreaming } from "./utils/streaming";
 
 // Types
 export * from "./types";

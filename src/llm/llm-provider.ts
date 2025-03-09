@@ -1,15 +1,17 @@
-import {
-  type LLMProviderConfig,
-  type LLMRequestOptions,
-  type LLMResponse,
-  Message,
+import type {
+  LLMProviderConfig,
+  LLMRequestOptions,
+  LLMResponse,
+  StreamingOptions,
 } from "../types";
+import { EventEmitter } from "../utils/event-emitter";
 
 /**
  * Abstract class that defines the interface for LLM providers
  */
 export abstract class LLMProvider {
   protected config: LLMProviderConfig;
+  protected eventEmitter: EventEmitter;
 
   /**
    * Constructor for the LLM provider
@@ -17,6 +19,14 @@ export abstract class LLMProvider {
    */
   constructor(config: LLMProviderConfig) {
     this.config = config;
+    this.eventEmitter = new EventEmitter();
+  }
+
+  /**
+   * Get the event emitter for streaming events
+   */
+  getEventEmitter(): EventEmitter {
+    return this.eventEmitter;
   }
 
   /**
@@ -32,6 +42,16 @@ export abstract class LLMProvider {
    * @returns A promise that resolves to an LLM response
    */
   abstract chat(options: LLMRequestOptions): Promise<LLMResponse>;
+
+  /**
+   * Creates a streaming chat completion using the LLM
+   * Emits events for each chunk received from the LLM
+   * @param options Request options including streaming options
+   * @returns A promise that resolves to an LLM response when complete
+   */
+  abstract chatStream(
+    options: LLMRequestOptions & StreamingOptions
+  ): Promise<LLMResponse>;
 
   /**
    * Gets the available models from the provider

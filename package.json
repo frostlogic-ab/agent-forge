@@ -4,11 +4,7 @@
   "description": "A TypeScript framework for creating and orchestrating AI agents with LLM integration",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
-  "files": [
-    "dist",
-    "README.md",
-    "LICENSE"
-  ],
+  "files": ["dist", "README.md", "LICENSE"],
   "scripts": {
     "build": "tsc",
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
@@ -20,16 +16,11 @@
     "prepublishOnly": "npm run build",
     "semantic-release": "semantic-release",
     "example:simple-agent": "ts-node src/examples/simple-agent.ts",
-    "example:stock-analysis": "ts-node src/examples/stock-analysis/index.ts"
+    "example:stock-analysis": "ts-node src/examples/stock-analysis/index.ts",
+    "example:streaming-example-workflow": "ts-node src/examples/streaming-example-workflow.ts",
+    "example:streaming-example-team": "ts-node src/examples/streaming-example-team.ts"
   },
-  "keywords": [
-    "ai",
-    "agents",
-    "llm",
-    "framework",
-    "typescript",
-    "yaml"
-  ],
+  "keywords": ["ai", "agents", "llm", "framework", "typescript", "yaml"],
   "author": "",
   "license": "MIT",
   "dependencies": {

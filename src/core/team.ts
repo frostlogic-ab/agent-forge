@@ -1,5 +1,7 @@
-import type { AgentResult } from "../types";
-import type { Agent } from "./agent";
+import { AgentForgeEvents, type AgentResult } from "../types";
+import { globalEventEmitter } from "../utils/event-emitter";
+import { enableConsoleStreaming } from "../utils/streaming";
+import type { Agent, AgentRunOptions } from "./agent";
 
 /**
  * Options for team execution
@@ -16,6 +18,16 @@ export interface TeamRunOptions {
    * Useful for debugging team interactions
    */
   verbose?: boolean;
+
+  /**
+   * Enable streaming of agent communications (default: false)
+   */
+  stream?: boolean;
+
+  /**
+   * Enable console streaming (default: false)
+   */
+  enableConsoleStream?: boolean;
 }
 
 /**
@@ -32,6 +44,7 @@ export class Team {
     waitingQueue: Array<() => void>;
   };
   private verbose = false;
+  private options?: TeamRunOptions;
 
   /**
    * Creates a new team with a manager agent
@@ -136,8 +149,19 @@ export class Team {
     // Reset all agent conversations
     this.reset();
 
+    // Store options for use in other methods
+    this.options = options;
+
     // Set verbose mode if specified
     this.verbose = options?.verbose || false;
+
+    // Set streaming mode if specified
+    const stream = options?.stream || false;
+
+    // Initialize console streaming if requested
+    if (stream && options?.enableConsoleStream) {
+      enableConsoleStreaming();
+    }
 
     // Initialize rate limiter if needed
     if (options?.rate_limit) {
@@ -179,9 +203,29 @@ You'll receive responses from team members as they complete their assigned subta
 When all subtasks are completed, provide a final comprehensive response to the original task.
 `;
 
+    // If streaming is enabled, emit an event to indicate team is starting
+    if (stream) {
+      globalEventEmitter.emit(AgentForgeEvents.AGENT_COMMUNICATION, {
+        sender: "Team",
+        message: `Starting team "${this.name}" with task: ${input}`,
+        timestamp: Date.now(),
+      });
+    }
+
     try {
       // Run the manager agent to orchestrate the team
-      return await this.runTeamWithManager(managerPrompt);
+      const result = await this.runTeamWithManager(managerPrompt);
+
+      // If streaming is enabled, emit a completion event
+      if (stream) {
+        globalEventEmitter.emit(AgentForgeEvents.EXECUTION_COMPLETE, {
+          type: "team",
+          name: this.name,
+          result,
+        });
+      }
+
+      return result;
     } finally {
       // Clean up the rate limiter
       this.rateLimiter = undefined;
@@ -201,16 +245,16 @@ When all subtasks are completed, provide a final comprehensive response to the o
 
     // Patch the run method of all agents to respect rate limiting
     const originalManagerRun = this.manager.run;
-    this.manager.run = async (input: string, maxTurns?: number) => {
+    this.manager.run = async (input: string, options?: AgentRunOptions) => {
       await this.waitForRateLimit();
-      return originalManagerRun.call(this.manager, input, maxTurns);
+      return originalManagerRun.call(this.manager, input, options);
     };
 
     for (const agent of this.agents.values()) {
       const originalAgentRun = agent.run;
-      agent.run = async (input: string, maxTurns?: number) => {
+      agent.run = async (input: string, options?: AgentRunOptions) => {
         await this.waitForRateLimit();
-        return originalAgentRun.call(agent, input, maxTurns);
+        return originalAgentRun.call(agent, input, options);
       };
     }
   }
@@ -450,99 +494,169 @@ What tasks would you like to assign to each team member?
     const rawAssignments = this.extractAgentAssignments(managerResponse);
     let counter = taskIdCounter;
 
-    // If no assignments found after explicit prompt, create default tasks for all agents
     if (rawAssignments.length === 0 && tasks.size === 0) {
-      if (this.verbose) {
-        console.log(
-          "⚠️ Still no explicit assignments. Creating default tasks for all agents..."
-        );
-      }
-
-      for (const agent of this.agents.values()) {
-        const taskId = `task-${counter++}`;
-        const description = `Based on the manager's instructions, please work on: ${managerResponse}`;
-
-        tasks.set(taskId, {
-          id: taskId,
-          agentName: agent.name,
-          description,
-          status: "pending",
-          dependencies: [],
-        });
-
-        conversationHistory.push(
-          `System: Created default task ${taskId} for ${
-            agent.name
-          }: ${description.substring(0, 100)}...`
-        );
-
-        if (this.verbose) {
-          console.log(
-            `🤖 System: Created default task ${taskId} for ${agent.name}`
-          );
-        }
-      }
+      counter = this.createDefaultTasksForAllAgents(
+        managerResponse,
+        tasks,
+        counter,
+        conversationHistory
+      );
     } else {
-      // Process new tasks from the manager
-      for (const assignment of rawAssignments) {
-        const { agentName, task: description } = assignment;
-
-        // Skip if agent doesn't exist
-        if (!this.agents.has(agentName)) {
-          conversationHistory.push(
-            `System: Agent "${agentName}" does not exist. Task skipped.`
-          );
-
-          if (this.verbose) {
-            console.log(
-              `⚠️ System: Agent "${agentName}" does not exist. Task skipped.`
-            );
-          }
-
-          continue;
-        }
-
-        // Create a unique ID for this task
-        const taskId = `task-${counter++}`;
-
-        // Extract dependencies from task description if present
-        // Format: "Depends on: task-0, task-1"
-        const dependencyMatch = description.match(
-          /depends on:\s*(task-[\d,\s]+)/i
-        );
-        const dependencies = dependencyMatch
-          ? dependencyMatch[1].split(",").map((id) => id.trim())
-          : [];
-
-        // Store the task
-        tasks.set(taskId, {
-          id: taskId,
-          agentName,
-          description,
-          status: "pending",
-          dependencies,
-        });
-
-        // Log the new task
-        conversationHistory.push(
-          `System: Created task ${taskId} for ${agentName}: ${description}`
-        );
-
-        if (this.verbose) {
-          console.log(
-            `🔄 System: Created task ${taskId} for ${agentName}: ${description.substring(
-              0,
-              100
-            )}${description.length > 100 ? "..." : ""}`
-          );
-          if (dependencies.length > 0) {
-            console.log(`📌 Dependencies: ${dependencies.join(", ")}`);
-          }
-        }
-      }
+      counter = this.processAssignedTasks(
+        rawAssignments,
+        tasks,
+        counter,
+        conversationHistory
+      );
     }
 
     return counter;
+  }
+
+  /**
+   * Creates default tasks for all agents when no explicit assignments are found
+   */
+  private createDefaultTasksForAllAgents(
+    managerResponse: string,
+    tasks: Map<string, any>,
+    taskIdCounter: number,
+    conversationHistory: string[]
+  ): number {
+    let counter = taskIdCounter;
+
+    if (this.verbose) {
+      console.log(
+        "⚠️ Still no explicit assignments. Creating default tasks for all agents..."
+      );
+    }
+
+    for (const agent of this.agents.values()) {
+      const taskId = `task-${counter++}`;
+      const description = `Based on the manager's instructions, please work on: ${managerResponse}`;
+
+      tasks.set(taskId, {
+        id: taskId,
+        agentName: agent.name,
+        description,
+        status: "pending",
+        dependencies: [],
+      });
+
+      this.logTaskCreation(
+        taskId,
+        agent.name,
+        description,
+        conversationHistory,
+        true
+      );
+    }
+
+    return counter;
+  }
+
+  /**
+   * Processes assignments from the manager and creates corresponding tasks
+   */
+  private processAssignedTasks(
+    assignments: Array<{ agentName: string; task: string }>,
+    tasks: Map<string, any>,
+    taskIdCounter: number,
+    conversationHistory: string[]
+  ): number {
+    let counter = taskIdCounter;
+
+    for (const assignment of assignments) {
+      const { agentName, task: description } = assignment;
+
+      // Skip if agent doesn't exist
+      if (!this.agents.has(agentName)) {
+        this.logSkippedTask(agentName, conversationHistory);
+        continue;
+      }
+
+      const taskId = `task-${counter++}`;
+      const dependencies = this.extractDependenciesFromDescription(description);
+
+      tasks.set(taskId, {
+        id: taskId,
+        agentName,
+        description,
+        status: "pending",
+        dependencies,
+      });
+
+      this.logTaskCreation(
+        taskId,
+        agentName,
+        description,
+        conversationHistory,
+        false,
+        dependencies
+      );
+    }
+
+    return counter;
+  }
+
+  /**
+   * Extracts task dependencies from a task description
+   */
+  private extractDependenciesFromDescription(description: string): string[] {
+    const dependencyMatch = description.match(/depends on:\s*(task-[\d,\s]+)/i);
+
+    return dependencyMatch
+      ? dependencyMatch[1].split(",").map((id) => id.trim())
+      : [];
+  }
+
+  /**
+   * Logs task creation to conversation history and console if verbose
+   */
+  private logTaskCreation(
+    taskId: string,
+    agentName: string,
+    description: string,
+    conversationHistory: string[],
+    isDefault = false,
+    dependencies: string[] = []
+  ): void {
+    const logMessage = isDefault
+      ? `System: Created default task ${taskId} for ${agentName}: ${description.substring(
+          0,
+          100
+        )}...`
+      : `System: Created task ${taskId} for ${agentName}: ${description}`;
+
+    conversationHistory.push(logMessage);
+
+    if (this.verbose) {
+      const icon = isDefault ? "🤖" : "🔄";
+      console.log(
+        `${icon} System: Created task ${taskId} for ${agentName}: ${description.substring(
+          0,
+          100
+        )}${description.length > 100 ? "..." : ""}`
+      );
+
+      if (dependencies.length > 0) {
+        console.log(`📌 Dependencies: ${dependencies.join(", ")}`);
+      }
+    }
+  }
+
+  /**
+   * Logs a skipped task due to missing agent
+   */
+  private logSkippedTask(
+    agentName: string,
+    conversationHistory: string[]
+  ): void {
+    const message = `System: Agent "${agentName}" does not exist. Task skipped.`;
+    conversationHistory.push(message);
+
+    if (this.verbose) {
+      console.log(`⚠️ ${message}`);
+    }
   }
 
   /**
@@ -568,13 +682,7 @@ What tasks would you like to assign to each team member?
 
     // Execute all ready tasks in parallel
     const taskPromises = readyTasks.map((task) =>
-      this.executeTask(
-        task,
-        tasks,
-        completedTasks,
-        failedTasks,
-        conversationHistory
-      )
+      this.executeTask(task, conversationHistory)
     );
 
     // Wait for all tasks to complete
@@ -643,162 +751,147 @@ What tasks would you like to assign to each team member?
    */
   private async executeTask(
     task: any,
-    tasks: Map<string, any>,
-    completedTasks: Set<string>,
-    failedTasks: Set<string>,
     conversationHistory: string[]
   ): Promise<any> {
-    try {
-      if (this.verbose) {
-        console.log(
-          `\n⏳ Starting task ${task.id} for agent "${task.agentName}"...`
-        );
-      }
+    const agentName = task.agentName;
+    const agent = this.agents.get(agentName);
 
-      // Build context for the agent based on dependencies
-      let taskContext = `Your task: ${task.description}\n\n`;
-
-      // Add relevant context from completed dependent tasks
-      if (task.dependencies.length > 0) {
-        taskContext += "Context from previous tasks:\n";
-        for (const depId of task.dependencies) {
-          const depTask = tasks.get(depId);
-          if (depTask?.result) {
-            taskContext += `- Task ${depId} (${depTask.agentName}): ${depTask.result}\n`;
-          }
-        }
-        taskContext += "\n";
-      }
-
-      // Execute the agent
-      const agent = this.agents.get(task.agentName);
-      if (!agent) {
-        throw new Error(`Agent ${task.agentName} not found`);
-      }
-      const agentResult = await agent.run(taskContext);
-
-      // Record the results
-      task.status = "completed";
-      task.result = agentResult.output;
-      task.endTime = Date.now();
-      completedTasks.add(task.id);
-
-      // Log completion
-      conversationHistory.push(
-        `${task.agentName} (Task ${task.id}): ${agentResult.output}`
-      );
-
-      if (this.verbose) {
-        console.log(
-          `\n👤 ${task.agentName} (Task ${task.id}):\n${agentResult.output}\n`
-        );
-        console.log(
-          `✅ Task ${task.id} completed in ${(
-            (task.endTime - task.startTime) /
-            1000
-          ).toFixed(2)}s`
-        );
-      }
-
-      return {
-        taskId: task.id,
-        agentName: task.agentName,
-        result: agentResult.output,
-      };
-    } catch (error) {
-      // Handle errors
-      task.status = "failed";
-      task.result = `Error: ${
-        error instanceof Error ? error.message : String(error)
-      }`;
-      task.endTime = Date.now();
-      failedTasks.add(task.id);
-
-      // Log failure
-      conversationHistory.push(
-        `System: Task ${task.id} for ${task.agentName} failed with error: ${task.result}`
-      );
-
-      if (this.verbose) {
-        console.log(
-          `\n❌ System: Task ${task.id} for ${task.agentName} failed with error: ${task.result}`
-        );
-      }
-
-      return {
-        taskId: task.id,
-        agentName: task.agentName,
-        error: task.result,
-      };
+    if (!agent) {
+      throw new Error(`Agent '${agentName}' not found in team`);
     }
+
+    // Format the task for the agent
+    const formattedTask = `
+Task: ${task.description}
+
+${
+  task.dependencies && task.dependencies.length > 0
+    ? `This task depends on previous work: ${task.dependencies.join(", ")}`
+    : ""
+}
+
+Please provide a clear and detailed response.
+`;
+
+    // Get stream option from team options
+    const stream = this.options?.stream || false;
+
+    // If streaming, emit event that agent is starting only once
+    if (stream) {
+      globalEventEmitter.emit(AgentForgeEvents.AGENT_COMMUNICATION, {
+        sender: "Manager",
+        recipient: agentName,
+        message: `I'm assigning you the following task: ${task.description}`,
+        timestamp: Date.now(),
+      });
+    }
+
+    // Execute the agent with streaming if enabled
+    const agentResult = await agent.run(formattedTask, { stream });
+
+    // Update the task with the result
+    task.result = agentResult.output;
+    task.status = "completed";
+    task.endTime = Date.now();
+
+    // Add the result to the conversation history only once
+    conversationHistory.push(`${agentName}: ${agentResult.output}`);
+
+    // If streaming, emit task completion event only once
+    if (stream) {
+      globalEventEmitter.emit(AgentForgeEvents.TEAM_TASK_COMPLETE, {
+        taskId: task.id,
+        agentName: task.agentName,
+        description: task.description,
+        result: agentResult.output,
+      });
+
+      // Also emit agent communication for manager - only once
+      globalEventEmitter.emit(AgentForgeEvents.AGENT_COMMUNICATION, {
+        sender: agentName,
+        recipient: "Manager",
+        message: agentResult.output,
+        timestamp: Date.now(),
+      });
+    }
+
+    return agentResult;
   }
 
   /**
-   * Generates progress report for completed tasks
+   * Gets the next instructions from the manager based on progress
+   */
+  private async getNextManagerInstructions(
+    progressReport: string,
+    conversationHistory: string[]
+  ): Promise<AgentResult> {
+    // Get stream option from team options
+    const stream = this.options?.stream || false;
+
+    // If streaming, emit event that manager is being updated - only once
+    if (stream) {
+      globalEventEmitter.emit(AgentForgeEvents.AGENT_COMMUNICATION, {
+        sender: "Team",
+        recipient: "Manager",
+        message: `Progress report: ${progressReport}`,
+        timestamp: Date.now(),
+      });
+    }
+
+    // Execute the manager with streaming if enabled
+    const managerResult = await this.manager.run(progressReport, { stream });
+
+    // Add the manager's response to the conversation history - only once
+    conversationHistory.push(`Manager: ${managerResult.output}`);
+
+    return managerResult;
+  }
+
+  /**
+   * Generate a progress report showing task status
    */
   private generateProgressReport(
     results: any[],
     tasks: Map<string, any>
   ): string {
-    let progressReport = "Task Progress Report:\n";
+    // Create a more structured task progress report
+    const completedTasks = Array.from(tasks.values()).filter(
+      (task) => task.status === "completed"
+    );
 
-    // Completed tasks in this batch
-    progressReport += "\nCompleted Tasks:\n";
-    for (const result of results.filter((r) => !r.error)) {
-      progressReport += `- Task ${result.taskId} (${result.agentName}): ${result.result}\n`;
+    let report = "Task Progress Report:\n\n";
+
+    if (completedTasks.length > 0) {
+      report += "Completed Tasks:\n";
+      for (const task of completedTasks) {
+        report += `- Task ${task.id} (${task.agentName}): ${task.description}\n`;
+      }
+    } else {
+      report += "No tasks have been completed yet.\n";
     }
 
-    // Failed tasks in this batch
-    const failedResults = results.filter((r) => r.error);
-    if (failedResults.length > 0) {
-      progressReport += "\nFailed Tasks:\n";
-      for (const result of failedResults) {
-        progressReport += `- Task ${result.taskId} (${result.agentName}): ${result.error}\n`;
+    const pendingTasks = Array.from(tasks.values()).filter(
+      (task) => task.status === "pending" || task.status === "in_progress"
+    );
+
+    if (pendingTasks.length > 0) {
+      report += "\nPending Tasks:\n";
+      for (const task of pendingTasks) {
+        report += `- Task ${task.id} (${task.agentName}): ${task.description}\n`;
       }
     }
 
-    // Pending tasks
-    const pendingTasksCount = [...tasks.values()].filter(
-      (t) => t.status === "pending"
-    ).length;
-    if (pendingTasksCount > 0) {
-      progressReport += `\nPending Tasks: ${pendingTasksCount}\n`;
+    // Add information about the most recent results
+    if (results && results.length > 0) {
+      report += "\nRecent Updates:\n";
+      for (const result of results) {
+        if (result.taskId && result.agentName) {
+          report += `- Agent ${result.agentName} completed task ${result.taskId}\n`;
+        }
+      }
     }
 
-    return progressReport;
-  }
-
-  /**
-   * Gets next instructions from the manager based on progress
-   */
-  private async getNextManagerInstructions(
-    progressReport: string,
-    conversationHistory: string[]
-  ): Promise<any> {
-    if (this.verbose) {
-      console.log(`\n📊 Progress Report:\n${progressReport}`);
-      console.log("\n🔄 Getting manager's next instructions...");
-    }
-
-    const managerPromptWithProgress = `
-Here is a progress report on the team's work:
-
-${progressReport}
-
-Based on this progress, please provide:
-1. Any additional tasks that need to be assigned
-2. Guidance on next steps
-3. If all essential work is complete, say "WORKFLOW COMPLETE" and provide a final assessment
-`;
-
-    const nextManagerResult = await this.manager.run(managerPromptWithProgress);
-    conversationHistory.push(`Manager: ${nextManagerResult.output}`);
-
-    if (this.verbose) {
-      console.log(`\n👨‍💼 Manager:\n${nextManagerResult.output}\n`);
-    }
-
-    return nextManagerResult;
+    return report;
   }
 
   /**

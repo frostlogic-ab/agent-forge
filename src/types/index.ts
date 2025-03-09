@@ -131,3 +131,99 @@ export enum ExecutionMode {
   SEQUENTIAL = "sequential",
   HIERARCHICAL = "hierarchical",
 }
+
+/**
+ * Event types for Agent Forge
+ */
+export enum AgentForgeEvents {
+  AGENT_COMMUNICATION = "agent:communication",
+  WORKFLOW_STEP_COMPLETE = "workflow:step_complete",
+  TEAM_TASK_COMPLETE = "team:task_complete",
+  EXECUTION_COMPLETE = "execution:complete",
+  LLM_STREAM_CHUNK = "llm:stream_chunk",
+  LLM_STREAM_COMPLETE = "llm:stream_complete",
+}
+
+/**
+ * Agent communication event structure
+ */
+export interface AgentCommunicationEvent {
+  sender: string;
+  recipient?: string;
+  message: string;
+  timestamp: number;
+}
+
+/**
+ * LLM stream event structure
+ */
+export interface LLMStreamEvent {
+  agentName: string;
+  chunk: string;
+  isDelta: boolean;
+  isComplete: boolean;
+}
+
+/**
+ * Streaming options for LLM requests
+ */
+export interface StreamingOptions {
+  stream: boolean;
+  onChunk?: (chunk: string) => void;
+}
+
+/**
+ * Options for workflow execution
+ */
+export interface WorkflowRunOptions {
+  /**
+   * Maximum number of LLM calls allowed per minute (default: no limit)
+   * Used to prevent hitting API rate limits
+   */
+  rate_limit?: number;
+
+  /**
+   * Enable detailed logging of workflow execution (default: false)
+   * Useful for debugging workflow steps
+   */
+  verbose?: boolean;
+
+  /**
+   * Enable streaming of agent communications and LLM responses (default: false)
+   */
+  stream?: boolean;
+
+  /**
+   * Enable built-in console visualization of streams (default: false)
+   * Only applicable when stream is true
+   */
+  enableConsoleStream?: boolean;
+}
+
+/**
+ * Options for team execution
+ */
+export interface TeamRunOptions {
+  /**
+   * Maximum number of LLM calls allowed per minute (default: no limit)
+   * Used to prevent hitting API rate limits
+   */
+  rate_limit?: number;
+
+  /**
+   * Enable detailed logging of communication between manager and agents (default: false)
+   * Useful for debugging team interactions
+   */
+  verbose?: boolean;
+
+  /**
+   * Enable streaming of agent communications and LLM responses (default: false)
+   */
+  stream?: boolean;
+
+  /**
+   * Enable built-in console visualization of streams (default: false)
+   * Only applicable when stream is true
+   */
+  enableConsoleStream?: boolean;
+}
