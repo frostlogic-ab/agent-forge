@@ -1,3 +1,10 @@
+# [1.3.0-beta.2](https://github.com/frostlogic-ab/agent-forge/compare/v1.3.0-beta.1...v1.3.0-beta.2) (2025-03-09)
+
+
+### Features
+
+* add streaming support ([7703837](https://github.com/frostlogic-ab/agent-forge/commit/7703837c93769349e1bce9e01eeab5b503df74ef))
+
 # [1.3.0-beta.1](https://github.com/frostlogic-ab/agent-forge/compare/v1.2.0...v1.3.0-beta.1) (2025-03-08)
 
 
