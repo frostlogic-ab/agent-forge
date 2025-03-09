@@ -5,6 +5,7 @@ import { AgentForge } from "../core/agent-forge";
 import { OpenAIProvider } from "../llm/providers/open-ai-provider";
 import { WebSearchTool } from "../tools/web-search-tool";
 import { Agent } from "../core/agent";
+import { WebPageContentTool } from "../tools/web-page-content-tool";
 
 // Create an LLM provider with your API key
 const llmProvider = new OpenAIProvider({
@@ -16,23 +17,22 @@ const agentForge = new AgentForge(llmProvider);
 
 // Add tools
 const webSearchTool = new WebSearchTool();
+const webPageContentTool = new WebPageContentTool();
 agentForge.registerTool(webSearchTool);
+agentForge.registerTool(webPageContentTool);
 
 // Create the researcher agent
 const researcherAgent = new Agent(
   {
     name: "Researcher",
     role: "Research Specialist",
-    description: "Researches topics and finds relevant information.",
+    description: "Researches topics and finds relevant information. When you use the web search tool, always get the content of the page.",
     objective: "Provide accurate and relevant research.",
     model: "gpt-3.5-turbo", 
-    temperature: 0.7,
-    tools: [{ 
-      name: "web_search",
-      description: "Search the web for information"
-    }],
+    temperature: 0.2,
+    tools: [webSearchTool.getConfig(), webPageContentTool.getConfig()],
   },
-  [webSearchTool], // Pass tools as second argument
+  [webSearchTool, webPageContentTool], // Pass tools as second argument
   llmProvider
 );
 agentForge.registerAgent(researcherAgent);
@@ -45,7 +45,7 @@ const writerAgent = new Agent(
     description: "Writes engaging content based on research.",
     objective: "Create well-written summaries and articles.",
     model: "gpt-3.5-turbo",
-    temperature: 0.7,
+    temperature: 0.2,
     tools: [],
   },
   [], // No tools
@@ -61,11 +61,8 @@ const factCheckerAgent = new Agent(
     description: "Verifies facts and ensures accuracy.",
     objective: "Ensure all information is factually correct.",
     model: "gpt-3.5-turbo",
-    temperature: 0.3,
-    tools: [{ 
-      name: "web_search",
-      description: "Search the web for fact verification"
-    }],
+    temperature: 0.2,
+    tools: [webSearchTool.getConfig()],
   },
   [webSearchTool], // Pass tools as second argument
   llmProvider
@@ -83,7 +80,7 @@ async function runStreamingWorkflowExample() {
     {
       stream: true,
       enableConsoleStream: true,
-      verbose: false,
+      verbose: true,
     }
   );
 

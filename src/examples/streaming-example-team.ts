@@ -8,6 +8,7 @@ import { AgentForgeEvents } from "../types";
 import { globalEventEmitter } from "../utils/event-emitter";
 import { Agent } from "../core/agent";
 import { exit } from "process";
+import { WebPageContentTool } from "../tools/web-page-content-tool";
 
 // Create an LLM provider with your API key
 const llmProvider = new OpenAIProvider({
@@ -19,7 +20,9 @@ const agentForge = new AgentForge(llmProvider);
 
 // Add tools
 const webSearchTool = new WebSearchTool();
+const webPageContentTool = new WebPageContentTool();
 agentForge.registerTool(webSearchTool);
+agentForge.registerTool(webPageContentTool);
 
 // Create the researcher agent
 const researcherAgent = new Agent(
@@ -29,13 +32,10 @@ const researcherAgent = new Agent(
     description: "Researches topics and finds relevant information.",
     objective: "Provide accurate and relevant research.",
     model: "gpt-3.5-turbo", 
-    temperature: 0.7,
-    tools: [{ 
-      name: "web_search",
-      description: "Search the web for information"
-    }],
+    temperature: 0.2,
+    tools: [webSearchTool.getConfig(), webPageContentTool.getConfig()],
   },
-  [webSearchTool], // Pass tools as second argument
+  [webSearchTool, webPageContentTool], // Pass tools as second argument
   llmProvider
 );
 agentForge.registerAgent(researcherAgent);
@@ -91,7 +91,7 @@ async function runCustomStreamingExample() {
 
   // Show clear agent communication
   globalEventEmitter.on(AgentForgeEvents.AGENT_COMMUNICATION, (event) => {
-    console.log(`\n\n>>AGENT COMMUNICATION: ${event.sender} ${event.recipient ? `→ ${event.recipient}` : ""}: Communication received`);
+    console.log(`\n\n>>${event.sender} ${event.recipient ? `→ ${event.recipient}` : ""}: Communication received`);
   });
 
   
@@ -108,8 +108,8 @@ async function runCustomStreamingExample() {
     }
   );
 
-//   console.log("\nFinal result:");
-//   console.log(result.output);
+  console.log("\nFinal result:");
+  console.log(result.output);
   
   // Remove listeners to avoid duplicates in future runs
   globalEventEmitter.removeAllListeners();

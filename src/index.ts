@@ -15,6 +15,7 @@ export {
   ToolRegistry,
   SECApiTool,
   WebSearchTool,
+  WebPageContentTool,
 } from "./tools";
 
 // LLM provider exports

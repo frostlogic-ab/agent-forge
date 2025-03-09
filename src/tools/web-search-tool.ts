@@ -60,7 +60,7 @@ export class WebSearchTool extends Tool {
       "WebSearch",
       "Search the web for information using Searx",
       parameters,
-      "Returns search results with titles, snippets, and links"
+      "Returns search results with titles, snippets, and links. Links should be used to get the content of the page using the web page content tool."
     );
 
     // Get Searx instance URLs from environment variables

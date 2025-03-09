@@ -75,7 +75,7 @@ async function main() {
     console.log("Running stock analysis workflow with tools enabled...");
 
     const result = await workflow.run(
-        "AAPL",
+        "TSLA",
         {
             rate_limit: 10,
             verbose: true,
