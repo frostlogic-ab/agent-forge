@@ -1,3 +1,10 @@
+# [1.3.0-beta.4](https://github.com/frostlogic-ab/agent-forge/compare/v1.3.0-beta.3...v1.3.0-beta.4) (2025-03-09)
+
+
+### Bug Fixes
+
+* usage of teams ([b58fe7b](https://github.com/frostlogic-ab/agent-forge/commit/b58fe7baba1a19e41b529073be59ba08f575a352))
+
 # [1.3.0-beta.3](https://github.com/frostlogic-ab/agent-forge/compare/v1.3.0-beta.2...v1.3.0-beta.3) (2025-03-09)
 
 
