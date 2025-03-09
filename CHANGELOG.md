@@ -1,3 +1,19 @@
+# [1.3.0](https://github.com/frostlogic-ab/agent-forge/compare/v1.2.0...v1.3.0) (2025-03-09)
+
+
+### Bug Fixes
+
+* issue with tools not being properly sent in LLM messages ([170c2cc](https://github.com/frostlogic-ab/agent-forge/commit/170c2ccd7a9ca2bedbe1128ef37815bdf0388076))
+* usage of teams ([b58fe7b](https://github.com/frostlogic-ab/agent-forge/commit/b58fe7baba1a19e41b529073be59ba08f575a352))
+
+
+### Features
+
+* add streaming support ([7703837](https://github.com/frostlogic-ab/agent-forge/commit/7703837c93769349e1bce9e01eeab5b503df74ef))
+* add tool to scrape web pages. ([f728f87](https://github.com/frostlogic-ab/agent-forge/commit/f728f876cc9a29f3e85d1e896ad6b96272590679))
+* add verbose and rate_limit to workflows ([050227c](https://github.com/frostlogic-ab/agent-forge/commit/050227c4cbf78ce2b20020761d20b7e262f254db))
+* new stock analysis sample with new sec api tool ([b65085e](https://github.com/frostlogic-ab/agent-forge/commit/b65085eae1650ec2d46300b8424ef97d2ec201a5))
+
 # [1.3.0-beta.4](https://github.com/frostlogic-ab/agent-forge/compare/v1.3.0-beta.3...v1.3.0-beta.4) (2025-03-09)
 
 
