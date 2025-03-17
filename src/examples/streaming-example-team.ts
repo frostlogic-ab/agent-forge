@@ -2,21 +2,25 @@ import * as dotenv from "dotenv";
 dotenv.config();
 
 import { AgentForge } from "../core/agent-forge";
-import { OpenAIProvider } from "../llm/providers/open-ai-provider";
 import { WebSearchTool } from "../tools/web-search-tool";
-import { AgentForgeEvents } from "../types";
 import { globalEventEmitter } from "../utils/event-emitter";
 import { Agent } from "../core/agent";
 import { exit } from "process";
 import { WebPageContentTool } from "../tools/web-page-content-tool";
+import { LLM } from "../llm/llm";
+import { LLMProvider } from "token.js/dist/chat";
 
 // Create an LLM provider with your API key
-const llmProvider = new OpenAIProvider({
-  apiKey: process.env.OPENAI_API_KEY,
+const provider = process.env.LLM_PROVIDER as LLMProvider  || "openai";
+const apiKey = process.env.LLM_API_KEY;
+const model = process.env.LLM_MODEL || "gpt-4o-mini";
+
+const llm = new LLM(provider, {
+  apiKey,
 });
 
 // Create Agent Forge instance
-const agentForge = new AgentForge(llmProvider);
+const agentForge = new AgentForge(llm);
 
 // Add tools
 const webSearchTool = new WebSearchTool();
@@ -30,11 +34,11 @@ const managerAgent = new Agent(
     role: "Manager",
     description: "A manager that coordinates the team.",
     objective: "Ensure the team completes the task.",
-    model: "gpt-3.5-turbo",
+    model: model,
     temperature: 0.2,
   },
   [],
-  llmProvider
+  llm
 );
 
 agentForge.registerAgent(managerAgent);
@@ -45,12 +49,12 @@ const researcherAgent = new Agent(
     role: "Research Specialist",
     description: "Researches topics and finds relevant information.",
     objective: "Provide accurate and relevant research.",
-    model: "gpt-3.5-turbo", 
+    model: model,
     temperature: 0.2,
     tools: [webSearchTool.getConfig(), webPageContentTool.getConfig()],
   },
   [webSearchTool, webPageContentTool], // Pass tools as second argument
-  llmProvider
+  llm
 );
 
 
@@ -61,12 +65,12 @@ const writerAgent = new Agent(
     role: "Content Writer",
     description: "Writes engaging content based on research.",
     objective: "Create well-written summaries and articles.",
-    model: "gpt-3.5-turbo",
+    model: model,
     temperature: 0.7,
     tools: [],
   },
   [], // No tools
-  llmProvider
+  llm
 );
 
 
@@ -77,12 +81,12 @@ const factCheckerAgent = new Agent(
     role: "Fact Verification Specialist",
     description: "Verifies facts and ensures accuracy.",
     objective: "Ensure all information is factually correct.",
-    model: "gpt-3.5-turbo",
+    model: model,
     temperature: 0.3,
     tools: [webSearchTool.getConfig()],
   },
   [webSearchTool], // Pass tools as second argument
-  llmProvider
+  llm
 );
 
 

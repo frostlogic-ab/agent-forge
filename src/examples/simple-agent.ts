@@ -1,20 +1,24 @@
 import dotenv from "dotenv";
-import { AgentForge, OpenAIProvider, Agent } from "../index";
+import { AgentForge, Agent, LLM } from "../index";
+import { LLMProvider } from "token.js/dist/chat";
 
 // Load environment variables
 dotenv.config();
 
 async function main() {
   // Check for API key
-  const apiKey = process.env.OPENAI_API_KEY;
+  const provider = process.env.LLM_PROVIDER as LLMProvider  || "openai";
+  const apiKey = process.env.LLM_API_KEY;
+  const model = process.env.LLM_MODEL || "gpt-4o-mini";
+
   if (!apiKey) {
-    console.error("Error: OPENAI_API_KEY environment variable not set");
+    console.error("Error: LLM_API_KEY environment variable not set");
     process.exit(1);
   }
 
   try {
     // Create an LLM provider
-    const llmProvider = new OpenAIProvider({
+    const llmProvider = new LLM(provider, {
       apiKey,
     });
 
@@ -30,7 +34,7 @@ async function main() {
           "A specialized agent for gathering and analyzing information.",
         objective:
           "Find accurate and relevant information on requested topics.",
-        model: "gpt-4o-mini",
+        model: model,
         temperature: 0.4,
       },
       [],
@@ -45,7 +49,7 @@ async function main() {
         description:
           "An agent that specializes in distilling information into clear summaries.",
         objective: "Create concise, accurate summaries of complex information.",
-        model: "gpt-4o-mini",
+        model: model,
         temperature: 0.4,
       },
       [],
@@ -98,7 +102,7 @@ async function main() {
           "An agent that coordinates other agents to complete complex tasks.",
         objective:
           "Effectively delegate tasks and synthesize results from specialized agents.",
-        model: "gpt-4",
+        model: model,
         temperature: 0.7,
       },
       [],

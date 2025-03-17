@@ -1,7 +1,8 @@
 import dotenv from "dotenv";
 import path from "path";
 import fs from "fs/promises";
-import { AgentForge, OpenAIProvider, loadAgentFromYaml } from "../index";
+import { AgentForge, LLM, loadAgentFromYaml } from "../index";
+import { LLMProvider } from "token.js/dist/chat";
 
 // Load environment variables
 dotenv.config();
@@ -73,9 +74,11 @@ temperature: 0.7
 
 async function main() {
   // Check for API key
-  const apiKey = process.env.OPENAI_API_KEY;
+  const provider = process.env.LLM_PROVIDER as LLMProvider  || "openai";
+  const apiKey = process.env.LLM_API_KEY;
+
   if (!apiKey) {
-    console.error("Error: OPENAI_API_KEY environment variable not set");
+    console.error("Error: LLM_API_KEY environment variable not set");
     process.exit(1);
   }
 
@@ -84,8 +87,8 @@ async function main() {
     await createExampleYamlFiles();
 
     // Create an LLM provider
-    const llmProvider = new OpenAIProvider({
-      apiKey,
+    const llmProvider = new LLM(provider, {
+      apiKey
     });
 
     // Create the Agent Forge instance

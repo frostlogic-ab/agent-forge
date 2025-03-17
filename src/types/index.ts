@@ -1,3 +1,5 @@
+import { ChatCompletionMessageParam } from "token.js";
+
 /**
  * Core type definitions for Agent Forge
  */
@@ -61,7 +63,6 @@ export interface ToolCall {
   toolName: string;
   parameters: Record<string, any>;
   result: any;
-  timestamp: number;
   id?: string;
 }
 
@@ -107,21 +108,7 @@ export interface LLMRequestOptions {
   temperature?: number;
   maxTokens?: number;
   stopSequences?: string[];
-  toolDefinitions?: ToolConfig[];
-}
-
-/**
- * Response from an LLM
- */
-export interface LLMResponse {
-  content: string;
-  toolCalls?: ToolCall[];
-  tokenUsage: {
-    prompt: number;
-    completion: number;
-    total: number;
-  };
-  model: string;
+  toolDefinitions?: ChatCompletionMessageParam;
 }
 
 /**

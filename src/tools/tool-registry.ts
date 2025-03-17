@@ -1,3 +1,4 @@
+import { ChatCompletionTool } from "token.js";
 import type { ToolConfig } from "../types";
 import type { Tool } from "./tool";
 
@@ -80,6 +81,10 @@ export class ToolRegistry {
    */
   getAllConfigs(): ToolConfig[] {
     return this.getAll().map((tool) => tool.getConfig());
+  }
+
+  getAllConfigChatCompletion(): ChatCompletionTool[] {
+    return this.getAll().map((tool) => tool.getChatCompletionConfig());
   }
 
   /**

@@ -1,15 +1,15 @@
-import type { LLMProvider } from "../llm/llm-provider";
+import { LLM } from "../llm/llm";
 import type { Tool } from "../tools/tool";
 import { ToolRegistry } from "../tools/tool-registry";
 import {
   type AgentConfig,
   AgentForgeEvents,
   type AgentResult,
-  type LLMResponse,
-  type Message,
   type ToolCall,
 } from "../types";
 import { globalEventEmitter } from "../utils/event-emitter";
+import { ChatCompletionMessageParam } from "token.js";
+import { LLMResponse } from "../llm/llm";
 
 /**
  * Agent run options
@@ -37,8 +37,8 @@ export interface AgentRunOptions {
 export class Agent {
   private config: AgentConfig;
   private tools: ToolRegistry;
-  private llmProvider?: LLMProvider;
-  private conversation: Message[] = [];
+  private llmProvider?: LLM;
+  private conversation: ChatCompletionMessageParam[] = [];
 
   /**
    * Creates a new agent
@@ -46,11 +46,7 @@ export class Agent {
    * @param tools Optional additional tools to provide to the agent
    * @param llmProvider Optional LLM provider for the agent
    */
-  constructor(
-    config: AgentConfig,
-    tools: Tool[] = [],
-    llmProvider?: LLMProvider
-  ) {
+  constructor(config: AgentConfig, tools: Tool[] = [], llmProvider?: LLM) {
     this.config = config;
 
     // Initialize the tool registry with provided tools
@@ -79,7 +75,7 @@ export class Agent {
    * Sets the LLM provider for the agent
    * @param provider The LLM provider to use
    */
-  setLLMProvider(provider: LLMProvider): void {
+  setLLMProvider(provider: LLM): void {
     this.llmProvider = provider;
   }
 
@@ -123,7 +119,7 @@ export class Agent {
    */
   resetConversation(): void {
     // Create the system message that defines the agent's behavior
-    const systemMessage: Message = {
+    const systemMessage: ChatCompletionMessageParam = {
       role: "system",
       content: `You are ${this.config.name}, a ${this.config.role}. ${this.config.description}\n\nYour objective is: ${this.config.objective}`,
     };
@@ -134,7 +130,7 @@ export class Agent {
   /**
    * Gets the current conversation history
    */
-  getConversation(): Message[] {
+  getConversation(): ChatCompletionMessageParam[] {
     return [...this.conversation];
   }
 
@@ -286,18 +282,16 @@ export class Agent {
           model: this.config.model,
           messages: this.conversation,
           temperature: this.config.temperature,
-          maxTokens: this.config.maxTokens,
-          toolDefinitions: this.tools.getAllConfigs(),
-          stream: true,
+          max_tokens: this.config.maxTokens,
+          tools: this.tools.getAllConfigChatCompletion(),
+
           onChunk: (chunk) => {
             // Process the chunk to remove common formatting issues
-            const cleanedChunk = this.cleanStreamedText(chunk);
-
             // This is just for convenience - events will also be emitted
             // from the provider for more advanced use cases
             globalEventEmitter.emit(AgentForgeEvents.LLM_STREAM_CHUNK, {
               agentName: agentName, // Use the captured agent name
-              chunk: cleanedChunk,
+              chunk: chunk.choices?.[0]?.delta?.content,
               isDelta: true,
               isComplete: false,
             });
@@ -312,14 +306,14 @@ export class Agent {
           model: this.config.model,
           messages: this.conversation,
           temperature: this.config.temperature,
-          maxTokens: this.config.maxTokens,
-          toolDefinitions: this.tools.getAllConfigs(),
+          max_tokens: this.config.maxTokens,
+          tools: this.tools.getAllConfigChatCompletion(),
         });
       }
 
       // Update token usage
-      promptTokens += response.tokenUsage.prompt;
-      completionTokens += response.tokenUsage.completion;
+      promptTokens += response.tokenUsage?.prompt ?? 0;
+      completionTokens += response.tokenUsage?.completion ?? 0;
 
       // If there are tool calls, execute them
       if (response.toolCalls && response.toolCalls.length > 0) {
@@ -342,7 +336,7 @@ export class Agent {
         // Add the assistant's message with properly formatted tool_calls
         this.conversation.push({
           role: "assistant",
-          content: response.content || "",
+          content: response.content,
           tool_calls: formattedToolCalls,
         });
 
@@ -360,7 +354,7 @@ export class Agent {
         // Process each tool call
         for (const toolCall of formattedToolCalls) {
           // Find the corresponding toolCall from the response
-          const responseToolCall = response.toolCalls.find(
+          const responseToolCall: any = response.toolCalls.find(
             (tc) => tc.toolName === toolCall.function.name
           );
 
@@ -489,12 +483,14 @@ export class Agent {
           model: this.config.model,
           messages: [...this.conversation, finalMessage],
           temperature: this.config.temperature,
-          maxTokens: this.config.maxTokens,
-          stream: true,
+          max_tokens: this.config.maxTokens,
+
           onChunk: (chunk) => {
             globalEventEmitter.emit(AgentForgeEvents.LLM_STREAM_CHUNK, {
               agentName: this.name,
-              chunk: this.cleanStreamedText(chunk),
+              chunk: this.cleanStreamedText(
+                chunk.choices?.[0]?.delta?.content ?? ""
+              ),
               isDelta: true,
               isComplete: false,
             });
@@ -509,15 +505,15 @@ export class Agent {
           model: this.config.model,
           messages: [...this.conversation, finalMessage],
           temperature: this.config.temperature,
-          maxTokens: this.config.maxTokens,
+          max_tokens: this.config.maxTokens,
         });
       }
 
       finalResponse = finalLLMResponse.content;
 
       // Update token usage
-      promptTokens += finalLLMResponse.tokenUsage.prompt;
-      completionTokens += finalLLMResponse.tokenUsage.completion;
+      promptTokens += finalLLMResponse.tokenUsage?.prompt ?? 0;
+      completionTokens += finalLLMResponse.tokenUsage?.completion ?? 0;
 
       // Add the assistant's final message
       this.conversation.push({
