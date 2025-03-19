@@ -1,4 +1,5 @@
-import type { ToolParameter } from "../types";
+import type { ChatCompletionTool } from "token.js";
+import type { ToolConfig, ToolParameter } from "../types";
 
 /**
  * Base class for all tools that can be used by agents
@@ -117,12 +118,41 @@ export abstract class Tool {
    * Gets the tool configuration for use with LLMs
    * @returns Tool configuration object
    */
-  getConfig() {
+  getConfig(): ToolConfig {
     return {
       name: this.name,
       description: this.description,
       parameters: this.parameters,
       returnType: this.returnType,
+    };
+  }
+
+  getChatCompletionConfig(): ChatCompletionTool {
+    const parameters = this.parameters.reduce(
+      (acc: any, parameter: ToolParameter) => {
+        acc.properties[parameter.name] = {
+          type: parameter.type,
+          description: parameter.description,
+        };
+        if (parameter.required) {
+          acc.required.push(parameter.name);
+        }
+        return acc;
+      },
+      {
+        type: "object",
+        properties: {},
+        required: [],
+      }
+    );
+
+    return {
+      type: "function",
+      function: {
+        name: this.name,
+        description: this.description,
+        parameters: parameters,
+      },
     };
   }
 }

@@ -1,13 +1,14 @@
 import dotenv from "dotenv";
 import {
   AgentForge,
-  OpenAIProvider,
   Agent,
   ToolCall,
+  LLM,
 } from "../index";
 import { WebSearchTool } from "../tools/web-search-tool";
 import { Tool } from "../tools/tool";
 import { ToolParameter } from "../types";
+import { LLMProvider } from "token.js/dist/chat";
 
 // Load environment variables
 dotenv.config();
@@ -113,15 +114,18 @@ class WeatherTool extends Tool {
 
 async function main() {
   // Check for API key
-  const apiKey = process.env.OPENAI_API_KEY;
+  const provider = process.env.LLM_PROVIDER as LLMProvider  || "openai";
+  const apiKey = process.env.LLM_API_KEY;
+  const model = process.env.LLM_MODEL || "gpt-4o-mini";
+  
   if (!apiKey) {
-    console.error("Error: OPENAI_API_KEY environment variable not set");
+    console.error("Error: LLM_API_KEY environment variable not set");
     process.exit(1);
   }
 
   try {
     // Create an LLM provider
-    const llmProvider = new OpenAIProvider({
+    const llmProvider = new LLM(provider, {
       apiKey,
     });
 
@@ -145,7 +149,7 @@ async function main() {
           "A helpful assistant that can search the web, do calculations, and check the weather.",
         objective:
           "Help the user with their questions using the available tools when appropriate.",
-        model: "gpt-4",
+        model: model,
         temperature: 0.7,
       },
       [webSearchTool, calculatorTool, weatherTool],

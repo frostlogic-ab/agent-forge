@@ -1,22 +1,26 @@
 import dotenv from "dotenv";
-import { AgentForge, OpenAIProvider, Agent } from "../../index";
+import { AgentForge, Agent, LLM } from "../../index";
 import { WebSearchTool } from "../../tools/web-search-tool";
 import { SECApiTool } from "../../tools/sec-api-tool";
+import { LLMProvider } from "token.js/dist/chat";
 
 // Load environment variables
 dotenv.config();
 
 async function main() {
   // Check for API key
-  const apiKey = process.env.OPENAI_API_KEY;
+  const provider = process.env.LLM_PROVIDER as LLMProvider  || "openai";
+  const apiKey = process.env.LLM_API_KEY;
+  const model = process.env.LLM_MODEL || "gpt-4o-mini";
+
   if (!apiKey) {
-    console.error("Error: OPENAI_API_KEY environment variable not set");
+    console.error("Error: LLM_API_KEY environment variable not set");
     process.exit(1);
   }
 
   try {
     // Create an LLM provider
-    const llmProvider = new OpenAIProvider({
+    const llmProvider = new LLM(provider, {
       apiKey,
     });
 
@@ -36,7 +40,7 @@ async function main() {
             `A specialized agent for gathering and analyzing news articles. Todays date is ${new Date().toISOString().split('T')[0]}`,
             objective: "Find accurate and relevant information for the given stock ticker and give a \
             recommendation for the stock based on the news. ",
-            model: "gpt-4o-mini",
+            model: model,
             temperature: 0.1,
         },
         [webSearchTool],
@@ -52,7 +56,7 @@ async function main() {
              It uses the SEC API tool to get the financial data. It can use the tool multiple \
              times to get the different financial data for the given stock ticker.",
             objective: "Analyze the financial data and make investment recommendations for the given stock ticker.",
-            model: "gpt-4o-mini",
+            model: model,
             temperature: 0.1,
         },
         [secApiTool],

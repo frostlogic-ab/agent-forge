@@ -1,5 +1,5 @@
 import { loadAgentsFromDirectory } from "../config/yaml-loader";
-import type { LLMProvider } from "../llm/llm-provider";
+import type { LLM } from "../llm/llm";
 import type { Tool } from "../tools/tool";
 import { ToolRegistry } from "../tools/tool-registry";
 import {
@@ -17,13 +17,13 @@ import { Workflow } from "./workflow";
 export class AgentForge {
   private agents: Map<string, Agent> = new Map();
   private tools: ToolRegistry = new ToolRegistry();
-  private llmProvider?: LLMProvider;
+  private llmProvider?: LLM;
 
   /**
    * Creates a new Agent Forge instance
    * @param llmProvider Optional default LLM provider for agents
    */
-  constructor(llmProvider?: LLMProvider) {
+  constructor(llmProvider?: LLM) {
     this.llmProvider = llmProvider;
   }
 
@@ -32,7 +32,7 @@ export class AgentForge {
    * @param provider The LLM provider to use
    * @returns The AgentForge instance for method chaining
    */
-  setDefaultLLMProvider(provider: LLMProvider): AgentForge {
+  setDefaultLLMProvider(provider: LLM): AgentForge {
     this.llmProvider = provider;
 
     // Update LLM provider for all registered agents
@@ -48,7 +48,7 @@ export class AgentForge {
   /**
    * Gets the default LLM provider
    */
-  getDefaultLLMProvider(): LLMProvider | undefined {
+  getDefaultLLMProvider(): LLM | undefined {
     return this.llmProvider;
   }
 
