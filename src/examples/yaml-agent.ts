@@ -2,7 +2,7 @@ import dotenv from "dotenv";
 import path from "path";
 import fs from "fs/promises";
 import { AgentForge, LLM, loadAgentFromYaml } from "../index";
-import { LLMProvider } from "token.js/dist/chat";
+import { LLMProvider } from "../types";
 
 // Load environment variables
 dotenv.config();

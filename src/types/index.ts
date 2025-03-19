@@ -1,8 +1,10 @@
 import type { ChatCompletionMessageParam } from "token.js";
+import type { LLMProvider } from "token.js/dist/chat";
 
 /**
  * Core type definitions for Agent Forge
  */
+export type { LLMProvider };
 
 /**
  * Agent configuration object

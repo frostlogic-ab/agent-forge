@@ -1,6 +1,6 @@
 import dotenv from "dotenv";
 import { AgentForge, Agent, LLM } from "../index";
-import { LLMProvider } from "token.js/dist/chat";
+import { LLMProvider } from "../types";
 
 // Load environment variables
 dotenv.config();

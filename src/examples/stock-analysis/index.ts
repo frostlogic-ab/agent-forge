@@ -2,7 +2,7 @@ import dotenv from "dotenv";
 import { AgentForge, Agent, LLM } from "../../index";
 import { WebSearchTool } from "../../tools/web-search-tool";
 import { SECApiTool } from "../../tools/sec-api-tool";
-import { LLMProvider } from "token.js/dist/chat";
+import { LLMProvider } from "../../types";
 
 // Load environment variables
 dotenv.config();

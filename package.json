@@ -66,5 +66,6 @@
   "bugs": {
     "url": "https://github.com/frostlogic-ab/agent-forge/issues"
   },
-  "homepage": "https://github.com/frostlogic-ab/agent-forge#readme"
+  "homepage": "https://github.com/frostlogic-ab/agent-forge#readme",
+  "packageManager": "yarn@4.7.0"
 }

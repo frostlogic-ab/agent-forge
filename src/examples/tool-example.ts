@@ -8,7 +8,7 @@ import {
 import { WebSearchTool } from "../tools/web-search-tool";
 import { Tool } from "../tools/tool";
 import { ToolParameter } from "../types";
-import { LLMProvider } from "token.js/dist/chat";
+import { LLMProvider } from "../types";
 
 // Load environment variables
 dotenv.config();

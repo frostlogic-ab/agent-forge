@@ -6,7 +6,7 @@ import { WebSearchTool } from "../tools/web-search-tool";
 import { Agent } from "../core/agent";
 import { WebPageContentTool } from "../tools/web-page-content-tool";
 import { LLM } from "../llm/llm";
-import { LLMProvider } from "token.js/dist/chat";
+import { LLMProvider } from "../types";
 
 // Create an LLM provider with your API key
 const provider = process.env.LLM_PROVIDER as LLMProvider  || "openai";
