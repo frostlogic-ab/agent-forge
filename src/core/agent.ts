@@ -1,4 +1,6 @@
-import { LLM } from "../llm/llm";
+import type { ChatCompletionMessageParam } from "token.js";
+import type { LLM } from "../llm/llm";
+import type { LLMResponse } from "../llm/llm";
 import type { Tool } from "../tools/tool";
 import { ToolRegistry } from "../tools/tool-registry";
 import {
@@ -8,8 +10,6 @@ import {
   type ToolCall,
 } from "../types";
 import { globalEventEmitter } from "../utils/event-emitter";
-import { ChatCompletionMessageParam } from "token.js";
-import { LLMResponse } from "../llm/llm";
 
 /**
  * Agent run options

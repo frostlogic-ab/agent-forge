@@ -29,7 +29,22 @@ npm install agent-forge
 
 ## Quick Start
 
-### 1. Define your agent in a YAML file:
+### 1. Create Agent Forge instance
+```typescript
+
+    // Create an LLM provider
+    // You can use one of the available TokenJS providers here: https://github.com/token-js/token.js/tree/main?tab=readme-ov-file#supported-providers
+
+    const llmProvider = new LLM('openai', {
+      apiKey,
+    });
+
+    // Create the Agent Forge instance
+    const forge = new AgentForge(llmProvider);
+
+```
+
+### 2. Define your agent in a YAML file:
 
 ```yaml
 # agent.yaml
@@ -44,7 +59,7 @@ tools:
     description: Search the web for information
 ```
 
-### 2. Create and run your agent:
+### 3. Create and run your agent:
 
 ```typescript
 import { AgentForge, loadAgentFromYaml } from "agent-forge";
@@ -57,7 +72,7 @@ const result = await agent.run("What are the latest developments in AI?");
 console.log(result);
 ```
 
-### 3. Create a workflow of sequential agents:
+### 4. Create a workflow of sequential agents:
 
 ```typescript
 import { Workflow, loadAgentFromYaml } from "agent-forge";
@@ -76,7 +91,7 @@ const result = await workflow.run(
 console.log(result);
 ```
 
-### 4. Create a hierarchical team with a manager agent:
+### 5. Create a hierarchical team with a manager agent:
 
 ```typescript
 import { Team, loadAgentFromYaml } from "agent-forge";
@@ -94,7 +109,7 @@ const result = await team.run("Create a landing page for our new product");
 console.log(result);
 ```
 
-### 5. Use rate limiting to avoid API quota issues:
+### 6. Use rate limiting to avoid API quota issues:
 
 ```typescript
 import { Team, loadAgentFromYaml } from "agent-forge";
@@ -117,7 +132,7 @@ const result = await team.run(
 console.log(result);
 ```
 
-### 6. Debug team interactions with verbose logging:
+### 7. Debug team interactions with verbose logging:
 
 ```typescript
 import { Team, loadAgentFromYaml } from "agent-forge";
@@ -190,7 +205,7 @@ const result = await team.run(
 );
 ```
 
-### 7. Stream agent communications in real-time:
+### 8. Stream agent communications in real-time:
 
 ```typescript
 import { Workflow, loadAgentFromYaml } from "agent-forge";

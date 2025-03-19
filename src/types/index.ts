@@ -1,4 +1,4 @@
-import { ChatCompletionMessageParam } from "token.js";
+import type { ChatCompletionMessageParam } from "token.js";
 
 /**
  * Core type definitions for Agent Forge

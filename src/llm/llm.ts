@@ -1,16 +1,16 @@
 import {
-  CompletionResponse,
-  CompletionResponseChunk,
-  ConfigOptions,
+  type CompletionResponse,
+  type CompletionResponseChunk,
+  type ConfigOptions,
   TokenJS,
 } from "token.js";
-import {
+import type {
   CompletionNonStreaming,
   CompletionStreaming,
   LLMProvider,
   ProviderCompletionParams,
 } from "token.js/dist/chat";
-import { AgentForgeEvents, ToolCall } from "../types";
+import { AgentForgeEvents } from "../types";
 import { EventEmitter } from "../utils/event-emitter";
 
 export interface LLMResponseToolCall {
@@ -80,14 +80,17 @@ export class LLM {
   transformCompletionChunksToLLMResponse(
     chunks: CompletionResponseChunk[]
   ): LLMResponse {
-    let toolCalls: {
-      id: string;
-      toolName: string;
-      parameters: string;
-    }[] = [];
-    let content: string = "";
+    const toolCalls: {
+      [key: string]: {
+        id: string;
+        toolName: string;
+        parameters: string | undefined;
+      };
+    } = {};
 
-    for (let chunk of chunks) {
+    let content = "";
+
+    for (const chunk of chunks) {
       const delta = chunk.choices?.[0]?.delta;
 
       if (!delta) {
@@ -95,16 +98,24 @@ export class LLM {
       }
 
       if (delta.tool_calls) {
-        for (let toolCall of delta.tool_calls) {
-          if (toolCalls.length <= toolCall.index) {
-            toolCalls.push({
-              id: toolCall.id!,
-              toolName: toolCall.function?.name!,
-              parameters: toolCall.function?.arguments!,
-            });
-          } else {
-            toolCalls[toolCall.index].parameters +=
-              toolCall.function?.arguments;
+        for (const toolCall of delta.tool_calls) {
+          if (toolCall.id && toolCall.function?.name) {
+            if (!toolCalls[toolCall.index]) {
+              toolCalls[toolCall.index] = {
+                id: toolCall.id,
+                toolName: toolCall.function.name,
+                parameters: toolCall.function.arguments,
+              };
+            } else if (toolCall.function.arguments) {
+              if (toolCalls[toolCall.index].parameters) {
+                toolCalls[toolCall.index].parameters =
+                  toolCalls[toolCall.index].parameters +
+                  toolCall.function.arguments;
+              } else {
+                toolCalls[toolCall.index].parameters =
+                  toolCall.function.arguments;
+              }
+            }
           }
         }
       }
@@ -126,9 +137,9 @@ export class LLM {
       content,
       model: lastChunk.model,
       tokenUsage: usage,
-      toolCalls: toolCalls.map((toolCall) => ({
+      toolCalls: Object.values(toolCalls).map((toolCall) => ({
         ...toolCall,
-        parameters: JSON.parse(toolCall.parameters),
+        parameters: toolCall.parameters ? JSON.parse(toolCall.parameters) : {},
       })),
     };
   }

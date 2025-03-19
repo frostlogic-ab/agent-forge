@@ -1,5 +1,5 @@
 import { loadAgentsFromDirectory } from "../config/yaml-loader";
-import { LLM } from "../llm/llm";
+import type { LLM } from "../llm/llm";
 import type { Tool } from "../tools/tool";
 import { ToolRegistry } from "../tools/tool-registry";
 import {
