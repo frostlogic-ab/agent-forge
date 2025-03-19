@@ -1,3 +1,10 @@
+## [1.3.1](https://github.com/frostlogic-ab/agent-forge/compare/v1.3.0...v1.3.1) (2025-03-19)
+
+
+### Bug Fixes
+
+* remove package-lock as we use yarn and expose LLMProvider from the framework ([03f4d49](https://github.com/frostlogic-ab/agent-forge/commit/03f4d494b3a7e924f775874b432d767dd37a0214))
+
 # [1.3.0](https://github.com/frostlogic-ab/agent-forge/compare/v1.2.0...v1.3.0) (2025-03-09)
 
 
