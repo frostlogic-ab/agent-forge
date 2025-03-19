@@ -32,15 +32,15 @@ npm install agent-forge
 ### 1. Create Agent Forge instance
 ```typescript
 
-    // Create an LLM provider
-    // You can use one of the available TokenJS providers here: https://github.com/token-js/token.js/tree/main?tab=readme-ov-file#supported-providers
+// Create an LLM provider
+// You can use one of the available TokenJS providers from here: https://github.com/token-js/token.js/tree/main?tab=readme-ov-file#supported-providers
 
-    const llmProvider = new LLM('openai', {
-      apiKey,
-    });
+const llmProvider = new LLM('openai', {
+  apiKey,
+});
 
-    // Create the Agent Forge instance
-    const forge = new AgentForge(llmProvider);
+// Create the AgentForge instance
+const forge = new AgentForge(llmProvider);
 
 ```
 
