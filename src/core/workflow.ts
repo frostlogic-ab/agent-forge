@@ -132,17 +132,32 @@ export class Workflow {
       throw new Error("Workflow has no steps");
     }
 
-    // Reset all agent conversations
     this.reset();
+    this.initializeOptions(options);
 
-    // Set verbose mode if specified
+    try {
+      this.logWorkflowStart(input);
+
+      const results = await this.executeWorkflowSteps(
+        input,
+        options?.stream || false
+      );
+
+      this.logWorkflowCompletion();
+      return results[results.length - 1];
+    } finally {
+      this.rateLimiter = undefined;
+    }
+  }
+
+  /**
+   * Initialize workflow options
+   */
+  private initializeOptions(options?: WorkflowRunOptions): void {
     this.verbose = options?.verbose || false;
 
-    // Set streaming mode if specified
-    const stream = options?.stream || false;
-
     // Initialize console streaming if requested
-    if (stream && options?.enableConsoleStream) {
+    if (options?.stream && options?.enableConsoleStream) {
       enableConsoleStreaming();
     }
 
@@ -150,116 +165,189 @@ export class Workflow {
     if (options?.rate_limit) {
       this.setupRateLimiter(options.rate_limit);
     }
+  }
 
-    try {
-      if (this.verbose) {
-        console.log(
-          `\n🚀 Starting workflow execution with ${this.steps.length} steps`
-        );
-        console.log(`📋 Workflow: "${this.name}"`);
-        console.log(`📋 Input: "${input}"\n`);
-      }
+  /**
+   * Execute all workflow steps sequentially
+   */
+  private async executeWorkflowSteps(
+    input: string,
+    stream: boolean
+  ): Promise<AgentResult[]> {
+    let currentInput = input;
+    const results: AgentResult[] = [];
 
-      let currentInput = input;
-      const results: AgentResult[] = [];
-
-      for (let i = 0; i < this.steps.length; i++) {
-        const step = this.steps[i];
-        const agent = step.agent;
-
-        if (this.verbose) {
-          console.log(
-            `\n⏳ Step ${i + 1}/${this.steps.length}: Agent "${agent.name}" (${
-              agent.role
-            })`
-          );
-        }
-
-        // Transform the input if a transform function is provided
-        if (step.inputTransform && i > 0) {
-          currentInput = step.inputTransform(currentInput, results);
-
-          if (this.verbose) {
-            console.log(
-              `🔄 Transformed input: "${currentInput.substring(0, 100)}${
-                currentInput.length > 100 ? "..." : ""
-              }"`
-            );
-          }
-        }
-
-        // If streaming is enabled, emit an event to indicate agent is about to run
-        if (stream) {
-          globalEventEmitter.emit(AgentForgeEvents.AGENT_COMMUNICATION, {
-            sender: "Workflow",
-            recipient: agent.name,
-            message: `Step ${i + 1}/${
-              this.steps.length
-            }: Running agent with input: ${
-              currentInput.length > 100
-                ? `${currentInput.substring(0, 100)}...`
-                : currentInput
-            }`,
-            timestamp: Date.now(),
-          });
-        }
-
-        // Execute the agent with streaming if enabled
-        const startTime = Date.now();
-        const result = await agent.run(currentInput, {
-          stream,
-          maxTurns: undefined, // Use agent default
-        });
-        const duration = Date.now() - startTime;
-
-        // Store the result
-        results.push(result);
-
-        if (this.verbose) {
-          console.log(
-            `✅ Step ${i + 1} completed in ${(duration / 1000).toFixed(2)}s`
-          );
-          console.log(
-            `📤 Output: "${result.output.substring(0, 100)}${
-              result.output.length > 100 ? "..." : ""
-            }"`
-          );
-        }
-
-        // If streaming is enabled, emit a step complete event
-        if (stream) {
-          globalEventEmitter.emit(AgentForgeEvents.WORKFLOW_STEP_COMPLETE, {
-            stepIndex: i,
-            totalSteps: this.steps.length,
-            agentName: agent.name,
-            result: result,
-            duration,
-          });
-        }
-
-        // Use the output as input for the next step
-        currentInput = result.output;
-      }
-
-      if (this.verbose) {
-        console.log(`\n🏁 Workflow "${this.name}" completed successfully\n`);
-      }
-
-      // If streaming is enabled, emit a completion event
-      if (stream) {
-        globalEventEmitter.emit(AgentForgeEvents.EXECUTION_COMPLETE, {
-          type: "workflow",
-          name: this.name,
-          result: results[results.length - 1],
-        });
-      }
-
-      // Return the result of the last step
-      return results[results.length - 1];
-    } finally {
-      // Clean up the rate limiter
-      this.rateLimiter = undefined;
+    for (let i = 0; i < this.steps.length; i++) {
+      const result = await this.executeWorkflowStep(
+        i,
+        currentInput,
+        results,
+        stream
+      );
+      results.push(result);
+      currentInput = result.output;
     }
+
+    // If streaming is enabled, emit a completion event
+    if (stream) {
+      globalEventEmitter.emit(AgentForgeEvents.EXECUTION_COMPLETE, {
+        type: "workflow",
+        name: this.name,
+        result: results[results.length - 1],
+      });
+    }
+
+    return results;
+  }
+
+  /**
+   * Execute a single workflow step
+   */
+  private async executeWorkflowStep(
+    stepIndex: number,
+    currentInput: string,
+    previousResults: AgentResult[],
+    stream: boolean
+  ): Promise<AgentResult> {
+    const step = this.steps[stepIndex];
+    const agent = step.agent;
+
+    this.logStepStart(stepIndex, agent);
+
+    // Transform the input if a transform function is provided
+    let inputForAgent = currentInput;
+    if (step.inputTransform && stepIndex > 0) {
+      inputForAgent = step.inputTransform(currentInput, previousResults);
+      this.logInputTransformation(inputForAgent);
+    }
+
+    // Emit pre-step event if streaming
+    this.emitStepStartEvent(stream, stepIndex, agent, inputForAgent);
+
+    // Execute the agent
+    const startTime = Date.now();
+    const result = await agent.run(inputForAgent, {
+      stream,
+      maxTurns: undefined, // Use agent default
+    });
+    const duration = Date.now() - startTime;
+
+    this.logStepCompletion(stepIndex, duration, result);
+    this.emitStepCompleteEvent(stream, stepIndex, agent, result, duration);
+
+    return result;
+  }
+
+  /**
+   * Emit event when a step is about to start
+   */
+  private emitStepStartEvent(
+    stream: boolean,
+    stepIndex: number,
+    agent: Agent,
+    input: string
+  ): void {
+    if (!stream) return;
+
+    globalEventEmitter.emit(AgentForgeEvents.AGENT_COMMUNICATION, {
+      sender: "Workflow",
+      recipient: agent.name,
+      message: `Step ${stepIndex + 1}/${
+        this.steps.length
+      }: Running agent with input: ${
+        input.length > 100 ? `${input.substring(0, 100)}...` : input
+      }`,
+      timestamp: Date.now(),
+    });
+  }
+
+  /**
+   * Emit event when a step completes
+   */
+  private emitStepCompleteEvent(
+    stream: boolean,
+    stepIndex: number,
+    agent: Agent,
+    result: AgentResult,
+    duration: number
+  ): void {
+    if (!stream) return;
+
+    globalEventEmitter.emit(AgentForgeEvents.WORKFLOW_STEP_COMPLETE, {
+      stepIndex: stepIndex,
+      totalSteps: this.steps.length,
+      agentName: agent.name,
+      result: result,
+      duration,
+    });
+  }
+
+  /**
+   * Log workflow start if verbose mode is enabled
+   */
+  private logWorkflowStart(input: string): void {
+    if (!this.verbose) return;
+
+    console.log(
+      `\n🚀 Starting workflow execution with ${this.steps.length} steps`
+    );
+    console.log(`📋 Workflow: "${this.name}"`);
+    console.log(`📋 Input: "${input}"\n`);
+  }
+
+  /**
+   * Log step start if verbose mode is enabled
+   */
+  private logStepStart(stepIndex: number, agent: Agent): void {
+    if (!this.verbose) return;
+
+    console.log(
+      `\n⏳ Step ${stepIndex + 1}/${this.steps.length}: Agent "${
+        agent.name
+      }" (${agent.role})`
+    );
+  }
+
+  /**
+   * Log input transformation if verbose mode is enabled
+   */
+  private logInputTransformation(transformedInput: string): void {
+    if (!this.verbose) return;
+
+    console.log(
+      `🔄 Transformed input: "${transformedInput.substring(0, 100)}${
+        transformedInput.length > 100 ? "..." : ""
+      }"`
+    );
+  }
+
+  /**
+   * Log step completion if verbose mode is enabled
+   */
+  private logStepCompletion(
+    stepIndex: number,
+    duration: number,
+    result: AgentResult
+  ): void {
+    if (!this.verbose) return;
+
+    console.log(
+      `✅ Step ${stepIndex + 1} completed in ${(duration / 1000).toFixed(2)}s`
+    );
+    console.log(
+      `📤 Output: "${result.output.substring(0, 100)}${
+        result.output.length > 100 ? "..." : ""
+      }"`
+    );
+  }
+
+  /**
+   * Log workflow completion if verbose mode is enabled
+   */
+  private logWorkflowCompletion(): void {
+    if (!this.verbose) return;
+
+    console.log(`\n🏁 Workflow "${this.name}" completed successfully\n`);
   }
 
   /**
