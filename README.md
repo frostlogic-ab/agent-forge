@@ -1,50 +1,86 @@
-# Agent Forge
+# Agent Forge 🔨
+
+[![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
 
 Agent Forge is a TypeScript framework for creating, configuring, and orchestrating AI agents that connect to LLMs (Large Language Models). It allows developers to define agents through YAML configuration files and enables both sequential and hierarchical execution patterns.
 
-## Features
+## 📋 Table of Contents
 
-- **YAML-Defined Agents**: Configure agents with role, description, and objectives through simple YAML files
-- **Tool Ecosystem**: Extend agents with custom tools to interact with external systems
-- **Flexible Execution Patterns**:
+- [Features](#features)
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+  - [Create Agent Forge Instance](#1-create-agent-forge-instance)
+  - [Define Agent in YAML](#2-define-your-agent-in-a-yaml-file)
+  - [Run Single Agent](#3-create-and-run-your-agent)
+  - [Create Sequential Workflow](#4-create-a-workflow-of-sequential-agents)
+  - [Create Agent Team](#5-create-a-hierarchical-team-with-a-manager-agent)
+  - [Use Rate Limiting](#6-use-rate-limiting-to-avoid-api-quota-issues)
+  - [Debug Interactions](#7-debug-team-interactions-with-verbose-logging)
+  - [Stream Communications](#8-stream-agent-communications-in-real-time)
+- [Development](#development)
+- [Documentation](#documentation)
+- [Contributing](#contributing)
+- [License](#license)
+
+---
+
+## ✨ Features
+
+- 📝 **YAML-Defined Agents**: Configure agents with role, description, and objectives through simple YAML files
+- 🧰 **Tool Ecosystem**: Extend agents with custom tools to interact with external systems
+- 🔄 **Flexible Execution Patterns**:
   - Sequential execution (workflow-based)
   - Hierarchical execution (manager AI delegates to specialized agents)
-- **LLM Integration**: Connect to various language models through a unified interface
-- **Rate Limiting**: Control API usage with built-in rate limiting to avoid quota issues
-- **Streaming Support**:
+- 🔌 **LLM Integration**: Connect to various language models through a unified interface
+- 🚦 **Rate Limiting**: Control API usage with built-in rate limiting to avoid quota issues
+- 📡 **Streaming Support**:
   - Stream agent communications in real-time
   - Console streaming for immediate visibility of agent outputs
-- **Debugging Features**:
+- 🔍 **Debugging Features**:
   - Verbose logging of agent interactions with detailed execution flow
   - Real-time visibility into task assignments and dependencies
   - Comprehensive progress tracking and error reporting
   - Visual indicators for task status and execution timing
-- **TypeScript Support**: Built with TypeScript for type safety and better developer experience
+- 📊 **TypeScript Support**: Built with TypeScript for type safety and better developer experience
 
-## Installation
+---
+
+## 📦 Installation
+
+Choose your preferred package manager:
 
 ```bash
+# npm
 npm install agent-forge
+
+# yarn
+yarn add agent-forge
+
+# pnpm
+pnpm add agent-forge
 ```
 
-## Quick Start
+---
+
+## 🚀 Quick Start
 
 ### 1. Create Agent Forge instance
+
 ```typescript
-
 // Create an LLM provider
-// You can use one of the available TokenJS providers from here: https://github.com/token-js/token.js/tree/main?tab=readme-ov-file#supported-providers
+// You can use one of the available TokenJS providers from here:
+// https://github.com/token-js/token.js/tree/main?tab=readme-ov-file#supported-providers
 
-const llmProvider = new LLM('openai', {
+const llmProvider = new LLM("openai", {
   apiKey,
 });
 
 // Create the AgentForge instance
 const forge = new AgentForge(llmProvider);
-
 ```
 
-### 2. Define your agent in a YAML file:
+### 2. Define your agent in a YAML file
 
 ```yaml
 # agent.yaml
@@ -59,7 +95,7 @@ tools:
     description: Search the web for information
 ```
 
-### 3. Create and run your agent:
+### 3. Create and run your agent
 
 ```typescript
 import { AgentForge, loadAgentFromYaml } from "agent-forge";
@@ -72,7 +108,7 @@ const result = await agent.run("What are the latest developments in AI?");
 console.log(result);
 ```
 
-### 4. Create a workflow of sequential agents:
+### 4. Create a workflow of sequential agents
 
 ```typescript
 import { Workflow, loadAgentFromYaml } from "agent-forge";
@@ -91,7 +127,7 @@ const result = await workflow.run(
 console.log(result);
 ```
 
-### 5. Create a hierarchical team with a manager agent:
+### 5. Create a hierarchical team with a manager agent
 
 ```typescript
 import { Team, loadAgentFromYaml } from "agent-forge";
@@ -109,7 +145,7 @@ const result = await team.run("Create a landing page for our new product");
 console.log(result);
 ```
 
-### 6. Use rate limiting to avoid API quota issues:
+### 6. Use rate limiting to avoid API quota issues
 
 ```typescript
 import { Team, loadAgentFromYaml } from "agent-forge";
@@ -132,7 +168,7 @@ const result = await team.run(
 console.log(result);
 ```
 
-### 7. Debug team interactions with verbose logging:
+### 7. Debug team interactions with verbose logging
 
 ```typescript
 import { Team, loadAgentFromYaml } from "agent-forge";
@@ -147,7 +183,7 @@ const team = new Team(managerAgent)
   .addAgent(researchAgent)
   .addAgent(summaryAgent);
 
-// Run the team with verbose logging to see all agent communications
+// Run the team with verbose logging
 const result = await team.run(
   "What are the ethical implications of AI in healthcare?",
   { verbose: true }
@@ -155,16 +191,9 @@ const result = await team.run(
 console.log("Final result:", result.output);
 ```
 
+#### Verbose Output Example
+
 When verbose logging is enabled, you'll see detailed information about:
-
-- Team initialization and task assignment
-- Task creation and dependency tracking
-- Agent execution progress and timing
-- Manager decisions and instructions
-- Error handling and recovery attempts
-- Final result generation
-
-Example verbose output:
 
 ```
 🚀 Starting team execution with 2 agents and 1 manager
@@ -200,12 +229,12 @@ const result = await team.run(
   "Explain the impact of blockchain on financial systems",
   {
     rate_limit: 15, // Limit to 15 LLM calls per minute
-    verbose: true, // Enable detailed logging of team interactions
+    verbose: true, // Enable detailed logging
   }
 );
 ```
 
-### 8. Stream agent communications in real-time:
+### 8. Stream agent communications in real-time
 
 ```typescript
 import { Workflow, loadAgentFromYaml } from "agent-forge";
@@ -236,13 +265,21 @@ const result = await workflow.run(
   "Explain quantum computing advancements in 2023",
   { stream: true }
 );
-
-// For console streaming, you can also use:
-// const result = await workflow.run(
-//   "Explain quantum computing advancements in 2023",
-//   { stream: true, enableConsoleStream: true }
-// );
 ```
+
+For console streaming, you can also use:
+
+```typescript
+const result = await workflow.run(
+  "Explain quantum computing advancements in 2023",
+  {
+    stream: true,
+    enableConsoleStream: true,
+  }
+);
+```
+
+#### Streaming Benefits
 
 With streaming enabled, you'll receive real-time updates about:
 
@@ -265,14 +302,16 @@ const result = await workflow.run(
   "Explain the impact of blockchain on financial systems",
   {
     stream: true, // Enable streaming of agent communications
-    enableConsoleStream: true, // Enable console streaming for immediate visibility
+    enableConsoleStream: true, // Enable console streaming for visibility
     rate_limit: 15, // Limit to 15 LLM calls per minute
-    verbose: true, // Enable detailed logging of team interactions
+    verbose: true, // Enable detailed logging
   }
 );
 ```
 
-## Development
+---
+
+## 🛠️ Development
 
 ### Code Linting and Formatting
 
@@ -281,32 +320,38 @@ This project uses [Biome](https://biomejs.dev/) for linting and formatting TypeS
 To lint the codebase:
 
 ```bash
-npm run lint
+yarn lint
 ```
 
 To automatically fix issues:
 
 ```bash
-npm run lint:fix       # Apply safe fixes only
-npm run lint:fix:all   # Apply all fixes including unsafe ones
+yarn lint:fix       # Apply safe fixes only
+yarn lint:fix:all   # Apply all fixes including unsafe ones
 ```
 
 To format code:
 
 ```bash
-npm run format
+yarn format
 ```
 
 If you're using VS Code, install the [Biome extension](https://marketplace.visualstudio.com/items?itemName=biomejs.biome) to get real-time linting and formatting.
 
-## Documentation
+---
+
+## 📖 Documentation
 
 For complete documentation, please visit [our documentation site](https://agent-forge.dev/docs) (coming soon).
 
-## Contributing
+---
+
+## 👥 Contributing
 
 Contributions are welcome! Please see [CONTRIBUTING.md](./CONTRIBUTING.md) for details.
 
-## License
+---
+
+## 📄 License
 
 MIT
