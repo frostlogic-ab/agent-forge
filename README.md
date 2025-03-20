@@ -30,18 +30,17 @@ npm install agent-forge
 ## Quick Start
 
 ### 1. Create Agent Forge instance
-```typescript
 
+```typescript
 // Create an LLM provider
 // You can use one of the available TokenJS providers from here: https://github.com/token-js/token.js/tree/main?tab=readme-ov-file#supported-providers
 
-const llmProvider = new LLM('openai', {
+const llmProvider = new LLM("openai", {
   apiKey,
 });
 
 // Create the AgentForge instance
 const forge = new AgentForge(llmProvider);
-
 ```
 
 ### 2. Define your agent in a YAML file:
@@ -281,20 +280,20 @@ This project uses [Biome](https://biomejs.dev/) for linting and formatting TypeS
 To lint the codebase:
 
 ```bash
-npm run lint
+yarn lint
 ```
 
 To automatically fix issues:
 
 ```bash
-npm run lint:fix       # Apply safe fixes only
-npm run lint:fix:all   # Apply all fixes including unsafe ones
+yarn lint:fix       # Apply safe fixes only
+yarn lint:fix:all   # Apply all fixes including unsafe ones
 ```
 
 To format code:
 
 ```bash
-npm run format
+yarn format
 ```
 
 If you're using VS Code, install the [Biome extension](https://marketplace.visualstudio.com/items?itemName=biomejs.biome) to get real-time linting and formatting.
