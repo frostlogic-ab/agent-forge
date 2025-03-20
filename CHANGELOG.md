@@ -1,4 +1,17 @@
 ## What's Changed
+* fix(workflow): decrease complexity of workflow run by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/8
+
+
+**Full Changelog**: https://github.com/frostlogic-ab/agent-forge/compare/v1.3.2...v1.3.3
+
+## [1.3.3](https://github.com/frostlogic-ab/agent-forge/compare/v1.3.2...v1.3.3) (2025-03-20)
+
+
+### Bug Fixes
+
+* **workflow:** decrease complexity of workflow run ([2d9c495](https://github.com/frostlogic-ab/agent-forge/commit/2d9c495a75fe9396037ca39236a7eeab6c9ad3b8))
+
+## What's Changed
 * docs: improve readme readability by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/7
 
 
