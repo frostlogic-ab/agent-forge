@@ -49,6 +49,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "1.7.0",
+    "@bobvanderlinden/semantic-release-pull-request-analyzer": "^1.0.4",
     "@semantic-release/changelog": "^6.0.3",
     "@semantic-release/git": "^10.0.1",
     "@types/jest": "^29.5.14",

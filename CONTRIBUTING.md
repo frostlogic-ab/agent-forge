@@ -16,10 +16,11 @@ Please be respectful and considerate of others when contributing to this project
 6. Commit your changes using the conventional commit format (see below)
 7. Push to the branch: `git push origin feature/your-feature-name`
 8. Submit a pull request to the `beta` branch
+9. Add appropriate labels to your PR for semantic versioning (see PR Labeling Guidelines)
 
 ## Commit Message Guidelines
 
-We follow [Conventional Commits](https://www.conventionalcommits.org/) for commit messages. This leads to more readable messages that are easy to follow when looking through the project history and enables automatic versioning and changelog generation.
+We follow [Conventional Commits](https://www.conventionalcommits.org/) for commit messages. This leads to more readable messages that are easy to follow when looking through the project history.
 
 Each commit message consists of a **header**, a **body**, and a **footer**:
 
@@ -58,6 +59,17 @@ fix(llm): resolve token counting issue with non-ASCII characters
 docs: update README with new installation instructions
 ```
 
+## PR Labeling Guidelines for Semantic Versioning
+
+Our project uses PR labels to determine the semantic version for releases. When creating a PR, please add one of the following labels based on the type of changes included:
+
+- **breaking**: Changes that break backward compatibility (triggers a MAJOR version bump)
+- **feature** or **enhancement**: New features or significant improvements (triggers a MINOR version bump)
+- **fix** or **bug**: Bug fixes (triggers a PATCH version bump)
+- **documentation**: Documentation changes (triggers a PATCH version bump)
+
+The label with the highest precedence (breaking > feature/enhancement > fix/bug/documentation) will determine the version bump.
+
 ## Development Environment
 
 1. Clone the repository
@@ -71,6 +83,7 @@ docs: update README with new installation instructions
 2. Update any examples or documentation
 3. The PR should work with the existing tests
 4. Ensure your code follows the project's style guidelines
+5. Add appropriate semantic versioning labels to your PR
 
 ## Style Guidelines
 

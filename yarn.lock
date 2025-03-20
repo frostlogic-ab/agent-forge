@@ -1551,6 +1551,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@bobvanderlinden/semantic-release-pull-request-analyzer@npm:^1.0.4":
+  version: 1.0.4
+  resolution: "@bobvanderlinden/semantic-release-pull-request-analyzer@npm:1.0.4"
+  peerDependencies:
+    semantic-release: ">=21.0.0"
+  checksum: 10c0/f5fac3624d2bafbe285d7172354237c93df231d5baa170a0cf256693dcc314ca5511d58f39a8eace346306f4ce47817b0192dec45cba74977df00bc2bdc2711c
+  languageName: node
+  linkType: hard
+
 "@colors/colors@npm:1.5.0":
   version: 1.5.0
   resolution: "@colors/colors@npm:1.5.0"
@@ -3913,6 +3922,7 @@ __metadata:
   resolution: "agent-forge@workspace:."
   dependencies:
     "@biomejs/biome": "npm:1.7.0"
+    "@bobvanderlinden/semantic-release-pull-request-analyzer": "npm:^1.0.4"
     "@semantic-release/changelog": "npm:^6.0.3"
     "@semantic-release/git": "npm:^10.0.1"
     "@types/jest": "npm:^29.5.14"
