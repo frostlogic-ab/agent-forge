@@ -1,8 +1,8 @@
-import { Tool } from "./tool";
-import type { ToolParameter } from "../types";
+import { spawn } from "node:child_process";
 import axios from "axios";
 import { EventSourcePolyfill } from "event-source-polyfill";
-import { spawn } from "child_process";
+import type { ToolParameter } from "../types";
+import { Tool } from "./tool";
 
 // Types to avoid Node.js specific imports
 type SpawnProcess = {
@@ -56,7 +56,7 @@ export interface MCPSseConfig {
  * Base class for MCP server connections
  */
 export abstract class MCPServerConnection {
-  protected running: boolean = false;
+  protected running = false;
 
   /**
    * Initializes the MCP server connection
@@ -165,7 +165,7 @@ export class MCPStdioConnection extends MCPServerConnection {
       const message = JSON.stringify({ type: "list_tools" });
 
       // Write to stdin of the process
-      this.process.stdin.write(message + "\n");
+      this.process.stdin.write(`${message}\n`);
 
       // Read from stdout (simplified - in a real implementation, this would be more robust)
       const response = await new Promise<string>((resolve, reject) => {
@@ -226,7 +226,7 @@ export class MCPStdioConnection extends MCPServerConnection {
       });
 
       // Write to stdin of the process
-      this.process.stdin.write(message + "\n");
+      this.process.stdin.write(`${message}\n`);
 
       // Read from stdout (simplified - in a real implementation, this would be more robust)
       const response = await new Promise<string>((resolve, reject) => {
@@ -268,10 +268,10 @@ export class MCPStdioConnection extends MCPServerConnection {
     if (this.running && this.process) {
       // Send exit message if the protocol supports it
       try {
-        this.process.stdin.write(JSON.stringify({ type: "exit" }) + "\n");
+        this.process.stdin.write(`${JSON.stringify({ type: "exit" })}\n`);
         // Give it a moment to exit cleanly
         await new Promise((resolve) => setTimeout(resolve, 100));
-      } catch (error) {
+      } catch (_error) {
         // Ignore error on exit message
       }
 
@@ -297,7 +297,7 @@ export class MCPSseConnection extends MCPServerConnection {
   private requestId = 0;
   private pendingRequests: Map<
     number,
-    { resolve: Function; reject: Function }
+    { resolve: (value: any) => void; reject: (reason?: any) => void }
   > = new Map();
 
   /**
@@ -343,9 +343,12 @@ export class MCPSseConnection extends MCPServerConnection {
         try {
           const data = JSON.parse(event.data);
           if (data.id && this.pendingRequests.has(data.id)) {
-            const { resolve } = this.pendingRequests.get(data.id)!;
-            this.pendingRequests.delete(data.id);
-            resolve(data.result);
+            const pendingRequest = this.pendingRequests.get(data.id);
+            if (pendingRequest) {
+              const { resolve } = pendingRequest;
+              this.pendingRequests.delete(data.id);
+              resolve(data.result);
+            }
           }
         } catch (error) {
           console.error("Error processing SSE message:", error);
@@ -358,13 +361,15 @@ export class MCPSseConnection extends MCPServerConnection {
           reject(new Error("Timeout connecting to MCP SSE server"));
         }, 5000);
 
-        const originalOnOpen = this.eventSource!.onopen;
-        this.eventSource!.onopen = function (this: any) {
-          clearTimeout(timeout);
-          this.running = true;
-          resolve();
-          if (originalOnOpen) originalOnOpen.call(this);
-        }.bind(this);
+        if (this.eventSource) {
+          const originalOnOpen = this.eventSource.onopen;
+          this.eventSource.onopen = function (this: any) {
+            clearTimeout(timeout);
+            this.running = true;
+            resolve();
+            if (originalOnOpen) originalOnOpen.call(this);
+          }.bind(this);
+        }
       });
     } catch (error) {
       throw new Error(`Failed to initialize MCP SSE connection: ${error}`);
@@ -544,27 +549,22 @@ export class MCPToolWrapper extends Tool {
 }
 
 /**
- * Factory for creating MCP server connections
+ * Creates an MCP server connection based on configuration
+ * @param type Type of MCP server protocol
+ * @param config Configuration for the MCP server
+ * @returns An MCP server connection
  */
-export class MCPConnectionFactory {
-  /**
-   * Creates an MCP server connection based on configuration
-   * @param type Type of MCP server protocol
-   * @param config Configuration for the MCP server
-   * @returns An MCP server connection
-   */
-  static create(
-    type: MCPProtocolType,
-    config: MCPStdioConfig | MCPSseConfig
-  ): MCPServerConnection {
-    switch (type) {
-      case MCPProtocolType.STDIO:
-        return new MCPStdioConnection(config as MCPStdioConfig);
-      case MCPProtocolType.SSE:
-        return new MCPSseConnection(config as MCPSseConfig);
-      default:
-        throw new Error(`Unsupported MCP protocol type: ${type}`);
-    }
+export function createMCPConnection(
+  type: MCPProtocolType,
+  config: MCPStdioConfig | MCPSseConfig
+): MCPServerConnection {
+  switch (type) {
+    case MCPProtocolType.STDIO:
+      return new MCPStdioConnection(config as MCPStdioConfig);
+    case MCPProtocolType.SSE:
+      return new MCPSseConnection(config as MCPSseConfig);
+    default:
+      throw new Error(`Unsupported MCP protocol type: ${type}`);
   }
 }
 
