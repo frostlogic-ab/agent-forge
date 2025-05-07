@@ -1,4 +1,18 @@
 ## What's Changed
+* feat: add MCP support by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/9
+* Linting fixes for MCP support by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/10
+
+
+**Full Changelog**: https://github.com/frostlogic-ab/agent-forge/compare/v1.3.3...v1.4.0-alpha.1
+
+# [1.4.0-alpha.1](https://github.com/frostlogic-ab/agent-forge/compare/v1.3.3...v1.4.0-alpha.1) (2025-05-07)
+
+
+### Features
+
+* add MCP support ([8a2c0bd](https://github.com/frostlogic-ab/agent-forge/commit/8a2c0bda0e80383d3ba9dff665cc00d2461f47e1))
+
+## What's Changed
 * fix(workflow): decrease complexity of workflow run by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/8
 
 
