@@ -1,4 +1,17 @@
 ## What's Changed
+* fix: tool imports by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/11
+
+
+**Full Changelog**: https://github.com/frostlogic-ab/agent-forge/compare/v1.4.0-alpha.1...v1.4.0-alpha.2
+
+# [1.4.0-alpha.2](https://github.com/frostlogic-ab/agent-forge/compare/v1.4.0-alpha.1...v1.4.0-alpha.2) (2025-05-07)
+
+
+### Bug Fixes
+
+* tool imports ([905d018](https://github.com/frostlogic-ab/agent-forge/commit/905d01867233cb94ae4ee36dc03fa7743a491e58))
+
+## What's Changed
 * feat: add MCP support by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/9
 * Linting fixes for MCP support by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/10
 
