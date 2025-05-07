@@ -10,13 +10,21 @@ export { loadAgentFromYaml } from "./config/yaml-loader";
 export { AgentForge } from "./core/agent-forge";
 
 // Tool system exports
+export { Tool } from "./tools/tool";
+export { ToolRegistry } from "./tools/tool-registry";
+export { SECApiTool } from "./tools/sec-api-tool";
+export { WebSearchTool } from "./tools/web-search-tool";
+export { WebPageContentTool } from "./tools/web-page-content-tool";
 export {
-  Tool,
-  ToolRegistry,
-  SECApiTool,
-  WebSearchTool,
-  WebPageContentTool,
-} from "./tools";
+  MCPServerConnection,
+  MCPStdioConnection,
+  MCPSseConnection,
+  MCPTool,
+  MCPToolWrapper,
+  createMCPConnection,
+  MCPManager,
+  MCPProtocolType,
+} from "./tools/mcp-tool";
 
 // LLM provider exports
 export { LLM } from "./llm/llm";
