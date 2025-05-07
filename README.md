@@ -18,6 +18,7 @@ Agent Forge is a TypeScript framework for creating, configuring, and orchestrati
   - [Use Rate Limiting](#6-use-rate-limiting-to-avoid-api-quota-issues)
   - [Debug Interactions](#7-debug-team-interactions-with-verbose-logging)
   - [Stream Communications](#8-stream-agent-communications-in-real-time)
+  - [Use Model Context Protocol](#9-use-model-context-protocol-mcp-to-extend-agent-capabilities)
 - [Development](#development)
 - [Documentation](#documentation)
 - [Contributing](#contributing)
@@ -42,6 +43,7 @@ Agent Forge is a TypeScript framework for creating, configuring, and orchestrati
   - Real-time visibility into task assignments and dependencies
   - Comprehensive progress tracking and error reporting
   - Visual indicators for task status and execution timing
+- 🔗 **Model Context Protocol (MCP)**: Connect to external tool servers using standardized protocols
 - 📊 **TypeScript Support**: Built with TypeScript for type safety and better developer experience
 
 ---
@@ -307,6 +309,77 @@ const result = await workflow.run(
     verbose: true, // Enable detailed logging
   }
 );
+```
+
+### 9. Use Model Context Protocol (MCP) to extend agent capabilities
+
+Agent Forge supports the Model Context Protocol (MCP), which allows agents to connect to external tool servers and use their capabilities.
+
+```typescript
+import {
+  Agent,
+  LLM,
+  MCPManager,
+  MCPConnectionFactory,
+  MCPProtocolType,
+} from "agent-forge";
+
+// Create an LLM provider
+const llmProvider = new LLM("openai", {
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
+// Create an MCP manager
+const mcpManager = new MCPManager();
+
+// Connect to a local MCP server using STDIO
+const stdioConnection = MCPConnectionFactory.create(MCPProtocolType.STDIO, {
+  command: "python",
+  args: ["./path/to/mcp_server.py"],
+  env: { API_KEY: "your-api-key" },
+});
+await mcpManager.addConnection(stdioConnection);
+
+// Connect to a remote MCP server using SSE
+const sseConnection = MCPConnectionFactory.create(MCPProtocolType.SSE, {
+  url: "https://your-mcp-server.example.com/sse",
+  headers: { Authorization: "Bearer your-token" },
+});
+await mcpManager.addConnection(sseConnection);
+
+// Get all tools from the MCP servers
+const mcpTools = mcpManager.getTools();
+
+// Create an agent with MCP tools
+const agent = new Agent({
+  name: "MCP-Enabled Agent",
+  role: "Assistant with extended capabilities",
+  model: "gpt-4-turbo",
+  temperature: 0.7,
+  tools: mcpTools, // Use MCP tools
+});
+
+// Run the agent
+const result = await agent.run(
+  "Analyze this data using the specialized tools."
+);
+console.log(result);
+
+// Always close connections when done
+await mcpManager.close();
+```
+
+With MCP support, your agents can:
+
+- Connect to specialized tool servers
+- Access hundreds of third-party services
+- Extend capabilities without modifying the agent framework
+- Standardize tool interactions across different providers
+
+You can run the MCP example with:
+
+```bash
+yarn example:mcp
 ```
 
 ---

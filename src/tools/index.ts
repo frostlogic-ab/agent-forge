@@ -7,3 +7,13 @@ export { ToolRegistry } from "./tool-registry";
 export { SECApiTool } from "./sec-api-tool";
 export { WebSearchTool } from "./web-search-tool";
 export { WebPageContentTool } from "./web-page-content-tool";
+export {
+  MCPServerConnection,
+  MCPStdioConnection,
+  MCPSseConnection,
+  MCPTool,
+  MCPToolWrapper,
+  MCPConnectionFactory,
+  MCPManager,
+  MCPProtocolType,
+} from "./mcp-tool";
