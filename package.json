@@ -23,7 +23,8 @@
     "example:stock-analysis": "ts-node src/examples/stock-analysis/index.ts",
     "example:streaming-example-workflow": "ts-node src/examples/streaming-example-workflow.ts",
     "example:streaming-example-team": "ts-node src/examples/streaming-example-team.ts",
-    "example:web-page-content-example": "ts-node src/examples/web-page-content-example.ts"
+    "example:web-page-content-example": "ts-node src/examples/web-page-content-example.ts",
+    "example:mcp": "ts-node src/examples/mcp-example.ts"
   },
   "keywords": [
     "ai",
@@ -36,10 +37,12 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@types/event-source-polyfill": "^1.0.5",
     "@types/node": "^22.13.9",
     "axios": "^1.8.2",
     "cheerio": "^1.0.0",
     "dotenv": "^16.4.7",
+    "event-source-polyfill": "^1.0.31",
     "token.js": "^0.5.4",
     "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0",

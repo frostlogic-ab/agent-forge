@@ -3741,6 +3741,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@types/event-source-polyfill@npm:^1.0.5":
+  version: 1.0.5
+  resolution: "@types/event-source-polyfill@npm:1.0.5"
+  checksum: 10c0/62f06c58312097c17f8489771057bb9e859269243a815ef27c8b50b48e084412fce4f90cb18252f807ed9016028321ce2713c90b77e77abc9e84a21bce5db724
+  languageName: node
+  linkType: hard
+
 "@types/graceful-fs@npm:^4.1.3":
   version: 4.1.9
   resolution: "@types/graceful-fs@npm:4.1.9"
@@ -3925,11 +3932,13 @@ __metadata:
     "@bobvanderlinden/semantic-release-pull-request-analyzer": "npm:^1.0.4"
     "@semantic-release/changelog": "npm:^6.0.3"
     "@semantic-release/git": "npm:^10.0.1"
+    "@types/event-source-polyfill": "npm:^1.0.5"
     "@types/jest": "npm:^29.5.14"
     "@types/node": "npm:^22.13.9"
     axios: "npm:^1.8.2"
     cheerio: "npm:^1.0.0"
     dotenv: "npm:^16.4.7"
+    event-source-polyfill: "npm:^1.0.31"
     jest: "npm:^29.7.0"
     semantic-release: "npm:^23.0.0"
     token.js: "npm:^0.5.4"
@@ -5249,6 +5258,13 @@ __metadata:
     esparse: ./bin/esparse.js
     esvalidate: ./bin/esvalidate.js
   checksum: 10c0/ad4bab9ead0808cf56501750fd9d3fb276f6b105f987707d059005d57e182d18a7c9ec7f3a01794ebddcca676773e42ca48a32d67a250c9d35e009ca613caba3
+  languageName: node
+  linkType: hard
+
+"event-source-polyfill@npm:^1.0.31":
+  version: 1.0.31
+  resolution: "event-source-polyfill@npm:1.0.31"
+  checksum: 10c0/79966f5084796e14f9a9dec315a2ccc220dedc51ff5f2b198dc80e3cb2ae01428d39d9bf66ed679f1944be086b9f6e84ea3dc933b81b0411c07f99672135679b
   languageName: node
   linkType: hard
 
