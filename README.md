@@ -320,7 +320,7 @@ import {
   Agent,
   LLM,
   MCPManager,
-  MCPConnectionFactory,
+  createMCPConnection,
   MCPProtocolType,
 } from "agent-forge";
 
@@ -333,7 +333,7 @@ const llmProvider = new LLM("openai", {
 const mcpManager = new MCPManager();
 
 // Connect to a local MCP server using STDIO
-const stdioConnection = MCPConnectionFactory.create(MCPProtocolType.STDIO, {
+const stdioConnection = createMCPConnection(MCPProtocolType.STDIO, {
   command: "python",
   args: ["./path/to/mcp_server.py"],
   env: { API_KEY: "your-api-key" },
@@ -341,7 +341,7 @@ const stdioConnection = MCPConnectionFactory.create(MCPProtocolType.STDIO, {
 await mcpManager.addConnection(stdioConnection);
 
 // Connect to a remote MCP server using SSE
-const sseConnection = MCPConnectionFactory.create(MCPProtocolType.SSE, {
+const sseConnection = createMCPConnection(MCPProtocolType.SSE, {
   url: "https://your-mcp-server.example.com/sse",
   headers: { Authorization: "Bearer your-token" },
 });

@@ -13,7 +13,7 @@ export {
   MCPSseConnection,
   MCPTool,
   MCPToolWrapper,
-  MCPConnectionFactory,
+  createMCPConnection,
   MCPManager,
   MCPProtocolType,
 } from "./mcp-tool";
