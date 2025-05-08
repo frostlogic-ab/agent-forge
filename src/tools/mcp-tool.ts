@@ -100,37 +100,310 @@ export class MCPStdioConnection extends MCPServerConnection {
     }
 
     try {
+      console.log(
+        `Starting MCP STDIO process: ${this.config.command} ${this.config.args?.join(" ") || ""}`
+      );
+
       // Create a child process to communicate with the MCP server
       this.process = spawn(this.config.command, this.config.args || [], {
         env: { ...process.env, ...this.config.env },
         stdio: ["pipe", "pipe", "pipe"],
       });
 
+      console.log("MCP STDIO process spawned, pid:", this.process.pid);
+
       // Set up error handler
       this.process.on("error", (error) => {
         console.error(`MCP STDIO process error: ${error}`);
+        this.running = false;
       });
 
       // Set up exit handler
       this.process.on("exit", (code) => {
-        if (code !== 0) {
-          console.error(`MCP STDIO process exited with code ${code}`);
-        }
+        console.log(`MCP STDIO process exited with code ${code}`);
         this.running = false;
       });
 
-      // Set up stderr handler
+      // Capture all stdout/stderr for debugging
+      this.process.stdout.on("data", (data) => {
+        console.log(
+          `Initial stdout from MCP process: ${data.toString().trim()}`
+        );
+      });
+
       this.process.stderr.on("data", (data) => {
-        console.error(`MCP STDIO stderr: ${data.toString()}`);
+        console.error(`MCP STDIO stderr: ${data.toString().trim()}`);
       });
 
       this.running = true;
 
       // Wait for the process to start
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      // Check if process is still running
+      if (!this.process || this.process.killed || !this.running) {
+        throw new Error(
+          "MCP STDIO process failed to start or exited prematurely"
+        );
+      }
+
+      // Initialize the MCP connection with a handshake
+      try {
+        console.log("Sending initialization request to MCP process");
+
+        // Clear any existing handlers on stdout before initialization
+        this.process.stdout.removeAllListeners("data");
+
+        // Set up handler to capture initialization response
+        const initPromise = new Promise<void>((resolve, reject) => {
+          const initId = `init-${Date.now()}`;
+          let responseData = "";
+
+          const responseHandler = (data: Buffer) => {
+            const chunk = data.toString();
+            console.log("Init response chunk:", chunk);
+            responseData += chunk;
+
+            if (responseData.includes("\n")) {
+              try {
+                // Parse each line as a potential JSON response
+                const lines = responseData
+                  .split("\n")
+                  .filter((line) => line.trim());
+                for (const line of lines) {
+                  try {
+                    const parsed = JSON.parse(line);
+                    console.log("Parsed init response:", parsed);
+
+                    // Check if this is a response to our initialization
+                    if (parsed.id === initId) {
+                      this.process?.stdout.off("data", responseHandler);
+
+                      if (parsed.error) {
+                        console.error("Initialization error:", parsed.error);
+                        reject(
+                          new Error(
+                            parsed.error.message ||
+                              "Unknown initialization error"
+                          )
+                        );
+                        return;
+                      }
+
+                      console.log("MCP successfully initialized");
+                      resolve();
+                      return;
+                    }
+                  } catch (_jsonError) {
+                    // Skip lines that aren't valid JSON
+                  }
+                }
+              } catch (error) {
+                console.error("Failed to parse init response:", error);
+              }
+            }
+          };
+
+          this.process?.stdout.on("data", responseHandler);
+
+          // Set timeout for initialization
+          setTimeout(() => {
+            this.process?.stdout.off("data", responseHandler);
+            console.warn(
+              "No initialization response received, continuing anyway"
+            );
+            resolve(); // Resolve anyway to continue
+          }, 2000);
+
+          // Send initialization request according to MCP protocol
+          const initRequest = JSON.stringify({
+            id: initId,
+            jsonrpc: "2.0",
+            method: "initialize",
+            params: {
+              clientInfo: {
+                name: "mcp-client",
+                version: "1.0.0",
+              },
+              protocolVersion: "2023-07-01",
+              capabilities: {
+                tools: {},
+              },
+            },
+          });
+
+          console.log("Initialization request:", initRequest);
+
+          // Send the request
+          if (this.process && !this.process.killed) {
+            this.process.stdin.write(`${initRequest}\n`);
+          } else {
+            reject(new Error("Process not available for initialization"));
+          }
+        });
+
+        // Wait for initialization response or timeout
+        await initPromise;
+      } catch (initError) {
+        console.error("Failed to send initialization request:", initError);
+      }
+
+      console.log("MCP STDIO process initialization completed");
     } catch (error) {
+      console.error(`Failed to initialize MCP STDIO connection: ${error}`);
       throw new Error(`Failed to initialize MCP STDIO connection: ${error}`);
     }
+  }
+
+  /**
+   * Helper method to convert tool objects to the MCPTool format
+   */
+  private convertToolsFormat(toolsArray: any[]): MCPTool[] {
+    return toolsArray.map((tool) => {
+      const parameters: ToolParameter[] = [];
+
+      // Handle both inputSchema and parameters formats
+      if (tool.inputSchema) {
+        // Convert JSON Schema format to parameters
+        if (tool.inputSchema.properties) {
+          Object.entries(tool.inputSchema.properties).forEach(
+            ([name, schema]: [string, any]) => {
+              parameters.push({
+                name,
+                description: schema.description || "",
+                type: schema.type || "string",
+                required: tool.inputSchema.required?.includes(name) || false,
+              });
+            }
+          );
+        }
+      } else if (tool.parameters && Array.isArray(tool.parameters)) {
+        // Direct parameters array
+        tool.parameters.forEach((param: any) => {
+          parameters.push({
+            name: param.name,
+            description: param.description || "",
+            type: param.type,
+            required: param.required || false,
+          });
+        });
+      }
+
+      return {
+        name: tool.name,
+        description: tool.description || "",
+        parameters,
+        returnType: tool.returnType,
+      };
+    });
+  }
+
+  /**
+   * Creates a promise that resolves when tools list data is received
+   */
+  private createToolsListPromise(
+    requestId: number | string,
+    stderrHandler: (data: Buffer) => void,
+    exitHandler: (code: number | null) => void
+  ): Promise<MCPTool[]> {
+    return new Promise<MCPTool[]>((resolve, reject) => {
+      let responseData = "";
+      const timeoutId = setTimeout(() => {
+        console.log(
+          "Timeout reached - Response data accumulated:",
+          responseData
+        );
+        this.process?.stdout.off("data", responseHandler);
+        this.process?.stderr.off("data", stderrHandler);
+        this.process?.off("exit", exitHandler);
+        reject(new Error("Timeout waiting for MCP server response"));
+      }, 10000); // Increased timeout
+
+      const responseHandler = (data: Buffer) => {
+        const chunk = data.toString();
+        console.log("Received stdout chunk:", chunk);
+        responseData += chunk;
+
+        // Process each line in case we get multiple JSON objects
+        if (responseData.includes("\n")) {
+          const lines = responseData.split("\n").filter((line) => line.trim());
+
+          for (const line of lines) {
+            try {
+              const parsed = JSON.parse(line);
+              console.log("Parsed response:", parsed);
+
+              // Check if this is a response to our request
+              if (parsed.id === requestId) {
+                // Clear timeout since we got our response
+                clearTimeout(timeoutId);
+
+                // Check for errors
+                if (parsed.error) {
+                  // Clean up
+                  this.process?.stdout.off("data", responseHandler);
+                  this.process?.stderr.off("data", stderrHandler);
+                  this.process?.off("exit", exitHandler);
+
+                  reject(new Error(parsed.error.message || "Unknown error"));
+                  return;
+                }
+
+                // Clean up handlers before resolving
+                this.process?.stdout.off("data", responseHandler);
+                this.process?.stderr.off("data", stderrHandler);
+                this.process?.off("exit", exitHandler);
+
+                // If we got here, process the result
+                if (parsed.result) {
+                  // Handle the tools array which can be in different formats
+                  if (
+                    parsed.result.tools &&
+                    Array.isArray(parsed.result.tools)
+                  ) {
+                    // Format: { tools: [...] }
+                    console.log("Processing tools from result.tools array");
+                    this.cachedTools = this.convertToolsFormat(
+                      parsed.result.tools
+                    );
+                    console.log(
+                      `Successfully processed ${this.cachedTools.length} tools`
+                    );
+                    resolve(this.cachedTools);
+                    return;
+                  }
+
+                  if (Array.isArray(parsed.result)) {
+                    // Format: direct array of tools
+                    console.log("Processing tools from direct result array");
+                    this.cachedTools = this.convertToolsFormat(parsed.result);
+                    console.log(
+                      `Successfully processed ${this.cachedTools.length} tools`
+                    );
+                    resolve(this.cachedTools);
+                    return;
+                  }
+                }
+
+                // If we get here, we couldn't extract tools from the response
+                console.log("No tools found in response");
+                this.cachedTools = [];
+                resolve([]);
+                return;
+              }
+            } catch (jsonError) {
+              // Just log and continue if this particular line isn't valid JSON
+              console.log(
+                "Line not valid JSON or processing error:",
+                jsonError
+              );
+            }
+          }
+        }
+      };
+
+      this.process?.stdout.on("data", responseHandler);
+    });
   }
 
   /**
@@ -149,44 +422,96 @@ export class MCPStdioConnection extends MCPServerConnection {
       throw new Error("MCP STDIO process not initialized");
     }
 
+    // Check if process is still running
+    if (this.process.killed) {
+      console.error("MCP STDIO process has been killed");
+      this.running = false;
+      throw new Error("MCP STDIO process has been killed");
+    }
+
     try {
-      // Use a message exchange protocol to get tools from the server
-      const message = JSON.stringify({ type: "list_tools" });
+      console.log(
+        "Requesting tools from MCP server using protocol specification..."
+      );
 
-      // Write to stdin of the process
-      this.process.stdin.write(`${message}\n`);
+      // Add specific stderr handler for debugging
+      const stderrHandler = (data: Buffer) => {
+        console.error(`MCP STDIO stderr during listTools: ${data.toString()}`);
+      };
+      this.process.stderr.on("data", stderrHandler);
 
-      // Read from stdout (simplified - in a real implementation, this would be more robust)
-      const response = await new Promise<string>((resolve, reject) => {
-        let data = "";
+      // Set up exit handler to detect if the process exits during the call
+      const exitHandler = (code: number | null) => {
+        console.error(
+          `MCP STDIO process exited during listTools call with code ${code}`
+        );
+        this.running = false;
+        throw new Error(`MCP process exited with code ${code}`);
+      };
+      this.process?.on("exit", exitHandler);
 
-        const onData = (chunk: any) => {
-          data += chunk.toString();
-          if (data.includes("\n")) {
-            if (this.process) {
-              this.process.stdout.off("data", onData);
-            }
-            resolve(data.trim());
-          }
-        };
-
-        if (this.process) {
-          this.process.stdout.on("data", onData);
-        }
-
-        // Add timeout for safety
-        setTimeout(() => {
-          if (this.process) {
-            this.process.stdout.off("data", onData);
-          }
-          reject(new Error("Timeout waiting for MCP server response"));
-        }, 5000);
+      // Use the official MCP protocol format for listing tools
+      const requestId = Date.now();
+      const message = JSON.stringify({
+        id: requestId,
+        method: "tools/list",
+        jsonrpc: "2.0",
       });
 
-      const tools = JSON.parse(response) as MCPTool[];
-      this.cachedTools = tools;
-      return tools;
+      console.log("Sending listTools request:", message);
+
+      // Clear any existing handlers on stdout
+      this.process.stdout.removeAllListeners("data");
+
+      // Create a promise to handle the response
+      let responsePromise = this.createToolsListPromise(
+        requestId,
+        stderrHandler,
+        exitHandler
+      );
+
+      // Send the request
+      this.process.stdin.write(`${message}\n`);
+
+      try {
+        return await responsePromise;
+      } catch (error: any) {
+        // If the method was not found, try the alternative method name
+        if (error.message?.includes("Method not found")) {
+          console.log(
+            "Method 'tools/list' not found, trying alternative 'listTools'"
+          );
+
+          // Try the alternative method name
+          const alternativeRequestId = Date.now();
+          const alternativeMessage = JSON.stringify({
+            id: alternativeRequestId,
+            method: "listTools",
+            jsonrpc: "2.0",
+          });
+
+          console.log(
+            "Sending alternative listTools request:",
+            alternativeMessage
+          );
+
+          // Create a new promise for the alternative request
+          responsePromise = this.createToolsListPromise(
+            alternativeRequestId,
+            stderrHandler,
+            exitHandler
+          );
+
+          // Send the alternative request
+          this.process.stdin.write(`${alternativeMessage}\n`);
+
+          return await responsePromise;
+        }
+
+        throw error;
+      }
     } catch (error) {
+      console.error(`Error in listTools: ${error}`);
       throw new Error(`Failed to list MCP tools: ${error}`);
     }
   }
@@ -206,46 +531,128 @@ export class MCPStdioConnection extends MCPServerConnection {
       throw new Error("MCP STDIO process not initialized");
     }
 
+    // Check if process is still running
+    if (this.process.killed) {
+      console.error("MCP STDIO process has been killed");
+      this.running = false;
+      throw new Error("MCP STDIO process has been killed");
+    }
+
     try {
-      // Use a message exchange protocol to call a tool on the server
+      console.log(`Calling tool ${toolName} with params:`, params);
+
+      // Add specific stderr handler for debugging
+      const stderrHandler = (data: Buffer) => {
+        console.error(
+          `MCP STDIO stderr during tool call ${toolName}: ${data.toString()}`
+        );
+      };
+      this.process.stderr.on("data", stderrHandler);
+
+      // Set up exit handler to detect if the process exits during the call
+      const exitHandler = (code: number | null) => {
+        console.error(
+          `MCP STDIO process exited during tool call with code ${code}`
+        );
+        this.running = false;
+        throw new Error(`MCP process exited with code ${code}`);
+      };
+      this.process?.on("exit", exitHandler);
+
+      // Use the official MCP protocol format for calling tools
+      const requestId = Date.now();
       const message = JSON.stringify({
-        type: "call_tool",
-        tool: toolName,
-        params,
+        id: requestId,
+        method: "tools/call",
+        params: {
+          name: toolName,
+          arguments: params,
+        },
+        jsonrpc: "2.0",
       });
 
-      // Write to stdin of the process
-      this.process.stdin.write(`${message}\n`);
+      console.log(`Sending callTool request: ${message}`);
 
-      // Read from stdout (simplified - in a real implementation, this would be more robust)
-      const response = await new Promise<string>((resolve, reject) => {
-        let data = "";
+      // Clear any existing handlers on stdout
+      this.process.stdout.removeAllListeners("data");
 
-        const onData = (chunk: any) => {
-          data += chunk.toString();
-          if (data.includes("\n")) {
-            if (this.process) {
-              this.process.stdout.off("data", onData);
+      // Create a promise to handle the response
+      const responsePromise = new Promise<any>((resolve, reject) => {
+        let responseData = "";
+        const timeoutId = setTimeout(() => {
+          console.log(
+            `Timeout reached waiting for MCP tool ${toolName} response`
+          );
+          this.process?.stdout.off("data", responseHandler);
+          this.process?.stderr.off("data", stderrHandler);
+          this.process?.off("exit", exitHandler);
+          reject(
+            new Error(`Timeout waiting for MCP tool ${toolName} response`)
+          );
+        }, 30000); // Longer timeout for tool calls
+
+        const responseHandler = (data: Buffer) => {
+          const chunk = data.toString();
+          console.log(`Received stdout chunk for tool ${toolName}:`, chunk);
+          responseData += chunk;
+
+          if (responseData.includes("\n")) {
+            try {
+              // Parse each line as a potential JSON response
+              const lines = responseData
+                .split("\n")
+                .filter((line) => line.trim());
+              for (const line of lines) {
+                try {
+                  const parsed = JSON.parse(line);
+                  console.log(`Parsed response for tool ${toolName}:`, parsed);
+
+                  // Check if this is a response to our request
+                  if (parsed.id === requestId) {
+                    // Clean up
+                    clearTimeout(timeoutId);
+                    this.process?.stdout.off("data", responseHandler);
+                    this.process?.stderr.off("data", stderrHandler);
+                    this.process?.off("exit", exitHandler);
+
+                    if (parsed.error) {
+                      reject(
+                        new Error(parsed.error.message || "Unknown error")
+                      );
+                      return;
+                    }
+
+                    // Extract the result - could be directly in result or in result.value
+                    let result = parsed.result;
+                    if (parsed.result && parsed.result.value !== undefined) {
+                      result = parsed.result.value;
+                    }
+
+                    resolve(result);
+                    return;
+                  }
+                } catch (_jsonError) {
+                  // Skip lines that aren't valid JSON
+                }
+              }
+            } catch (parseError) {
+              console.error(
+                `Failed to parse response for tool ${toolName}:`,
+                parseError
+              );
             }
-            resolve(data.trim());
           }
         };
 
-        if (this.process) {
-          this.process.stdout.on("data", onData);
-        }
-
-        // Add timeout for safety
-        setTimeout(() => {
-          if (this.process) {
-            this.process.stdout.off("data", onData);
-          }
-          reject(new Error("Timeout waiting for MCP server response"));
-        }, 30000); // Longer timeout for tool calls
+        this.process?.stdout.on("data", responseHandler);
       });
 
-      return JSON.parse(response);
+      // Send the request
+      this.process.stdin.write(`${message}\n`);
+
+      return await responsePromise;
     } catch (error) {
+      console.error(`Failed to call MCP tool ${toolName}:`, error);
       throw new Error(`Failed to call MCP tool ${toolName}: ${error}`);
     }
   }
