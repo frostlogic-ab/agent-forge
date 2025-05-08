@@ -356,8 +356,7 @@ const agent = new Agent({
   role: "Assistant with extended capabilities",
   model: "gpt-4-turbo",
   temperature: 0.7,
-  tools: mcpTools, // Use MCP tools
-});
+}, mcpTools);
 
 // Run the agent
 const result = await agent.run(
