@@ -159,6 +159,23 @@ export class LLM {
   async chat(
     params: Omit<CompletionNonStreaming<any>, "provider" | "stream">
   ): Promise<LLMResponse> {
+    // Ensure each message has non-empty content
+    if (params.messages) {
+      params.messages = params.messages.map((message) => {
+        // If content is empty or undefined, provide a placeholder
+        if (!message.content) {
+          return {
+            ...message,
+            content:
+              message.content === ""
+                ? "Empty message"
+                : message.content || "No content provided",
+          };
+        }
+        return message;
+      });
+    }
+
     const completion = await this.token.chat.completions.create({
       ...params,
       provider: this.provider,
@@ -173,6 +190,23 @@ export class LLM {
       onChunk: (chunk: CompletionResponseChunk) => void;
     }
   ): Promise<LLMResponse> {
+    // Ensure each message has non-empty content
+    if (params.messages) {
+      params.messages = params.messages.map((message) => {
+        // If content is empty or undefined, provide a placeholder
+        if (!message.content) {
+          return {
+            ...message,
+            content:
+              message.content === ""
+                ? "Empty message"
+                : message.content || "No content provided",
+          };
+        }
+        return message;
+      });
+    }
+
     const completion = await this.token.chat.completions.create({
       ...params,
       provider: this.provider,

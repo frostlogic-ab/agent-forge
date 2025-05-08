@@ -440,7 +440,70 @@ export class MCPToolWrapper extends Tool {
    * @returns Result of the tool execution
    */
   protected async run(params: Record<string, any>): Promise<any> {
-    return await this.mcpClient.callTool(this.mcpToolName, params);
+    const result = await this.mcpClient.callTool(this.mcpToolName, params);
+
+    // Process the result if it's a JSON string inside a content array
+    if (result?.content && Array.isArray(result.content)) {
+      // Check if we have text content that's actually JSON
+      for (let i = 0; i < result.content.length; i++) {
+        const item = result.content[i];
+        if (item.type === "text") {
+          // If it's already a string, keep it as is
+          if (typeof item.text === "string") {
+            try {
+              // Try to parse the JSON string
+              const parsed = JSON.parse(item.text);
+              // Format the parsed object as plain text
+              result.content[i].text = this.formatObjectAsText(parsed);
+            } catch {
+              // Not valid JSON, leave as is
+            }
+          }
+          // If it's already an object, format it as text
+          else if (typeof item.text === "object" && item.text !== null) {
+            result.content[i].text = this.formatObjectAsText(item.text);
+          }
+        }
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * Formats an object as readable text
+   * @param obj Object to format
+   * @returns Formatted text
+   */
+  private formatObjectAsText(obj: Record<string, any>): string {
+    if (!obj) return "No data available";
+
+    // Generic object formatting
+    try {
+      // For simple objects, create a formatted representation
+      const entries = Object.entries(obj)
+        .filter(([_, value]) => value !== null && value !== "")
+        .map(([key, value]) => {
+          if (typeof value === "object" && value !== null) {
+            // For nested objects, use JSON.stringify with formatting
+            return `${key}: ${JSON.stringify(value, null, 2)}`;
+          }
+          return `${key}: ${value}`;
+        });
+
+      if (entries.length > 0) {
+        return entries.join("\n");
+      }
+    } catch {
+      // If there are any issues formatting, fall back to basic JSON
+      try {
+        return JSON.stringify(obj, null, 2);
+      } catch {
+        return "Error formatting object data";
+      }
+    }
+
+    return "Empty object";
   }
 }
 

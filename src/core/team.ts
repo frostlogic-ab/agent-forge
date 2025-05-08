@@ -197,11 +197,11 @@ ${agentDescriptions}
 1. Choose the most appropriate team member
 2. Explain why you chose them
 3. Clearly describe the subtask they need to complete
-4. If a task depends on another task, make sure to say the tasks "depends on" the other task
+4. If a task depends on another task, make sure to say "depends on: task-id-of-the-task-it-depends-on"
 5. Wait for their response before proceeding
 
 You'll receive responses from team members as they complete their assigned subtasks.
-When all subtasks are completed, provide a final comprehensive response to the original task.
+When all subtasks are completed and if you don't have any more tasks to assign, provide a final response to the original task.
 `;
     if (this.verbose) {
       console.log(`\n👨‍💼 Manager Prompt:\n${managerPrompt}\n`);
