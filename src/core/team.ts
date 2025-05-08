@@ -193,15 +193,16 @@ The task will be broken down into subtasks as needed, and assigned to the approp
 **Available team members:**
 ${agentDescriptions}
 
-**For each subtask:**
-1. Choose the most appropriate team member
-2. Explain why you chose them
-3. Clearly describe the subtask they need to complete
-4. If a task depends on another task, make sure to say "depends on: task-id-of-the-task-it-depends-on"
-5. Wait for their response before proceeding
+**For each subtask, use this EXACT format:**
+**Task #:** [Task title]
+**Team member:** [Team member name]
+**Why:** [Brief explanation]
+**Subtask:** [Clear description of what they need to do]
+**Depends on:** [Task ID(s) of dependencies separated by commas, e.g., "task-0, task-1" or write "none" if no dependencies]
 
-You'll receive responses from team members as they complete their assigned subtasks.
-When all subtasks are completed and if you don't have any more tasks to assign, provide a final response to the original task.
+IMPORTANT: Tasks will be processed in parallel unless you specify dependencies! For sequential tasks, you MUST use the "Depends on:" field.
+
+Wait for each team member's response before proceeding with dependent tasks. When all subtasks are completed, provide a final response to the original task.
 `;
     if (this.verbose) {
       console.log(`\n👨‍💼 Manager Prompt:\n${managerPrompt}\n`);
@@ -506,12 +507,32 @@ What tasks would you like to assign to each team member?
         conversationHistory
       );
     } else {
+      // Log task assignments for debugging if verbose
+      if (this.verbose && rawAssignments.length > 0) {
+        console.log(`🔍 Found ${rawAssignments.length} task assignments:`);
+        for (const assignment of rawAssignments) {
+          console.log(
+            `- ${assignment.agentName}: ${assignment.task.substring(0, 50)}...`
+          );
+        }
+      }
+
       counter = this.processAssignedTasks(
         rawAssignments,
         tasks,
         counter,
         conversationHistory
       );
+    }
+
+    // Log all created tasks for debugging if verbose
+    if (this.verbose) {
+      console.log(`📋 Current task status (${tasks.size} total tasks):`);
+      for (const [taskId, task] of tasks.entries()) {
+        console.log(
+          `- ${taskId} (${task.agentName}): ${task.status}, Dependencies: ${task.dependencies.join(", ") || "none"}`
+        );
+      }
     }
 
     return counter;
@@ -606,11 +627,26 @@ What tasks would you like to assign to each team member?
    * Extracts task dependencies from a task description
    */
   private extractDependenciesFromDescription(description: string): string[] {
-    const dependencyMatch = description.match(/depends on:\s*(task-[\d,\s]+)/i);
+    // Look for dependencies in the original format
+    const oldFormatMatch = description.match(/depends on:\s*(task-[\d,\s]+)/i);
 
-    return dependencyMatch
-      ? dependencyMatch[1].split(",").map((id) => id.trim())
-      : [];
+    if (oldFormatMatch) {
+      return oldFormatMatch[1].split(",").map((id) => id.trim());
+    }
+
+    // Look for dependencies in the new structured format
+    const newFormatMatch = description.match(
+      /\*\*Depends on:\*\*\s*(task-[\d,\s]+|none)/i
+    );
+
+    if (newFormatMatch) {
+      const dependsOn = newFormatMatch[1].trim().toLowerCase();
+      return dependsOn === "none"
+        ? []
+        : dependsOn.split(",").map((id) => id.trim());
+    }
+
+    return [];
   }
 
   /**
@@ -1047,6 +1083,18 @@ Include key insights, conclusions, and recommendations.
           `task\\s+(?:for|to)\\s+${agentName}\\s*:\\s*([^\\n]+(?:\\n(?!\\n|${agentNames.join(
             "|"
           )})[^\\n]+)*)`,
+          "i"
+        ),
+
+        // Markdown style with "Team member:" format
+        new RegExp(
+          `\\*\\*Team\\s+member:\\*\\*\\s*${agentName}[^\\n]*\\n(?:[^\\n]*\\n)*?\\*\\*Subtask:\\*\\*\\s*([^\\n]+(?:\\n(?!\\n|\\*\\*Team\\s+member)[^\\n]+)*)`,
+          "i"
+        ),
+
+        // Direct mention in subtask
+        new RegExp(
+          `\\*\\*Subtask:\\*\\*\\s*${agentName},?\\s+([^\\n]+(?:\\n(?!\\n|\\*\\*)[^\\n]+)*)`,
           "i"
         ),
       ];
