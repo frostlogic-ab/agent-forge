@@ -35,7 +35,6 @@ const researcherAgent = new Agent(
     objective: "Provide accurate and relevant research.",
     model: model, 
     temperature: 0.2,
-    tools: [webSearchTool.getConfig(), webPageContentTool.getConfig()],
   },
   [webSearchTool, webPageContentTool], // Pass tools as second argument
   llmProvider
@@ -51,7 +50,6 @@ const writerAgent = new Agent(
     objective: "Create well-written summaries and articles.",
     model: model,
     temperature: 0.2,
-    tools: [],
   },
   [], // No tools
   llmProvider
@@ -67,7 +65,6 @@ const factCheckerAgent = new Agent(
     objective: "Ensure all information is factually correct.",
     model: model,
     temperature: 0.2,
-    tools: [webSearchTool.getConfig()],
   },
   [webSearchTool], // Pass tools as second argument
   llmProvider
