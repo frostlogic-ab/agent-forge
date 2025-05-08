@@ -340,9 +340,17 @@ const stdioConnection = createMCPConnection(MCPProtocolType.STDIO, {
 });
 await mcpManager.addConnection(stdioConnection);
 
-// Connect to a remote MCP server using SSE
+// Connect to a remote MCP server using Streamable HTTP (recommended)
+const streamableHttpConnection = createMCPConnection(MCPProtocolType.STREAMABLE_HTTP, {
+  baseUrl: "https://your-mcp-server.example.com/mcp",
+  headers: { Authorization: "Bearer your-token" },
+});
+await mcpManager.addConnection(streamableHttpConnection);
+
+// Connect to a legacy MCP server using SSE (deprecated)
+// Note: SSE is deprecated in favor of Streamable HTTP
 const sseConnection = createMCPConnection(MCPProtocolType.SSE, {
-  url: "https://your-mcp-server.example.com/sse",
+  url: "https://your-legacy-mcp-server.example.com/sse",
   headers: { Authorization: "Bearer your-token" },
 });
 await mcpManager.addConnection(sseConnection);
