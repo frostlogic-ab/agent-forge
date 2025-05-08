@@ -202,6 +202,9 @@ For each subtask:
 You'll receive responses from team members as they complete their assigned subtasks.
 When all subtasks are completed, provide a final comprehensive response to the original task.
 `;
+    if (this.verbose) {
+      console.log(`\n👨‍💼 Manager Prompt:\n${managerPrompt}\n`);
+    }
 
     // If streaming is enabled, emit an event to indicate team is starting
     if (stream) {

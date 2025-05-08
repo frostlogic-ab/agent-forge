@@ -1,31 +1,8 @@
-import { spawn } from "node:child_process";
+import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
 import axios from "axios";
 import { EventSourcePolyfill } from "event-source-polyfill";
 import type { ToolParameter } from "../types";
 import { Tool } from "./tool";
-
-// Types to avoid Node.js specific imports
-type SpawnProcess = {
-  stdin: {
-    write: (data: string) => boolean;
-  };
-  stdout: {
-    on: (event: string, callback: (chunk: any) => void) => void;
-    off: (event: string, callback: (chunk: any) => void) => void;
-  };
-  stderr: {
-    on: (event: string, callback: (chunk: any) => void) => void;
-  };
-  on: (event: string, callback: (code: number) => void) => void;
-  kill: () => void;
-};
-
-type EventSourceType = {
-  onopen: ((this: any) => void) | null;
-  onmessage: ((this: any, event: MessageEvent) => void) | null;
-  onerror: ((this: any, error: Event) => void) | null;
-  close: () => void;
-};
 
 /**
  * Represents an MCP server protocol type
@@ -50,6 +27,7 @@ export interface MCPStdioConfig {
 export interface MCPSseConfig {
   url: string;
   headers?: Record<string, string>;
+  verbose?: boolean;
 }
 
 /**
@@ -90,7 +68,7 @@ export abstract class MCPServerConnection {
  */
 export class MCPStdioConnection extends MCPServerConnection {
   private config: MCPStdioConfig;
-  private process: SpawnProcess | null = null;
+  private process: ChildProcessWithoutNullStreams | null = null;
   private cachedTools: MCPTool[] | null = null;
 
   /**
@@ -115,7 +93,7 @@ export class MCPStdioConnection extends MCPServerConnection {
       this.process = spawn(this.config.command, this.config.args || [], {
         env: { ...process.env, ...this.config.env },
         stdio: ["pipe", "pipe", "pipe"],
-      }) as SpawnProcess;
+      });
 
       // Set up error handler
       this.process.on("error", (error) => {
@@ -292,7 +270,7 @@ export class MCPStdioConnection extends MCPServerConnection {
  */
 export class MCPSseConnection extends MCPServerConnection {
   private config: MCPSseConfig;
-  private eventSource: EventSourceType | null = null;
+  private eventSource: EventSourcePolyfill | null = null;
   private cachedTools: MCPTool[] | null = null;
   private requestId = 0;
   private pendingRequests: Map<
@@ -321,16 +299,19 @@ export class MCPSseConnection extends MCPServerConnection {
       // Create EventSource connection to the SSE server
       this.eventSource = new EventSourcePolyfill(this.config.url, {
         headers: this.config.headers,
-      }) as unknown as EventSourceType;
+      });
 
       // Set up event handlers
       this.eventSource.onopen = () => {
         this.running = true;
+        if (this.config.verbose) {
+          console.log("MCP SSE connection opened");
+        }
       };
 
-      this.eventSource.onerror = (error: Event) => {
+      this.eventSource.onerror = (event) => {
         this.running = false;
-        console.error("MCP SSE connection error:", error);
+        console.error("MCP SSE connection error:", event);
 
         // Reject all pending requests
         for (const [, { reject }] of this.pendingRequests) {
@@ -339,9 +320,12 @@ export class MCPSseConnection extends MCPServerConnection {
         this.pendingRequests.clear();
       };
 
-      this.eventSource.onmessage = (event: MessageEvent) => {
+      this.eventSource.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
+          if (this.config.verbose) {
+            console.log("MCP SSE message:", data);
+          }
           if (data.id && this.pendingRequests.has(data.id)) {
             const pendingRequest = this.pendingRequests.get(data.id);
             if (pendingRequest) {
@@ -367,7 +351,7 @@ export class MCPSseConnection extends MCPServerConnection {
             clearTimeout(timeout);
             this.running = true;
             resolve();
-            if (originalOnOpen) originalOnOpen.call(this);
+            if (originalOnOpen) originalOnOpen.call(this, new Event("open"));
           }.bind(this);
         }
       });
@@ -424,6 +408,9 @@ export class MCPSseConnection extends MCPServerConnection {
       }
 
       const tools = await responsePromise;
+      if (this.config.verbose) {
+        console.log("DiscoveredMCP tools:", tools);
+      }
       this.cachedTools = tools;
       return tools;
     } catch (error) {
@@ -465,7 +452,9 @@ export class MCPSseConnection extends MCPServerConnection {
         tool: toolName,
         params,
       });
-
+      if (this.config.verbose) {
+        console.log("Sending MCP tool call:", message);
+      }
       // Implement actual HTTP request to the SSE server
       try {
         await axios.post(this.config.url, message, {
@@ -500,6 +489,9 @@ export class MCPSseConnection extends MCPServerConnection {
         reject(new Error("SSE connection closed"));
       }
       this.pendingRequests.clear();
+      if (this.config.verbose) {
+        console.log("MCP SSE connection closed");
+      }
     }
   }
 }
