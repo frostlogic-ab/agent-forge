@@ -52,19 +52,6 @@ export class Agent {
     // Initialize the tool registry with provided tools
     this.tools = new ToolRegistry(tools);
 
-    // Add tools from config if they are Tool instances
-    // This handles the case where Tool instances are mistakenly added to config.tools
-    if (this.config.tools && this.config.tools.length > 0) {
-      for (const configTool of this.config.tools) {
-        // If it's already a Tool instance (has execute method), register it
-        if (typeof (configTool as any).execute === "function") {
-          this.tools.register(configTool as unknown as Tool);
-        }
-        // For ToolConfig objects, we can't do anything here as they're just data
-        // and can't be executed like actual Tool instances
-      }
-    }
-
     this.llmProvider = llmProvider;
 
     // Initialize conversation with system message
