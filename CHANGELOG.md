@@ -1,4 +1,12 @@
 ## What's Changed
+* improve task dependency and removes duplicated code by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/13
+
+
+**Full Changelog**: https://github.com/frostlogic-ab/agent-forge/compare/v1.4.0-alpha.2...v1.4.0-alpha.3
+
+# [1.4.0-alpha.3](https://github.com/frostlogic-ab/agent-forge/compare/v1.4.0-alpha.2...v1.4.0-alpha.3) (2025-05-08)
+
+## What's Changed
 * fix: tool imports by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/11
 
 
