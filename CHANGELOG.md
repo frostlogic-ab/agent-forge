@@ -1,4 +1,12 @@
 ## What's Changed
+* feat: add streamable http protocol for MCP by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/14
+
+
+**Full Changelog**: https://github.com/frostlogic-ab/agent-forge/compare/v1.4.0-alpha.3...v1.4.0-alpha.4
+
+# [1.4.0-alpha.4](https://github.com/frostlogic-ab/agent-forge/compare/v1.4.0-alpha.3...v1.4.0-alpha.4) (2025-05-08)
+
+## What's Changed
 * improve task dependency and removes duplicated code by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/13
 
 
