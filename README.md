@@ -320,7 +320,7 @@ import {
   Agent,
   LLM,
   MCPManager,
-  createMCPConnection,
+  createMCPClient,
   MCPProtocolType,
 } from "agent-forge";
 
@@ -333,27 +333,28 @@ const llmProvider = new LLM("openai", {
 const mcpManager = new MCPManager();
 
 // Connect to a local MCP server using STDIO
-const stdioConnection = createMCPConnection(MCPProtocolType.STDIO, {
+const stdioClient = createMCPClient(MCPProtocolType.STDIO, {
   command: "python",
   args: ["./path/to/mcp_server.py"],
   env: { API_KEY: "your-api-key" },
+  verbose: true,
 });
-await mcpManager.addConnection(stdioConnection);
+await mcpManager.addClient(stdioClient);
 
 // Connect to a remote MCP server using Streamable HTTP (recommended)
-const streamableHttpConnection = createMCPConnection(MCPProtocolType.STREAMABLE_HTTP, {
+const streamableHttpClient = createMCPClient(MCPProtocolType.STREAMABLE_HTTP, {
   baseUrl: "https://your-mcp-server.example.com/mcp",
   headers: { Authorization: "Bearer your-token" },
 });
-await mcpManager.addConnection(streamableHttpConnection);
+await mcpManager.addClient(streamableHttpClient);
 
 // Connect to a legacy MCP server using SSE (deprecated)
 // Note: SSE is deprecated in favor of Streamable HTTP
-const sseConnection = createMCPConnection(MCPProtocolType.SSE, {
+const sseClient = createMCPClient(MCPProtocolType.SSE, {
   url: "https://your-legacy-mcp-server.example.com/sse",
   headers: { Authorization: "Bearer your-token" },
 });
-await mcpManager.addConnection(sseConnection);
+await mcpManager.addClient(sseClient);
 
 // Get all tools from the MCP servers
 const mcpTools = mcpManager.getTools();

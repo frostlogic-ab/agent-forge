@@ -16,12 +16,11 @@ export { SECApiTool } from "./tools/sec-api-tool";
 export { WebSearchTool } from "./tools/web-search-tool";
 export { WebPageContentTool } from "./tools/web-page-content-tool";
 export {
-  MCPServerConnection,
-  MCPStdioConnection,
-  MCPSseConnection,
+  MCPClientWrapper,
+  MCPSdkClientWrapper,
   MCPTool,
+  createMCPClient,
   MCPToolWrapper,
-  createMCPConnection,
   MCPManager,
   MCPProtocolType,
 } from "./tools/mcp-tool";
