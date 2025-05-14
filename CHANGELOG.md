@@ -1,4 +1,18 @@
 ## What's Changed
+* Better task manangement in hierarchical workflows, improved debugging, MCP client refactor, LLM class robustness by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/15
+* remove unused file, update biome schema by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/16
+
+
+**Full Changelog**: https://github.com/frostlogic-ab/agent-forge/compare/v1.4.0-alpha.4...v1.4.0-alpha.5
+
+# [1.4.0-alpha.5](https://github.com/frostlogic-ab/agent-forge/compare/v1.4.0-alpha.4...v1.4.0-alpha.5) (2025-05-14)
+
+
+### Bug Fixes
+
+* use mcp sdk instead ([3227ba7](https://github.com/frostlogic-ab/agent-forge/commit/3227ba73674868f79c53ac7ee8e871d229ff6d72))
+
+## What's Changed
 * feat: add streamable http protocol for MCP by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/14
 
 
