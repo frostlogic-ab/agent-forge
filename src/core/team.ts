@@ -189,6 +189,9 @@ Task: ${input}
 
 You are the manager of a team. Your role is to analyze the task and decide which team member(s) should handle it.
 The task will be broken down into subtasks as needed, and assigned to the appropriate team member.
+First, think carefully step by step about what tasks are needed to answer the query and what are the dependencies between them.
+Team members will be able to handle multiple tasks if needed.
+Team members will not talk between themselves, they will only do the tasks assigned to them.
 
 **Available team members:**
 ${agentDescriptions}
