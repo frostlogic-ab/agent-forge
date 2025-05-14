@@ -185,27 +185,36 @@ export class Team {
 
     // Create a manager-specific prompt
     const managerPrompt = `
-Task: ${input}
+# Task 
+${input}
 
+# Instructions
 You are the manager of a team. Your role is to analyze the task and decide which team member(s) should handle it.
-The task will be broken down into subtasks as needed, and assigned to the appropriate team member.
-First, think carefully step by step about what tasks are needed to answer the query and what are the dependencies between them.
-Team members will be able to handle multiple tasks if needed.
-Team members will not talk between themselves, they will only do the tasks assigned to them.
+
+## Task breakdown
+- First, think carefully step by step about what subtasks are needed to answer the query and what are the dependencies between them.
+- The task will be broken down into subtasks as needed, and assigned to the appropriate team member.
+- CRITICAL: Ensure no task has a circular dependency (e.g., a task depending on itself or a chain of tasks that loops back). Dependencies must flow towards a final resolution.
+- AVOID REDUNDANCY: Do not re-assign or re-create tasks that have already successfully completed and provided their output in previous steps, unless the goal or input parameters for that task have significantly changed. Refer to and use the results from already completed tasks whenever possible.
+
+## Team members
+- Team members will be able to handle multiple tasks if needed.
+- Team members will not talk between themselves, they will only do the tasks assigned to them.
+- Always pass the required context to the team members.
 
 **Available team members:**
 ${agentDescriptions}
 
+## Format
 **For each subtask, use this EXACT format:**
 **Task #:** [Task title]
 **Team member:** [Team member name]
 **Why:** [Brief explanation]
 **Subtask:** [Clear description of what they need to do]
-**Depends on:** [Task ID(s) of dependencies separated by commas, e.g., "task-0, task-1" or write "none" if no dependencies]
+**Depends on:** [Task ID(s) from 'Current task status' for PREVIOUSLY COMPLETED tasks, or system-generated IDs for other tasks you are defining in THIS planning step, or "none"]
 
-IMPORTANT: Tasks will be processed in parallel unless you specify dependencies! For sequential tasks, you MUST use the "Depends on:" field.
-
-Wait for each team member's response before proceeding with dependent tasks. When all subtasks are completed, provide a final response to the original task.
+**IMPORTANT:** Tasks will be processed in parallel unless you specify dependencies! For sequential tasks, you MUST use the "Depends on:" field.
+**IMPORTANT:** Wait for each team member's response before proceeding with dependent tasks. When all subtasks are completed, provide a final response to the original task.
 `;
     if (this.verbose) {
       console.log(`\n👨‍💼 Manager Prompt:\n${managerPrompt}\n`);
@@ -369,7 +378,7 @@ Wait for each team member's response before proceeding with dependent tasks. Whe
     const tasks: Map<string, Task> = new Map();
     const completedTasks: Set<string> = new Set();
     const failedTasks: Set<string> = new Set();
-    const taskIdCounter = 0;
+    let taskIdCounter = 0;
 
     // Extract initial tasks from the manager's response
     let currentManagerResponse = managerResult.output;
@@ -383,7 +392,7 @@ Wait for each team member's response before proceeding with dependent tasks. Whe
 
     for (let iteration = 0; iteration < MAX_ITERATIONS; iteration++) {
       // Create new tasks from manager's assignments
-      this.createTasksFromAssignments(
+      taskIdCounter = this.createTasksFromAssignments(
         currentManagerResponse,
         tasks,
         taskIdCounter,
@@ -472,12 +481,14 @@ Wait for each team member's response before proceeding with dependent tasks. Whe
       const explicitAssignmentPrompt = `
 You need to assign specific tasks to team members to complete this work.
 
-Please explicitly assign tasks using the format:
-"[AgentName]: [Task description]" or "Assign [AgentName] to: [Task description]"
+Please use this EXACT format for each task:
+**Task #:** [Task title]
+**Team member:** [Team member name]
+**Why:** [Brief explanation]
+**Subtask:** [Clear description of what they need to do]
+**Depends on:** [Task ID(s) of dependencies separated by commas, e.g., "task-0, task-1" or write "none" if no dependencies]
 
-For example:
-Researcher: Research the basics of quantum computing and its current state.
-Assign Summarizer to: Create a concise summary of the implications for cybersecurity.
+**IMPORTANT:** Tasks will be processed in parallel unless you specify dependencies! For sequential tasks, you MUST use the "Depends on:" field.
 
 What tasks would you like to assign to each team member?
 `;
@@ -922,7 +933,7 @@ Please provide a clear and detailed response.
     if (completedTasks.length > 0) {
       report += "Completed Tasks:\n";
       for (const task of completedTasks) {
-        report += `- Task ${task.id} (${task.agentName}): ${task.description}\n`;
+        report += `- Task ${task.id} (${task.agentName}): ${task.description}\n  Result: ${task.result ? task.result.substring(0, 150) + (task.result.length > 150 ? "..." : "") : "No textual result provided or result is not a string."}\n`;
       }
     } else {
       report += "No tasks have been completed yet.\n";
@@ -1012,16 +1023,27 @@ ${[...tasks.values()]
     (t) =>
       `- Task ${t.id} (${t.agentName}): ${t.status}, Dependencies: ${
         t.dependencies.join(", ") || "none"
-      }`
+      }${t.result ? `, Result: ${t.result.substring(0, 100)}${t.result.length > 100 ? "..." : ""}` : ""}`
   )
   .join("\n")}
 
-Please provide revised instructions to resolve this situation. Choose ONE of these options:
+Please analyze the 'Current task status' CAREFULLY. Provide revised instructions to resolve this situation. Choose ONE of these options:
 
-1. Create new tasks with adjusted dependencies to continue the workflow.
-2. If enough information is available to complete the original task, respond with "FINAL RESPONSE:" followed by your comprehensive final answer.
+1. Create new tasks or revise existing task dependencies to continue the workflow.
+   - When defining dependencies, you MUST use the exact task IDs (e.g., "task-0", "task-5") listed in the 'Current task status' for PREVIOUSLY COMPLETED tasks, or system-generated IDs for other tasks you are defining in THIS planning step, or "none".
+   - If defining new tasks that depend on each other within this response, ensure your references are consistent for the system to map.
+   - AVOID REDUNDANCY: Do not re-assign or re-create tasks that have already successfully completed (check 'Current task status'). Use their existing results instead of running them again, unless the goal or input parameters for that task have significantly changed.
+   - Use the EXACT standard task assignment format:
+     **Task #:** [Task title]
+     **Team member:** [Team member name]
+     **Why:** [Brief explanation]
+     **Subtask:** [Clear description of what they need to do]
+     **Depends on:** [Task ID(s) from 'Current task status' for PREVIOUSLY COMPLETED tasks, or system-generated IDs for other tasks you are defining in THIS planning step, or "none"]
+2. If enough information is ALREADY AVAILABLE from COMPLETED tasks (check their 'result' in 'Current task status') to address the original user query, respond with "FINAL RESPONSE:" followed by your comprehensive final answer.
+   - DO NOT state that data is missing if it exists in the 'result' of a completed task. UTILIZE THIS DATA.
+   - DO NOT INVENT OR HALLUCINATE data values (e.g., incident counts). Use only data provided by previous agents or the original query. If critical data is genuinely missing AFTER checking all completed task results, you should prefer option 1 to create a task to retrieve it.
 
-IMPORTANT: If you choose option 2, start your message with "FINAL RESPONSE:" and provide a complete answer to the original task.
+IMPORTANT: If you choose option 2, start your message with "FINAL RESPONSE:" and provide a complete answer to the original task using ONLY confirmed information from COMPLETED TASKS.
 `;
 
     const deadlockResult = await this.manager.run(deadlockedPrompt);
@@ -1071,12 +1093,12 @@ Below is a summary of all completed tasks and their results:
 
 ${taskSummary}
 
-IMPORTANT: DO NOT create any new tasks. Your job now is to synthesize all the information above into a FINAL RESPONSE.
-
-Based on all the work and responses from the team, provide a comprehensive final response to the original task.
-Include key insights, conclusions, and recommendations gathered from all the completed tasks.
-
-Your response should be the final deliverable to present to the user.
+## Instructions
+- IMPORTANT: The workflow is COMPLETE. DO NOT create any new tasks. Your ONLY job now is to synthesize all the information from the 'taskSummary' into a FINAL RESPONSE to the original query.
+- Based on all the work and responses from the team (detailed in 'taskSummary'), provide a comprehensive final response to the original task.
+- Include key insights, conclusions, and recommendations gathered from all the completed tasks.
+- Your response should come as is from you, do not make references to agents or internal task IDs, just provide the final answer as if you are directly answering the user.
+- Your response should be the final deliverable to present to the user.
 `;
 
     const finalResult = await this.manager.run(finalPrompt);
