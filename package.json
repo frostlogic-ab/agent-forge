@@ -11,6 +11,7 @@
   ],
   "scripts": {
     "build": "tsc",
+    "build:watch": "tsc --watch",
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "test": "jest --passWithNoTests",
     "lint": "biome check src/",
@@ -23,8 +24,7 @@
     "example:stock-analysis": "ts-node src/examples/stock-analysis/index.ts",
     "example:streaming-example-workflow": "ts-node src/examples/streaming-example-workflow.ts",
     "example:streaming-example-team": "ts-node src/examples/streaming-example-team.ts",
-    "example:web-page-content-example": "ts-node src/examples/web-page-content-example.ts",
-    "example:mcp": "ts-node src/examples/mcp-example.ts"
+    "example:web-page-content-example": "ts-node src/examples/web-page-content-example.ts"
   },
   "keywords": [
     "ai",
@@ -37,6 +37,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.11.0",
     "@types/event-source-polyfill": "^1.0.5",
     "@types/node": "^22.15.14",
     "axios": "^1.9.0",

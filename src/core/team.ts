@@ -189,19 +189,23 @@ Task: ${input}
 
 You are the manager of a team. Your role is to analyze the task and decide which team member(s) should handle it.
 The task will be broken down into subtasks as needed, and assigned to the appropriate team member.
+First, think carefully step by step about what tasks are needed to answer the query and what are the dependencies between them.
+Team members will be able to handle multiple tasks if needed.
+Team members will not talk between themselves, they will only do the tasks assigned to them.
 
 **Available team members:**
 ${agentDescriptions}
 
-**For each subtask:**
-1. Choose the most appropriate team member
-2. Explain why you chose them
-3. Clearly describe the subtask they need to complete
-4. If a task depends on another task, make sure to say the tasks "depends on" the other task
-5. Wait for their response before proceeding
+**For each subtask, use this EXACT format:**
+**Task #:** [Task title]
+**Team member:** [Team member name]
+**Why:** [Brief explanation]
+**Subtask:** [Clear description of what they need to do]
+**Depends on:** [Task ID(s) of dependencies separated by commas, e.g., "task-0, task-1" or write "none" if no dependencies]
 
-You'll receive responses from team members as they complete their assigned subtasks.
-When all subtasks are completed, provide a final comprehensive response to the original task.
+IMPORTANT: Tasks will be processed in parallel unless you specify dependencies! For sequential tasks, you MUST use the "Depends on:" field.
+
+Wait for each team member's response before proceeding with dependent tasks. When all subtasks are completed, provide a final response to the original task.
 `;
     if (this.verbose) {
       console.log(`\n👨‍💼 Manager Prompt:\n${managerPrompt}\n`);
@@ -407,12 +411,22 @@ When all subtasks are completed, provide a final comprehensive response to the o
         currentManagerResponse = nextManagerResult.output;
 
         // Check if the workflow is complete
-        if (currentManagerResponse.includes("WORKFLOW COMPLETE")) {
+        if (this.isWorkflowCompletionMarked(currentManagerResponse)) {
+          if (this.verbose) {
+            console.log(
+              "🔔 Manager indicated workflow completion. Finalizing..."
+            );
+          }
           break;
         }
       } else {
         // Handle cases with no ready tasks
         if (this.isWorkflowComplete(tasks)) {
+          if (this.verbose) {
+            console.log(
+              "🔔 All tasks have been completed. Finalizing workflow..."
+            );
+          }
           break;
         }
 
@@ -424,7 +438,12 @@ When all subtasks are completed, provide a final comprehensive response to the o
 
         currentManagerResponse = deadlockResult.output;
 
-        if (currentManagerResponse.includes("WORKFLOW COMPLETE")) {
+        if (this.isWorkflowCompletionMarked(currentManagerResponse)) {
+          if (this.verbose) {
+            console.log(
+              "🔔 Manager resolved deadlock with workflow completion. Finalizing..."
+            );
+          }
           break;
         }
       }
@@ -506,12 +525,32 @@ What tasks would you like to assign to each team member?
         conversationHistory
       );
     } else {
+      // Log task assignments for debugging if verbose
+      if (this.verbose && rawAssignments.length > 0) {
+        console.log(`🔍 Found ${rawAssignments.length} task assignments:`);
+        for (const assignment of rawAssignments) {
+          console.log(
+            `- ${assignment.agentName}: ${assignment.task.substring(0, 50)}...`
+          );
+        }
+      }
+
       counter = this.processAssignedTasks(
         rawAssignments,
         tasks,
         counter,
         conversationHistory
       );
+    }
+
+    // Log all created tasks for debugging if verbose
+    if (this.verbose) {
+      console.log(`📋 Current task status (${tasks.size} total tasks):`);
+      for (const [taskId, task] of tasks.entries()) {
+        console.log(
+          `- ${taskId} (${task.agentName}): ${task.status}, Dependencies: ${task.dependencies.join(", ") || "none"}`
+        );
+      }
     }
 
     return counter;
@@ -606,11 +645,26 @@ What tasks would you like to assign to each team member?
    * Extracts task dependencies from a task description
    */
   private extractDependenciesFromDescription(description: string): string[] {
-    const dependencyMatch = description.match(/depends on:\s*(task-[\d,\s]+)/i);
+    // Look for dependencies in the original format
+    const oldFormatMatch = description.match(/depends on:\s*(task-[\d,\s]+)/i);
 
-    return dependencyMatch
-      ? dependencyMatch[1].split(",").map((id) => id.trim())
-      : [];
+    if (oldFormatMatch) {
+      return oldFormatMatch[1].split(",").map((id) => id.trim());
+    }
+
+    // Look for dependencies in the new structured format
+    const newFormatMatch = description.match(
+      /\*\*Depends on:\*\*\s*(task-[\d,\s]+|none)/i
+    );
+
+    if (newFormatMatch) {
+      const dependsOn = newFormatMatch[1].trim().toLowerCase();
+      return dependsOn === "none"
+        ? []
+        : dependsOn.split(",").map((id) => id.trim());
+    }
+
+    return [];
   }
 
   /**
@@ -902,8 +956,37 @@ Please provide a clear and detailed response.
    * Checks if the workflow is complete
    */
   private isWorkflowComplete(tasks: Map<string, any>): boolean {
-    return [...tasks.values()].every(
+    // No tasks created yet
+    if (tasks.size === 0) {
+      return false;
+    }
+
+    // Check if all tasks are either completed or failed
+    const allTasksFinished = [...tasks.values()].every(
       (t) => t.status === "completed" || t.status === "failed"
+    );
+
+    // If there are pending or in-progress tasks, the workflow is not complete
+    const hasPendingTasks = [...tasks.values()].some(
+      (t) => t.status === "pending" || t.status === "in_progress"
+    );
+
+    return allTasksFinished && !hasPendingTasks;
+  }
+
+  /**
+   * Checks if manager response indicates workflow completion
+   */
+  private isWorkflowCompletionMarked(response: string): boolean {
+    const completionMarkers = [
+      "WORKFLOW COMPLETE",
+      "ALL TASKS COMPLETE",
+      "FINAL RESPONSE",
+      "FINAL ANSWER",
+    ];
+
+    return completionMarkers.some((marker) =>
+      response.toUpperCase().includes(marker)
     );
   }
 
@@ -921,7 +1004,7 @@ Please provide a clear and detailed response.
     }
 
     const deadlockedPrompt = `
-There appears to be a deadlock in the workflow. Some tasks have dependencies that cannot be satisfied.
+There appears to be a deadlock or issue in the workflow. Some tasks may have dependencies that cannot be satisfied.
 
 Current task status:
 ${[...tasks.values()]
@@ -933,10 +1016,12 @@ ${[...tasks.values()]
   )
   .join("\n")}
 
-Please provide revised instructions to resolve this situation. You can:
-1. Cancel pending tasks that are no longer needed
-2. Create new tasks with adjusted dependencies
-3. Decide if we have enough information to finish the workflow (mark with "WORKFLOW COMPLETE")
+Please provide revised instructions to resolve this situation. Choose ONE of these options:
+
+1. Create new tasks with adjusted dependencies to continue the workflow.
+2. If enough information is available to complete the original task, respond with "FINAL RESPONSE:" followed by your comprehensive final answer.
+
+IMPORTANT: If you choose option 2, start your message with "FINAL RESPONSE:" and provide a complete answer to the original task.
 `;
 
     const deadlockResult = await this.manager.run(deadlockedPrompt);
@@ -980,12 +1065,18 @@ Please provide revised instructions to resolve this situation. You can:
       .join("\n");
 
     const finalPrompt = `
-The team has completed its work on the task. Below is a summary of all tasks and their results:
+The team workflow is now COMPLETE. All assigned tasks have been finished, and NO MORE TASKS should be created.
+
+Below is a summary of all completed tasks and their results:
 
 ${taskSummary}
 
-Based on all the work and responses from the team, please provide a final comprehensive response to the original task.
-Include key insights, conclusions, and recommendations.
+IMPORTANT: DO NOT create any new tasks. Your job now is to synthesize all the information above into a FINAL RESPONSE.
+
+Based on all the work and responses from the team, provide a comprehensive final response to the original task.
+Include key insights, conclusions, and recommendations gathered from all the completed tasks.
+
+Your response should be the final deliverable to present to the user.
 `;
 
     const finalResult = await this.manager.run(finalPrompt);
@@ -1047,6 +1138,18 @@ Include key insights, conclusions, and recommendations.
           `task\\s+(?:for|to)\\s+${agentName}\\s*:\\s*([^\\n]+(?:\\n(?!\\n|${agentNames.join(
             "|"
           )})[^\\n]+)*)`,
+          "i"
+        ),
+
+        // Markdown style with "Team member:" format
+        new RegExp(
+          `\\*\\*Team\\s+member:\\*\\*\\s*${agentName}[^\\n]*\\n(?:[^\\n]*\\n)*?\\*\\*Subtask:\\*\\*\\s*([^\\n]+(?:\\n(?!\\n|\\*\\*Team\\s+member)[^\\n]+)*)`,
+          "i"
+        ),
+
+        // Direct mention in subtask
+        new RegExp(
+          `\\*\\*Subtask:\\*\\*\\s*${agentName},?\\s+([^\\n]+(?:\\n(?!\\n|\\*\\*)[^\\n]+)*)`,
           "i"
         ),
       ];

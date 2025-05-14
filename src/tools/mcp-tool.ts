@@ -1,4 +1,8 @@
 import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
+import { Client as MCPClient } from "@modelcontextprotocol/sdk/client/index.js";
+import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
+import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import axios, { AxiosResponse } from "axios";
 import { EventSourcePolyfill } from "event-source-polyfill";
 import type { ToolParameter } from "../types";
@@ -20,6 +24,7 @@ export interface MCPStdioConfig {
   command: string;
   args?: string[];
   env?: Record<string, string>;
+  verbose?: boolean;
 }
 
 /**
@@ -42,13 +47,23 @@ export interface MCPStreamableHttpConfig {
 }
 
 /**
- * Base class for MCP server connections
+ * Represents a tool definition from an MCP server
  */
-export abstract class MCPServerConnection {
+export interface MCPTool {
+  name: string;
+  description: string;
+  parameters: ToolParameter[];
+  returnType?: string;
+}
+
+/**
+ * Base class for MCP client wrappers
+ */
+export abstract class MCPClientWrapper {
   protected running = false;
 
   /**
-   * Initializes the MCP server connection
+   * Initializes the MCP client
    */
   abstract initialize(): Promise<void>;
 
@@ -69,631 +84,211 @@ export abstract class MCPServerConnection {
   ): Promise<any>;
 
   /**
-   * Closes the MCP server connection
+   * Closes the MCP client connection
    */
   abstract close(): Promise<void>;
 }
 
 /**
- * STDIO MCP server connection implementation
+ * Implementation of MCPClientWrapper using the official SDK
  */
-export class MCPStdioConnection extends MCPServerConnection {
-  private config: MCPStdioConfig;
-  private process: ChildProcessWithoutNullStreams | null = null;
+export class MCPSdkClientWrapper extends MCPClientWrapper {
+  private client: MCPClient | null = null;
+  private transport: any = null;
+  private config: MCPStdioConfig | MCPSseConfig | MCPStreamableHttpConfig;
+  private type: MCPProtocolType;
   private cachedTools: MCPTool[] | null = null;
+  private verbose: boolean;
 
   /**
-   * Creates a new MCP STDIO connection
-   * @param config Configuration for the STDIO MCP server
+   * Creates a new MCP SDK client wrapper
+   * @param type Type of MCP server protocol
+   * @param config Configuration for the MCP server
    */
-  constructor(config: MCPStdioConfig) {
+  constructor(
+    type: MCPProtocolType,
+    config: MCPStdioConfig | MCPSseConfig | MCPStreamableHttpConfig
+  ) {
     super();
     this.config = config;
+    this.type = type;
+    this.verbose =
+      (type === MCPProtocolType.SSE && (config as MCPSseConfig).verbose) ||
+      (type === MCPProtocolType.STREAMABLE_HTTP &&
+        (config as MCPStreamableHttpConfig).verbose) ||
+      (type === MCPProtocolType.STDIO && (config as MCPStdioConfig).verbose) ||
+      false;
   }
 
   /**
-   * Initializes the MCP STDIO connection
+   * Creates the appropriate transport for the MCP client
+   * @private
    */
-  async initialize(): Promise<void> {
-    if (this.running) {
-      return;
-    }
-
-    try {
-      // Create a child process to communicate with the MCP server
-      this.process = spawn(this.config.command, this.config.args || [], {
-        env: { ...process.env, ...this.config.env },
-        stdio: ["pipe", "pipe", "pipe"],
-      });
-
-      // Set up error handler
-      this.process.on("error", (error) => {
-        console.error(`MCP STDIO process error: ${error}`);
-      });
-
-      // Set up exit handler
-      this.process.on("exit", (code) => {
-        if (code !== 0) {
-          console.error(`MCP STDIO process exited with code ${code}`);
+  private createTransport(): any {
+    switch (this.type) {
+      case MCPProtocolType.STDIO: {
+        const stdioConfig = this.config as MCPStdioConfig;
+        if (this.verbose) {
+          console.log(
+            `Creating STDIO transport with command: ${stdioConfig.command} ${stdioConfig.args?.join(" ") || ""}`
+          );
         }
-        this.running = false;
-      });
-
-      // Set up stderr handler
-      this.process.stderr.on("data", (data) => {
-        console.error(`MCP STDIO stderr: ${data.toString()}`);
-      });
-
-      this.running = true;
-
-      // Wait for the process to start
-      await new Promise((resolve) => setTimeout(resolve, 100));
-    } catch (error) {
-      throw new Error(`Failed to initialize MCP STDIO connection: ${error}`);
-    }
-  }
-
-  /**
-   * Lists available tools from the MCP server
-   */
-  async listTools(): Promise<MCPTool[]> {
-    if (!this.running) {
-      await this.initialize();
-    }
-
-    if (this.cachedTools) {
-      return this.cachedTools;
-    }
-
-    if (!this.process) {
-      throw new Error("MCP STDIO process not initialized");
-    }
-
-    try {
-      // Use a message exchange protocol to get tools from the server
-      const message = JSON.stringify({ type: "list_tools" });
-
-      // Write to stdin of the process
-      this.process.stdin.write(`${message}\n`);
-
-      // Read from stdout (simplified - in a real implementation, this would be more robust)
-      const response = await new Promise<string>((resolve, reject) => {
-        let data = "";
-
-        const onData = (chunk: any) => {
-          data += chunk.toString();
-          if (data.includes("\n")) {
-            if (this.process) {
-              this.process.stdout.off("data", onData);
-            }
-            resolve(data.trim());
-          }
-        };
-
-        if (this.process) {
-          this.process.stdout.on("data", onData);
-        }
-
-        // Add timeout for safety
-        setTimeout(() => {
-          if (this.process) {
-            this.process.stdout.off("data", onData);
-          }
-          reject(new Error("Timeout waiting for MCP server response"));
-        }, 5000);
-      });
-
-      const tools = JSON.parse(response) as MCPTool[];
-      this.cachedTools = tools;
-      return tools;
-    } catch (error) {
-      throw new Error(`Failed to list MCP tools: ${error}`);
-    }
-  }
-
-  /**
-   * Calls a tool on the MCP server
-   * @param toolName Name of the tool to call
-   * @param params Parameters to pass to the tool
-   * @returns Result of the tool call
-   */
-  async callTool(toolName: string, params: Record<string, any>): Promise<any> {
-    if (!this.running) {
-      await this.initialize();
-    }
-
-    if (!this.process) {
-      throw new Error("MCP STDIO process not initialized");
-    }
-
-    try {
-      // Use a message exchange protocol to call a tool on the server
-      const message = JSON.stringify({
-        type: "call_tool",
-        tool: toolName,
-        params,
-      });
-
-      // Write to stdin of the process
-      this.process.stdin.write(`${message}\n`);
-
-      // Read from stdout (simplified - in a real implementation, this would be more robust)
-      const response = await new Promise<string>((resolve, reject) => {
-        let data = "";
-
-        const onData = (chunk: any) => {
-          data += chunk.toString();
-          if (data.includes("\n")) {
-            if (this.process) {
-              this.process.stdout.off("data", onData);
-            }
-            resolve(data.trim());
-          }
-        };
-
-        if (this.process) {
-          this.process.stdout.on("data", onData);
-        }
-
-        // Add timeout for safety
-        setTimeout(() => {
-          if (this.process) {
-            this.process.stdout.off("data", onData);
-          }
-          reject(new Error("Timeout waiting for MCP server response"));
-        }, 30000); // Longer timeout for tool calls
-      });
-
-      return JSON.parse(response);
-    } catch (error) {
-      throw new Error(`Failed to call MCP tool ${toolName}: ${error}`);
-    }
-  }
-
-  /**
-   * Closes the MCP server connection
-   */
-  async close(): Promise<void> {
-    if (this.running && this.process) {
-      // Send exit message if the protocol supports it
-      try {
-        this.process.stdin.write(`${JSON.stringify({ type: "exit" })}\n`);
-        // Give it a moment to exit cleanly
-        await new Promise((resolve) => setTimeout(resolve, 100));
-      } catch (_error) {
-        // Ignore error on exit message
-      }
-
-      // Kill the process if it's still running
-      if (this.running) {
-        this.process.kill();
-      }
-
-      this.running = false;
-      this.process = null;
-      this.cachedTools = null;
-    }
-  }
-}
-
-/**
- * SSE MCP server connection implementation
- */
-export class MCPSseConnection extends MCPServerConnection {
-  private config: MCPSseConfig;
-  private eventSource: EventSourcePolyfill | null = null;
-  private cachedTools: MCPTool[] | null = null;
-  private requestId = 0;
-  private pendingRequests: Map<
-    number,
-    { resolve: (value: any) => void; reject: (reason?: any) => void }
-  > = new Map();
-
-  /**
-   * Creates a new MCP SSE connection
-   * @param config Configuration for the SSE MCP server
-   */
-  constructor(config: MCPSseConfig) {
-    super();
-    this.config = config;
-  }
-
-  /**
-   * Initializes the MCP SSE connection
-   */
-  async initialize(): Promise<void> {
-    if (this.running) {
-      return;
-    }
-
-    try {
-      // Create EventSource connection to the SSE server
-      this.eventSource = new EventSourcePolyfill(this.config.url, {
-        headers: this.config.headers,
-      });
-
-      // Set up event handlers
-      this.eventSource.onopen = () => {
-        this.running = true;
-        if (this.config.verbose) {
-          console.log("MCP SSE connection opened");
-        }
-      };
-
-      this.eventSource.onerror = (event) => {
-        this.running = false;
-        console.error("MCP SSE connection error:", event);
-
-        // Reject all pending requests
-        for (const [, { reject }] of this.pendingRequests) {
-          reject(new Error("SSE connection error"));
-        }
-        this.pendingRequests.clear();
-      };
-
-      this.eventSource.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          if (this.config.verbose) {
-            console.log("MCP SSE message:", data);
-          }
-          if (data.id && this.pendingRequests.has(data.id)) {
-            const pendingRequest = this.pendingRequests.get(data.id);
-            if (pendingRequest) {
-              const { resolve } = pendingRequest;
-              this.pendingRequests.delete(data.id);
-              resolve(data.result);
-            }
-          }
-        } catch (error) {
-          console.error("Error processing SSE message:", error);
-        }
-      };
-
-      // Wait for the connection to establish
-      await new Promise<void>((resolve, reject) => {
-        const timeout = setTimeout(() => {
-          reject(new Error("Timeout connecting to MCP SSE server"));
-        }, 5000);
-
-        if (this.eventSource) {
-          const originalOnOpen = this.eventSource.onopen;
-          this.eventSource.onopen = function (this: any) {
-            clearTimeout(timeout);
-            this.running = true;
-            resolve();
-            if (originalOnOpen) originalOnOpen.call(this, new Event("open"));
-          }.bind(this);
-        }
-      });
-    } catch (error) {
-      throw new Error(`Failed to initialize MCP SSE connection: ${error}`);
-    }
-  }
-
-  /**
-   * Lists available tools from the MCP server
-   */
-  async listTools(): Promise<MCPTool[]> {
-    if (!this.running) {
-      await this.initialize();
-    }
-
-    if (this.cachedTools) {
-      return this.cachedTools;
-    }
-
-    try {
-      const requestId = this.requestId++;
-
-      // Create a promise that will be resolved when we get a response
-      const responsePromise = new Promise<MCPTool[]>((resolve, reject) => {
-        this.pendingRequests.set(requestId, { resolve, reject });
-
-        // Add timeout for safety
-        setTimeout(() => {
-          if (this.pendingRequests.has(requestId)) {
-            this.pendingRequests.delete(requestId);
-            reject(new Error("Timeout waiting for MCP server response"));
-          }
-        }, 5000);
-      });
-
-      // Send request for tool list
-      const message = JSON.stringify({
-        id: requestId,
-        type: "list_tools",
-      });
-
-      // Implement actual HTTP request to the SSE server
-      try {
-        await axios.post(this.config.url, message, {
-          headers: {
-            "Content-Type": "application/json",
-            ...this.config.headers,
-          },
+        return new StdioClientTransport({
+          command: stdioConfig.command,
+          args: stdioConfig.args || [],
+          env: stdioConfig.env,
         });
-      } catch (error) {
-        console.error(`Failed to send request to SSE server: ${error}`);
-        throw new Error(`Communication with SSE server failed: ${error}`);
       }
-
-      const tools = await responsePromise;
-      if (this.config.verbose) {
-        console.log("DiscoveredMCP tools:", tools);
-      }
-      this.cachedTools = tools;
-      return tools;
-    } catch (error) {
-      throw new Error(`Failed to list MCP tools: ${error}`);
-    }
-  }
-
-  /**
-   * Calls a tool on the MCP server
-   * @param toolName Name of the tool to call
-   * @param params Parameters to pass to the tool
-   * @returns Result of the tool call
-   */
-  async callTool(toolName: string, params: Record<string, any>): Promise<any> {
-    if (!this.running) {
-      await this.initialize();
-    }
-
-    try {
-      const requestId = this.requestId++;
-
-      // Create a promise that will be resolved when we get a response
-      const responsePromise = new Promise<any>((resolve, reject) => {
-        this.pendingRequests.set(requestId, { resolve, reject });
-
-        // Add timeout for safety
-        setTimeout(() => {
-          if (this.pendingRequests.has(requestId)) {
-            this.pendingRequests.delete(requestId);
-            reject(new Error("Timeout waiting for MCP server response"));
-          }
-        }, 30000); // Longer timeout for tool calls
-      });
-
-      // Send request to call tool
-      const message = JSON.stringify({
-        id: requestId,
-        type: "call_tool",
-        tool: toolName,
-        params,
-      });
-      if (this.config.verbose) {
-        console.log("Sending MCP tool call:", message);
-      }
-      // Implement actual HTTP request to the SSE server
-      try {
-        await axios.post(this.config.url, message, {
-          headers: {
-            "Content-Type": "application/json",
-            ...this.config.headers,
-          },
-        });
-      } catch (error) {
-        console.error(`Failed to send request to SSE server: ${error}`);
-        throw new Error(`Communication with SSE server failed: ${error}`);
-      }
-
-      return await responsePromise;
-    } catch (error) {
-      throw new Error(`Failed to call MCP tool ${toolName}: ${error}`);
-    }
-  }
-
-  /**
-   * Closes the MCP server connection
-   */
-  async close(): Promise<void> {
-    if (this.running && this.eventSource) {
-      this.eventSource.close();
-      this.running = false;
-      this.eventSource = null;
-      this.cachedTools = null;
-
-      // Reject all pending requests
-      for (const [, { reject }] of this.pendingRequests) {
-        reject(new Error("SSE connection closed"));
-      }
-      this.pendingRequests.clear();
-      if (this.config.verbose) {
-        console.log("MCP SSE connection closed");
-      }
-    }
-  }
-}
-
-/**
- * Streamable HTTP MCP server connection implementation
- */
-export class MCPStreamableHttpConnection extends MCPServerConnection {
-  private config: MCPStreamableHttpConfig;
-  private baseUrl: URL;
-  private cachedTools: MCPTool[] | null = null;
-  private requestId = 0;
-  private pendingRequests: Map<
-    number,
-    { resolve: (value: any) => void; reject: (reason?: any) => void }
-  > = new Map();
-  private sessionId: string | null = null;
-
-  /**
-   * Creates a new MCP Streamable HTTP connection
-   * @param config Configuration for the Streamable HTTP MCP server
-   */
-  constructor(config: MCPStreamableHttpConfig) {
-    super();
-    this.config = config;
-    this.baseUrl =
-      config.baseUrl instanceof URL ? config.baseUrl : new URL(config.baseUrl);
-  }
-
-  /**
-   * Initializes the MCP Streamable HTTP connection
-   */
-  async initialize(): Promise<void> {
-    if (this.running) {
-      return;
-    }
-
-    try {
-      // Initialize a new session with the server
-      const response = await axios.post(
-        this.baseUrl.toString(),
-        JSON.stringify({
-          type: "initialize",
-          clientInfo: {
-            name: "mcp-streamable-http-client",
-            version: "1.0.0",
-          },
-        }),
-        {
-          headers: {
-            "Content-Type": "application/json",
-            ...this.config.headers,
-          },
-          responseType: "stream",
-          timeout: this.config.timeout || 30000,
+      case MCPProtocolType.SSE: {
+        const sseConfig = this.config as MCPSseConfig;
+        if (this.verbose) {
+          console.log(`Creating SSE transport with URL: ${sseConfig.url}`);
         }
-      );
-
-      // Extract session ID from response headers or body as needed
-      // This is implementation-specific - adjust based on server requirements
-      this.sessionId =
-        response.headers["x-mcp-session-id"] || this.generateSessionId();
-
-      // Set up a streaming connection to handle server events
-      this.setupStreamingConnection();
-
-      this.running = true;
-
-      if (this.config.verbose) {
-        console.log(
-          `MCP Streamable HTTP connection initialized with session ID: ${this.sessionId}`
+        const url = new URL(sseConfig.url);
+        return new SSEClientTransport(url);
+      }
+      case MCPProtocolType.STREAMABLE_HTTP: {
+        const httpConfig = this.config as MCPStreamableHttpConfig;
+        if (this.verbose) {
+          console.log(
+            `Creating Streamable HTTP transport with URL: ${httpConfig.baseUrl.toString()}`
+          );
+        }
+        return new StreamableHTTPClientTransport(
+          typeof httpConfig.baseUrl === "string"
+            ? new URL(httpConfig.baseUrl)
+            : httpConfig.baseUrl
         );
+      }
+      default:
+        throw new Error(`Unsupported MCP protocol type: ${this.type}`);
+    }
+  }
+
+  /**
+   * Initializes the MCP client
+   */
+  async initialize(): Promise<void> {
+    if (this.running) {
+      return;
+    }
+
+    try {
+      this.client = new MCPClient({
+        name: "agent-forge-client",
+        version: "1.0.0",
+      });
+
+      // Create transport
+      this.transport = this.createTransport();
+
+      // Connect to the MCP server
+      if (this.verbose) {
+        console.log("Connecting to MCP server...");
+      }
+      await this.client.connect(this.transport);
+      this.running = true;
+      if (this.verbose) {
+        console.log("Connected to MCP server successfully");
       }
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
-      throw new Error(
-        `Failed to initialize MCP Streamable HTTP connection: ${errorMessage}`
-      );
+      throw new Error(`Failed to initialize MCP client: ${errorMessage}`);
     }
   }
 
   /**
-   * Sets up the streaming connection to receive events from the server
+   * Extract tool parameters from various formats
+   * @private
    */
-  private setupStreamingConnection(): void {
-    const streamUrl = new URL(this.baseUrl);
-    streamUrl.searchParams.append("sessionId", this.sessionId || "");
+  private extractParameters(tool: any): ToolParameter[] {
+    const parameters: ToolParameter[] = [];
 
-    // Setup the streaming connection using fetch API
-    fetch(streamUrl.toString(), {
-      method: "GET",
-      headers: {
-        Accept: "text/event-stream",
-        ...this.config.headers,
-      },
-    })
-      .then((response) => {
-        if (!response.body) {
-          throw new Error("No response body in stream");
-        }
-
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = "";
-
-        // Process the stream
-        const processStream = async (): Promise<void> => {
-          try {
-            const { done, value } = await reader.read();
-
-            if (done) {
-              if (this.config.verbose) {
-                console.log("MCP Streamable HTTP stream closed");
-              }
-              this.running = false;
-              return;
-            }
-
-            // Decode the chunk and add it to our buffer
-            buffer += decoder.decode(value, { stream: true });
-
-            // Process any complete messages in the buffer
-            const lines = buffer.split("\n\n");
-            buffer = lines.pop() || ""; // Keep the last incomplete chunk
-
-            for (const line of lines) {
-              if (line.trim()) {
-                try {
-                  // Parse each message and handle it
-                  const message = JSON.parse(line);
-                  this.handleStreamMessage(message);
-                } catch (error) {
-                  console.error("Error parsing stream message:", error);
-                }
-              }
-            }
-
-            // Continue processing the stream
-            processStream();
-          } catch (error) {
-            console.error("Error reading stream:", error);
-            this.running = false;
-
-            // Reject all pending requests
-            for (const [, { reject }] of this.pendingRequests) {
-              reject(new Error("Stream connection error"));
-            }
-            this.pendingRequests.clear();
-          }
-        };
-
-        // Start processing the stream
-        processStream();
-      })
-      .catch((error) => {
-        console.error("Error setting up stream connection:", error);
-        this.running = false;
-      });
-  }
-
-  /**
-   * Handles messages received from the stream
-   * @param message The parsed message from the stream
-   */
-  private handleStreamMessage(message: any): void {
-    if (this.config.verbose) {
-      console.log("MCP Streamable HTTP message:", message);
-    }
-
-    if (message.id && this.pendingRequests.has(message.id)) {
-      const pendingRequest = this.pendingRequests.get(message.id);
-      if (pendingRequest) {
-        const { resolve, reject } = pendingRequest;
-        this.pendingRequests.delete(message.id);
-
-        if (message.error) {
-          reject(new Error(message.error));
-        } else {
-          resolve(message.result);
-        }
+    // Handle standard array format
+    if (Array.isArray(tool.parameters)) {
+      for (const param of tool.parameters) {
+        parameters.push({
+          name: param.name || "",
+          description: param.description || "",
+          type: param.type || "string",
+          required: param.required || false,
+        });
       }
+      return parameters;
+    }
+
+    // Handle JSON Schema in parameters
+    if (tool.parameters?.properties) {
+      const schema = tool.parameters;
+      this.extractSchemaParameters(schema, parameters);
+      return parameters;
+    }
+
+    // Handle JSON Schema in inputSchema
+    if (tool.inputSchema?.properties) {
+      const schema = tool.inputSchema;
+      this.extractSchemaParameters(schema, parameters);
+      return parameters;
+    }
+
+    return parameters;
+  }
+
+  /**
+   * Extract parameters from a JSON schema
+   * @private
+   */
+  private extractSchemaParameters(
+    schema: any,
+    parameters: ToolParameter[]
+  ): void {
+    for (const [name, propSchema] of Object.entries(schema.properties)) {
+      const prop = propSchema as any;
+      parameters.push({
+        name,
+        description: prop.description || "",
+        type: prop.type || "string",
+        required: schema.required?.includes(name) || false,
+      });
     }
   }
 
   /**
-   * Generates a unique session ID if one is not provided by the server
-   * @returns A unique session ID
+   * Extract tools array from response
+   * @private
    */
-  private generateSessionId(): string {
-    return `session-${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
+  private extractToolsArray(toolsResponse: any): any[] {
+    if (Array.isArray(toolsResponse)) {
+      return toolsResponse;
+    }
+
+    if (toolsResponse?.tools && Array.isArray(toolsResponse.tools)) {
+      return toolsResponse.tools;
+    }
+
+    return [];
+  }
+
+  /**
+   * Process tools into MCPTool format
+   * @private
+   */
+  private processTools(toolsArray: any[]): MCPTool[] {
+    const tools: MCPTool[] = [];
+
+    for (const tool of toolsArray) {
+      const parameters = this.extractParameters(tool);
+
+      tools.push({
+        name: tool.name || "",
+        description: tool.description || "",
+        parameters,
+        returnType: undefined,
+      });
+    }
+
+    return tools;
   }
 
   /**
@@ -708,54 +303,45 @@ export class MCPStreamableHttpConnection extends MCPServerConnection {
       return this.cachedTools;
     }
 
+    if (!this.client) {
+      throw new Error("MCP client not initialized");
+    }
+
     try {
-      const requestId = this.requestId++;
+      if (this.verbose) {
+        console.log("Requesting tools from MCP server...");
+      }
 
-      // Create a promise that will be resolved when we get a response
-      const responsePromise = new Promise<MCPTool[]>((resolve, reject) => {
-        this.pendingRequests.set(requestId, { resolve, reject });
+      const toolsResponse = await this.client.listTools();
 
-        // Add timeout for safety
-        setTimeout(() => {
-          if (this.pendingRequests.has(requestId)) {
-            this.pendingRequests.delete(requestId);
-            reject(new Error("Timeout waiting for MCP server response"));
-          }
-        }, this.config.timeout || 5000);
-      });
-
-      // Send request for tool list
-      const message = JSON.stringify({
-        id: requestId,
-        type: "list_tools",
-        sessionId: this.sessionId,
-      });
-
-      // Send HTTP request to the server
-      try {
-        await axios.post(this.baseUrl.toString(), message, {
-          headers: {
-            "Content-Type": "application/json",
-            ...this.config.headers,
-          },
-        });
-      } catch (error) {
-        console.error(
-          `Failed to send request to Streamable HTTP server: ${error}`
-        );
-        throw new Error(
-          `Communication with Streamable HTTP server failed: ${error}`
+      if (this.verbose) {
+        console.log(
+          "Raw tools response:",
+          JSON.stringify(toolsResponse, null, 2)
         );
       }
 
-      const tools = await responsePromise;
-      if (this.config.verbose) {
-        console.log("Discovered MCP tools:", tools);
+      const toolsArray = this.extractToolsArray(toolsResponse);
+
+      if (this.verbose) {
+        console.log(`Received ${toolsArray.length || 0} tools from MCP server`);
       }
+
+      const tools = this.processTools(toolsArray);
+
+      if (this.verbose) {
+        console.log(`Processed ${tools.length} tools from MCP server`);
+        if (tools.length > 0) {
+          console.log("Tool names:", tools.map((t) => t.name).join(", "));
+        }
+      }
+
       this.cachedTools = tools;
       return tools;
     } catch (error) {
-      throw new Error(`Failed to list MCP tools: ${error}`);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to list MCP tools: ${errorMessage}`);
     }
   }
 
@@ -770,125 +356,73 @@ export class MCPStreamableHttpConnection extends MCPServerConnection {
       await this.initialize();
     }
 
+    if (!this.client) {
+      throw new Error("MCP client not initialized");
+    }
+
     try {
-      const requestId = this.requestId++;
-
-      // Create a promise that will be resolved when we get a response
-      const responsePromise = new Promise<any>((resolve, reject) => {
-        this.pendingRequests.set(requestId, { resolve, reject });
-
-        // Add timeout for safety
-        setTimeout(() => {
-          if (this.pendingRequests.has(requestId)) {
-            this.pendingRequests.delete(requestId);
-            reject(new Error("Timeout waiting for MCP server response"));
-          }
-        }, this.config.timeout || 30000); // Longer timeout for tool calls
-      });
-
-      // Send request to call tool
-      const message = JSON.stringify({
-        id: requestId,
-        type: "call_tool",
-        tool: toolName,
-        params,
-        sessionId: this.sessionId,
-      });
-
-      if (this.config.verbose) {
-        console.log("Sending MCP tool call:", message);
+      if (this.verbose) {
+        console.log(`Calling MCP tool: ${toolName}`);
+        console.log("Parameters:", params);
       }
 
-      // Send HTTP request to the server
-      try {
-        await axios.post(this.baseUrl.toString(), message, {
-          headers: {
-            "Content-Type": "application/json",
-            ...this.config.headers,
-          },
-        });
-      } catch (error) {
-        console.error(
-          `Failed to send request to Streamable HTTP server: ${error}`
-        );
-        throw new Error(
-          `Communication with Streamable HTTP server failed: ${error}`
-        );
+      // Call the tool using the SDK client
+      const result = await this.client.callTool({
+        name: toolName,
+        arguments: params,
+      });
+
+      if (this.verbose) {
+        console.log(`MCP tool ${toolName} call successful`);
       }
 
-      return await responsePromise;
+      return result;
     } catch (error) {
-      throw new Error(`Failed to call MCP tool ${toolName}: ${error}`);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to call MCP tool ${toolName}: ${errorMessage}`);
     }
   }
 
   /**
-   * Closes the MCP server connection
+   * Closes the MCP client connection
    */
   async close(): Promise<void> {
-    if (this.running) {
-      try {
-        // Send a close session message to the server
-        if (this.sessionId) {
-          await axios.post(
-            this.baseUrl.toString(),
-            JSON.stringify({
-              type: "close_session",
-              sessionId: this.sessionId,
-            }),
-            {
-              headers: {
-                "Content-Type": "application/json",
-                ...this.config.headers,
-              },
-            }
-          );
-        }
-      } catch (error) {
-        // Log but don't throw - we still want to clean up
-        console.error("Error closing Streamable HTTP session:", error);
-      } finally {
-        this.running = false;
-        this.sessionId = null;
-        this.cachedTools = null;
-
-        // Reject all pending requests
-        for (const [, { reject }] of this.pendingRequests) {
-          reject(new Error("Connection closed"));
-        }
-        this.pendingRequests.clear();
-
-        if (this.config.verbose) {
-          console.log("MCP Streamable HTTP connection closed");
-        }
+    if (this.running && this.client && this.transport) {
+      if (this.verbose) {
+        console.log("Closing MCP client connection");
       }
+
+      // The SDK handles proper cleanup
+      try {
+        await this.transport.close();
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        console.error(`Error closing MCP client: ${errorMessage}`);
+      }
+
+      this.running = false;
+      this.client = null;
+      this.transport = null;
+      this.cachedTools = null;
     }
   }
-}
-
-/**
- * Represents a tool definition from an MCP server
- */
-export interface MCPTool {
-  name: string;
-  description: string;
-  parameters: ToolParameter[];
-  returnType?: string;
 }
 
 /**
  * A Tool implementation that wraps an MCP server tool
  */
 export class MCPToolWrapper extends Tool {
-  private mcpConnection: MCPServerConnection;
+  private mcpClient: MCPClientWrapper;
   private mcpToolName: string;
 
   /**
    * Creates a new MCP tool wrapper
    * @param mcpTool Tool definition from the MCP server
-   * @param mcpConnection Connection to the MCP server
+   * @param mcpClient Connection to the MCP server
    */
-  constructor(mcpTool: MCPTool, mcpConnection: MCPServerConnection) {
+  constructor(mcpTool: MCPTool, mcpClient: MCPClientWrapper) {
     super(
       mcpTool.name,
       mcpTool.description,
@@ -896,7 +430,7 @@ export class MCPToolWrapper extends Tool {
       mcpTool.returnType
     );
 
-    this.mcpConnection = mcpConnection;
+    this.mcpClient = mcpClient;
     this.mcpToolName = mcpTool.name;
   }
 
@@ -906,59 +440,110 @@ export class MCPToolWrapper extends Tool {
    * @returns Result of the tool execution
    */
   protected async run(params: Record<string, any>): Promise<any> {
-    return await this.mcpConnection.callTool(this.mcpToolName, params);
+    const result = await this.mcpClient.callTool(this.mcpToolName, params);
+
+    // Process the result if it's a JSON string inside a content array
+    if (result?.content && Array.isArray(result.content)) {
+      // Check if we have text content that's actually JSON
+      for (let i = 0; i < result.content.length; i++) {
+        const item = result.content[i];
+        if (item.type === "text") {
+          // If it's already a string, keep it as is
+          if (typeof item.text === "string") {
+            try {
+              // Try to parse the JSON string
+              const parsed = JSON.parse(item.text);
+              // Format the parsed object as plain text
+              result.content[i].text = this.formatObjectAsText(parsed);
+            } catch {
+              // Not valid JSON, leave as is
+            }
+          }
+          // If it's already an object, format it as text
+          else if (typeof item.text === "object" && item.text !== null) {
+            result.content[i].text = this.formatObjectAsText(item.text);
+          }
+        }
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * Formats an object as readable text
+   * @param obj Object to format
+   * @returns Formatted text
+   */
+  private formatObjectAsText(obj: Record<string, any>): string {
+    if (!obj) return "No data available";
+
+    // Generic object formatting
+    try {
+      // For simple objects, create a formatted representation
+      const entries = Object.entries(obj)
+        .filter(([_, value]) => value !== null && value !== "")
+        .map(([key, value]) => {
+          if (typeof value === "object" && value !== null) {
+            // For nested objects, use JSON.stringify with formatting
+            return `${key}: ${JSON.stringify(value, null, 2)}`;
+          }
+          return `${key}: ${value}`;
+        });
+
+      if (entries.length > 0) {
+        return entries.join("\n");
+      }
+    } catch {
+      // If there are any issues formatting, fall back to basic JSON
+      try {
+        return JSON.stringify(obj, null, 2);
+      } catch {
+        return "Error formatting object data";
+      }
+    }
+
+    return "Empty object";
   }
 }
 
 /**
- * Creates an MCP server connection based on configuration
+ * Creates an MCP client wrapper based on configuration
  * @param type Type of MCP server protocol
  * @param config Configuration for the MCP server
- * @returns An MCP server connection
+ * @returns An MCP client wrapper
  */
-export function createMCPConnection(
+export function createMCPClient(
   type: MCPProtocolType,
   config: MCPStdioConfig | MCPSseConfig | MCPStreamableHttpConfig
-): MCPServerConnection {
-  switch (type) {
-    case MCPProtocolType.STDIO:
-      return new MCPStdioConnection(config as MCPStdioConfig);
-    case MCPProtocolType.SSE:
-      console.warn(
-        "Warning: SSE transport is deprecated. Consider using Streamable HTTP instead."
-      );
-      return new MCPSseConnection(config as MCPSseConfig);
-    case MCPProtocolType.STREAMABLE_HTTP:
-      return new MCPStreamableHttpConnection(config as MCPStreamableHttpConfig);
-    default:
-      throw new Error(`Unsupported MCP protocol type: ${type}`);
-  }
+): MCPClientWrapper {
+  return new MCPSdkClientWrapper(type, config);
 }
 
 /**
- * Manager for MCP server connections and tools
+ * Manager for MCP client connections and tools
  */
 export class MCPManager {
-  private connections: MCPServerConnection[] = [];
+  private clients: MCPClientWrapper[] = [];
   private tools: MCPToolWrapper[] = [];
 
   /**
-   * Adds an MCP server connection
-   * @param connection MCP server connection to add
+   * Adds an MCP client connection
+   * @param client MCP client wrapper to add
    */
-  async addConnection(connection: MCPServerConnection): Promise<void> {
-    await connection.initialize();
+  async addClient(client: MCPClientWrapper): Promise<void> {
+    await client.initialize();
 
-    // Get tools from the connection
-    const mcpTools = await connection.listTools();
+    // Get tools from the client
+    const mcpTools = await client.listTools();
 
     // Create wrappers for each tool
     for (const mcpTool of mcpTools) {
-      const wrapper = new MCPToolWrapper(mcpTool, connection);
+      const wrapper = new MCPToolWrapper(mcpTool, client);
       this.tools.push(wrapper);
     }
 
-    this.connections.push(connection);
+    this.clients.push(client);
   }
 
   /**
@@ -973,11 +558,11 @@ export class MCPManager {
    * Closes all MCP connections
    */
   async close(): Promise<void> {
-    for (const connection of this.connections) {
-      await connection.close();
+    for (const client of this.clients) {
+      await client.close();
     }
 
-    this.connections = [];
+    this.clients = [];
     this.tools = [];
   }
 }
