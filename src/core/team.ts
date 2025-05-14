@@ -195,6 +195,7 @@ You are the manager of a team. Your role is to analyze the task and decide which
 - First, think carefully step by step about what subtasks are needed to answer the query and what are the dependencies between them.
 - The task will be broken down into subtasks as needed, and assigned to the appropriate team member.
 - CRITICAL: Ensure no task has a circular dependency (e.g., a task depending on itself or a chain of tasks that loops back). Dependencies must flow towards a final resolution.
+- AVOID REDUNDANCY: Do not re-assign or re-create tasks that have already successfully completed and provided their output in previous steps, unless the goal or input parameters for that task have significantly changed. Refer to and use the results from already completed tasks whenever possible.
 
 ## Team members
 - Team members will be able to handle multiple tasks if needed.
@@ -932,7 +933,7 @@ Please provide a clear and detailed response.
     if (completedTasks.length > 0) {
       report += "Completed Tasks:\n";
       for (const task of completedTasks) {
-        report += `- Task ${task.id} (${task.agentName}): ${task.description}\n`;
+        report += `- Task ${task.id} (${task.agentName}): ${task.description}\n  Result: ${task.result ? task.result.substring(0, 150) + (task.result.length > 150 ? "..." : "") : "No textual result provided or result is not a string."}\n`;
       }
     } else {
       report += "No tasks have been completed yet.\n";
@@ -1022,15 +1023,16 @@ ${[...tasks.values()]
     (t) =>
       `- Task ${t.id} (${t.agentName}): ${t.status}, Dependencies: ${
         t.dependencies.join(", ") || "none"
-      }`
+      }${t.result ? `, Result: ${t.result.substring(0, 100)}${t.result.length > 100 ? "..." : ""}` : ""}`
   )
   .join("\n")}
 
-Please provide revised instructions to resolve this situation. Choose ONE of these options:
+Please analyze the 'Current task status' CAREFULLY. Provide revised instructions to resolve this situation. Choose ONE of these options:
 
 1. Create new tasks or revise existing task dependencies to continue the workflow.
-   - When defining dependencies, you MUST use the exact task IDs (e.g., "task-0", "task-5") listed in the 'Current task status' for completed tasks.
+   - When defining dependencies, you MUST use the exact task IDs (e.g., "task-0", "task-5") listed in the 'Current task status' for PREVIOUSLY COMPLETED tasks, or system-generated IDs for other tasks you are defining in THIS planning step, or "none".
    - If defining new tasks that depend on each other within this response, ensure your references are consistent for the system to map.
+   - AVOID REDUNDANCY: Do not re-assign or re-create tasks that have already successfully completed (check 'Current task status'). Use their existing results instead of running them again, unless the goal or input parameters for that task have significantly changed.
    - Use the EXACT standard task assignment format:
      **Task #:** [Task title]
      **Team member:** [Team member name]
