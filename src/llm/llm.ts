@@ -1,4 +1,5 @@
 import {
+  type ChatCompletionMessageParam,
   type CompletionResponse,
   type CompletionResponseChunk,
   type ConfigOptions,
@@ -144,6 +145,26 @@ export class LLM {
     };
   }
 
+  protected validateMessages(
+    messages: ChatCompletionMessageParam[] | undefined
+  ): ChatCompletionMessageParam[] {
+    if (!messages) return [];
+
+    return messages.map((message) => {
+      // If content is empty or undefined, provide a placeholder
+      if (!message.content) {
+        return {
+          ...message,
+          content:
+            message.content === ""
+              ? "Empty message"
+              : message.content || "No content provided",
+        };
+      }
+      return message;
+    });
+  }
+
   async complete(
     params: Omit<ProviderCompletionParams<any>, "provider" | "stream">
   ): Promise<LLMResponse> {
@@ -159,22 +180,7 @@ export class LLM {
   async chat(
     params: Omit<CompletionNonStreaming<any>, "provider" | "stream">
   ): Promise<LLMResponse> {
-    // Ensure each message has non-empty content
-    if (params.messages) {
-      params.messages = params.messages.map((message) => {
-        // If content is empty or undefined, provide a placeholder
-        if (!message.content) {
-          return {
-            ...message,
-            content:
-              message.content === ""
-                ? "Empty message"
-                : message.content || "No content provided",
-          };
-        }
-        return message;
-      });
-    }
+    params.messages = this.validateMessages(params.messages);
 
     const completion = await this.token.chat.completions.create({
       ...params,
@@ -190,22 +196,7 @@ export class LLM {
       onChunk: (chunk: CompletionResponseChunk) => void;
     }
   ): Promise<LLMResponse> {
-    // Ensure each message has non-empty content
-    if (params.messages) {
-      params.messages = params.messages.map((message) => {
-        // If content is empty or undefined, provide a placeholder
-        if (!message.content) {
-          return {
-            ...message,
-            content:
-              message.content === ""
-                ? "Empty message"
-                : message.content || "No content provided",
-          };
-        }
-        return message;
-      });
-    }
+    params.messages = this.validateMessages(params.messages);
 
     const completion = await this.token.chat.completions.create({
       ...params,
