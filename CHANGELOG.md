@@ -1,4 +1,13 @@
 ## What's Changed
+* Task management improvements by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/18
+* Apply tests on alpha and beta branches by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/17
+
+
+**Full Changelog**: https://github.com/frostlogic-ab/agent-forge/compare/v1.4.0-alpha.5...v1.4.0-alpha.6
+
+# [1.4.0-alpha.6](https://github.com/frostlogic-ab/agent-forge/compare/v1.4.0-alpha.5...v1.4.0-alpha.6) (2025-05-14)
+
+## What's Changed
 * Better task manangement in hierarchical workflows, improved debugging, MCP client refactor, LLM class robustness by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/15
 * remove unused file, update biome schema by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/16
 
