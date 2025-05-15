@@ -615,7 +615,7 @@ If you're using VS Code, install the [Biome extension](https://marketplace.visua
 
 ## 📖 Documentation
 
-For complete documentation, please visit [our documentation site](https://agent-forge.dev/docs) (coming soon).
+For complete documentation, please visit [our documentation site](https://frostlogic-ab.github.io/agent-forge/).
 
 ---
 
