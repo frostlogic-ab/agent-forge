@@ -1,4 +1,12 @@
 ## What's Changed
+* Readme improvements by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/19
+
+
+**Full Changelog**: https://github.com/frostlogic-ab/agent-forge/compare/v1.4.0-alpha.6...v1.4.0-alpha.7
+
+# [1.4.0-alpha.7](https://github.com/frostlogic-ab/agent-forge/compare/v1.4.0-alpha.6...v1.4.0-alpha.7) (2025-05-15)
+
+## What's Changed
 * Task management improvements by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/18
 * Apply tests on alpha and beta branches by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/17
 
