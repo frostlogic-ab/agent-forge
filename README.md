@@ -3,9 +3,9 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
 
-Agent Forge is a TypeScript framework for creating, configuring, and orchestrating AI agents that connect to LLMs (Large Language Models). It allows developers to define agents through YAML configuration files and enables both sequential and hierarchical execution patterns.
+Agent Forge is a TypeScript framework for creating, configuring, and orchestrating AI agents that connect to LLMs (Large Language Models). It allows developers to define agents through YAML configuration files and enables both sequential and hierarchical execution patterns. Its core goal is to simplify the development of sophisticated agent-based applications by providing a structured approach to agent definition, tool integration, and multi-agent collaboration.
 
-## 📋 Table of Contents
+##  Table of Contents
 
 - [Features](#features)
 - [Installation](#installation)
@@ -18,6 +18,7 @@ Agent Forge is a TypeScript framework for creating, configuring, and orchestrati
   - [Use Rate Limiting](#6-use-rate-limiting-to-avoid-api-quota-issues)
   - [Debug Interactions](#7-debug-team-interactions-with-verbose-logging)
   - [Stream Communications](#8-stream-agent-communications-in-real-time)
+  - [Use Model Context Protocol](#9-use-model-context-protocol-mcp-to-extend-agent-capabilities)
 - [Development](#development)
 - [Documentation](#documentation)
 - [Contributing](#contributing)
@@ -32,7 +33,7 @@ Agent Forge is a TypeScript framework for creating, configuring, and orchestrati
 - 🔄 **Flexible Execution Patterns**:
   - Sequential execution (workflow-based)
   - Hierarchical execution (manager AI delegates to specialized agents)
-- 🔌 **LLM Integration**: Connect to various language models through a unified interface
+- 🔌 **LLM Integration**: Connect to various language models through a unified interface. Powered by [`token.js`](https://github.com/token-js/token.js), Agent Forge supports all LLMs compatible with `token.js`. For a detailed list of supported providers, please refer to the [`token.js` documentation](https://github.com/token-js/token.js/tree/main?tab=readme-ov-file#supported-providers).
 - 🚦 **Rate Limiting**: Control API usage with built-in rate limiting to avoid quota issues
 - 📡 **Streaming Support**:
   - Stream agent communications in real-time
@@ -42,6 +43,7 @@ Agent Forge is a TypeScript framework for creating, configuring, and orchestrati
   - Real-time visibility into task assignments and dependencies
   - Comprehensive progress tracking and error reporting
   - Visual indicators for task status and execution timing
+- 🔗 **Model Context Protocol (MCP)**: Connect to external tool servers using standardized protocols
 - 📊 **TypeScript Support**: Built with TypeScript for type safety and better developer experience
 
 ---
@@ -68,9 +70,13 @@ pnpm add agent-forge
 ### 1. Create Agent Forge instance
 
 ```typescript
+import { AgentForge, LLM } from "agent-forge";
+
 // Create an LLM provider
+// Replace 'YOUR_OPENAI_API_KEY' with your actual OpenAI API key
 // You can use one of the available TokenJS providers from here:
 // https://github.com/token-js/token.js/tree/main?tab=readme-ov-file#supported-providers
+const apiKey = process.env.OPENAI_API_KEY || "YOUR_OPENAI_API_KEY"; // Example: load from env or use a placeholder
 
 const llmProvider = new LLM("openai", {
   apiKey,
@@ -98,10 +104,17 @@ tools:
 ### 3. Create and run your agent
 
 ```typescript
-import { AgentForge, loadAgentFromYaml } from "agent-forge";
+import { loadAgentFromYaml } from "agent-forge";
+// This example assumes 'forge' (an AgentForge instance from Example 1) is in scope.
+// 'forge' should be initialized with an LLM provider:
+// const forge = new AgentForge(llmProvider); // From Example 1
 
-// Load agent from YAML
+// Load agent from YAML file (e.g., the agent.yaml defined in step 2)
 const agent = await loadAgentFromYaml("./agent.yaml");
+
+// Register the agent with the AgentForge instance.
+// This applies the default LLM provider (set on 'forge') to the agent.
+forge.registerAgent(agent);
 
 // Run the agent
 const result = await agent.run("What are the latest developments in AI?");
@@ -112,10 +125,16 @@ console.log(result);
 
 ```typescript
 import { Workflow, loadAgentFromYaml } from "agent-forge";
+// Assumes 'forge' (AgentForge instance from Example 1) is in scope.
 
-// Load multiple agents
+// Load multiple agents (ensure these YAML files exist, e.g., research-agent.yaml, summary-agent.yaml)
 const researchAgent = await loadAgentFromYaml("./research-agent.yaml");
+// Register the agent with AgentForge to apply the default LLM provider
+forge.registerAgent(researchAgent);
+
 const summaryAgent = await loadAgentFromYaml("./summary-agent.yaml");
+// Register the agent with AgentForge to apply the default LLM provider
+forge.registerAgent(summaryAgent);
 
 // Create a workflow
 const workflow = new Workflow().addStep(researchAgent).addStep(summaryAgent);
@@ -131,11 +150,17 @@ console.log(result);
 
 ```typescript
 import { Team, loadAgentFromYaml } from "agent-forge";
+// Assumes 'forge' (AgentForge instance from Example 1) is in scope.
 
-// Load manager and specialized agents
+// Load manager and specialized agents (ensure these YAML files exist)
 const managerAgent = await loadAgentFromYaml("./manager-agent.yaml");
+forge.registerAgent(managerAgent); // Register to apply default LLM provider
+
 const codeAgent = await loadAgentFromYaml("./code-agent.yaml");
+forge.registerAgent(codeAgent); // Register to apply default LLM provider
+
 const designAgent = await loadAgentFromYaml("./design-agent.yaml");
+forge.registerAgent(designAgent); // Register to apply default LLM provider
 
 // Create a team with a manager
 const team = new Team(managerAgent).addAgent(codeAgent).addAgent(designAgent);
@@ -307,6 +332,85 @@ const result = await workflow.run(
     verbose: true, // Enable detailed logging
   }
 );
+```
+
+### 9. Use Model Context Protocol (MCP) to extend agent capabilities
+
+Agent Forge supports the Model Context Protocol (MCP), which allows agents to connect to external tool servers and use their capabilities. This section demonstrates how to integrate MCP clients, making it a more advanced example for significantly extending agent functionalities.
+
+```typescript
+import {
+  Agent,
+  LLM,
+  MCPManager,
+  createMCPClient,
+  MCPProtocolType,
+} from "agent-forge";
+
+// Create an LLM provider
+const llmProvider = new LLM("openai", {
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
+// Create an MCP manager
+const mcpManager = new MCPManager();
+
+// Connect to a local MCP server using STDIO
+const stdioClient = createMCPClient(MCPProtocolType.STDIO, {
+  command: "python",
+  args: ["./path/to/mcp_server.py"],
+  env: { API_KEY: "your-api-key" },
+  verbose: true,
+});
+await mcpManager.addClient(stdioClient);
+
+// Connect to a remote MCP server using Streamable HTTP (recommended)
+const streamableHttpClient = createMCPClient(MCPProtocolType.STREAMABLE_HTTP, {
+  baseUrl: "https://your-mcp-server.example.com/mcp",
+  headers: { Authorization: "Bearer your-token" },
+});
+await mcpManager.addClient(streamableHttpClient);
+
+// Connect to a legacy MCP server using SSE (deprecated)
+// Note: SSE is deprecated in favor of Streamable HTTP
+const sseClient = createMCPClient(MCPProtocolType.SSE, {
+  url: "https://your-legacy-mcp-server.example.com/sse",
+  headers: { Authorization: "Bearer your-token" },
+});
+await mcpManager.addClient(sseClient);
+
+// Get all tools from the MCP servers
+const mcpTools = mcpManager.getTools();
+
+// Create an agent with MCP tools
+const agent = new Agent({
+  name: "MCP-Enabled Agent",
+  role: "Assistant with extended capabilities",
+  model: "gpt-4-turbo",
+  temperature: 0.7,
+}, mcpTools);
+
+// Run the agent
+const result = await agent.run(
+  "Analyze this data using the specialized tools."
+);
+console.log(result);
+
+// Always close connections when done
+await mcpManager.close();
+```
+
+With MCP support, your agents can:
+
+- Connect to specialized tool servers
+- Access hundreds of third-party services
+- Extend capabilities without modifying the agent framework
+- Standardize tool interactions across different providers
+
+You can run the MCP example with:
+
+```bash
+yarn example:mcp
 ```
 
 ---
