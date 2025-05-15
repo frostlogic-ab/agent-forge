@@ -1,5 +1,9 @@
 ---
-description:
-globs:
+description: 
+globs: **/*.ts
 alwaysApply: false
 ---
+- Use JSDoc comments for functions, classes, and complex types
+- Include examples in documentation where appropriate
+
+- Keep README files up-to-date with setup instructions, usage examples, and contribution guidelines
