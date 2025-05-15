@@ -67,6 +67,14 @@ export class Agent {
   }
 
   /**
+   * Gets the LLM provider for the agent
+   * @returns The LLM provider or undefined if not set
+   */
+  getLLMProvider(): LLM | undefined {
+    return this.llmProvider;
+  }
+
+  /**
    * Gets the name of the agent
    */
   get name(): string {
@@ -146,6 +154,7 @@ export class Agent {
     if (!this.llmProvider) {
       throw new Error("No LLM provider set for the agent");
     }
+    const currentLlmProvider = this.llmProvider;
 
     const stream = options?.stream || false;
     const maxTurns = options?.maxTurns || 10;
@@ -181,7 +190,8 @@ export class Agent {
         maxTurns,
         toolCalls,
         totalPromptTokens,
-        totalCompletionTokens
+        totalCompletionTokens,
+        currentLlmProvider
       );
 
       // Race between agent execution and timeout
@@ -237,7 +247,8 @@ export class Agent {
     maxTurns: number,
     toolCalls: ToolCall[],
     totalPromptTokens: number,
-    totalCompletionTokens: number
+    totalCompletionTokens: number,
+    llmProvider: LLM
   ): Promise<{
     finalResponse: string;
     promptTokens: number;
@@ -258,14 +269,10 @@ export class Agent {
 
       if (stream) {
         // Use streaming chat
-        if (!this.llmProvider) {
-          throw new Error("LLM provider is not set");
-        }
-
         // Define the agent name for use in the callback
         const agentName = this.name;
 
-        response = await this.llmProvider.chatStream({
+        response = await llmProvider.chatStream({
           model: this.config.model,
           messages: this.conversation,
           temperature: this.config.temperature,
@@ -286,10 +293,7 @@ export class Agent {
         });
       } else {
         // Use regular chat
-        if (!this.llmProvider) {
-          throw new Error("LLM provider is not set");
-        }
-        response = await this.llmProvider.chat({
+        response = await llmProvider.chat({
           model: this.config.model,
           messages: this.conversation,
           temperature: this.config.temperature,
@@ -463,10 +467,7 @@ export class Agent {
 
       if (stream) {
         // Use streaming for final response
-        if (!this.llmProvider) {
-          throw new Error("LLM provider is not set");
-        }
-        finalLLMResponse = await this.llmProvider.chatStream({
+        finalLLMResponse = await llmProvider.chatStream({
           model: this.config.model,
           messages: [...this.conversation, finalMessage],
           temperature: this.config.temperature,
@@ -485,10 +486,7 @@ export class Agent {
         });
       } else {
         // Use regular chat
-        if (!this.llmProvider) {
-          throw new Error("LLM provider is not set");
-        }
-        finalLLMResponse = await this.llmProvider.chat({
+        finalLLMResponse = await llmProvider.chat({
           model: this.config.model,
           messages: [...this.conversation, finalMessage],
           temperature: this.config.temperature,
@@ -535,7 +533,7 @@ export class Agent {
     }
 
     // Fix repeated words with periods (e.g., "word.word.")
-    let cleaned = text.replace(/(\w+)\.(\1)\./g, "$1");
+    let cleaned = text.replace(/(\w+)\.(\1)\./g, "$1.");
 
     // Fix cases where words are duplicated with a space (e.g., "word word")
     cleaned = cleaned.replace(/\b(\w+)(\s+\1)+\b/g, "$1");

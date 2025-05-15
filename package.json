@@ -4,11 +4,7 @@
   "description": "A TypeScript framework for creating and orchestrating AI agents with LLM integration",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
-  "files": [
-    "dist",
-    "README.md",
-    "LICENSE"
-  ],
+  "files": ["dist", "README.md", "LICENSE"],
   "scripts": {
     "build": "tsc",
     "build:watch": "tsc --watch",
@@ -26,21 +22,12 @@
     "example:streaming-example-team": "ts-node src/examples/streaming-example-team.ts",
     "example:web-page-content-example": "ts-node src/examples/web-page-content-example.ts"
   },
-  "keywords": [
-    "ai",
-    "agents",
-    "llm",
-    "framework",
-    "typescript",
-    "yaml"
-  ],
+  "keywords": ["ai", "agents", "llm", "framework", "typescript", "yaml"],
   "author": "",
   "license": "MIT",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.11.0",
-    "@types/event-source-polyfill": "^1.0.5",
     "@types/node": "^22.15.14",
-    "axios": "^1.9.0",
     "cheerio": "^1.0.0",
     "dotenv": "^16.5.0",
     "event-source-polyfill": "^1.0.31",

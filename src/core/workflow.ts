@@ -1,5 +1,6 @@
 import { AgentForgeEvents, type AgentResult } from "../types";
 import { globalEventEmitter } from "../utils/event-emitter";
+import { RateLimiter, type RateLimiterOptions } from "../utils/rate-limiter";
 import { enableConsoleStreaming } from "../utils/streaming";
 import type { Agent, AgentRunOptions } from "./agent";
 
@@ -45,12 +46,10 @@ export class Workflow {
   private steps: WorkflowStep[] = [];
   private name: string;
   private description: string;
-  private rateLimiter?: {
-    tokensRemaining: number;
-    lastResetTime: number;
-    waitingQueue: Array<() => void>;
-  };
+  private rateLimiterInstance?: RateLimiter;
   private verbose = false;
+  private options?: WorkflowRunOptions;
+  private originalAgentRuns = new WeakMap<Agent, Agent["run"]>();
 
   /**
    * Creates a new workflow
@@ -137,16 +136,21 @@ export class Workflow {
 
     try {
       this.logWorkflowStart(input);
-
       const results = await this.executeWorkflowSteps(
         input,
-        options?.stream || false
+        this.options?.stream || false
       );
-
       this.logWorkflowCompletion();
       return results[results.length - 1];
     } finally {
-      this.rateLimiter = undefined;
+      this.rateLimiterInstance = undefined;
+      for (const step of this.steps) {
+        const originalRun = this.originalAgentRuns.get(step.agent);
+        if (originalRun) {
+          step.agent.run = originalRun;
+          this.originalAgentRuns.delete(step.agent);
+        }
+      }
     }
   }
 
@@ -155,15 +159,45 @@ export class Workflow {
    */
   private initializeOptions(options?: WorkflowRunOptions): void {
     this.verbose = options?.verbose || false;
+    this.options = options;
 
     // Initialize console streaming if requested
-    if (options?.stream && options?.enableConsoleStream) {
+    if (this.options?.stream && this.options?.enableConsoleStream) {
       enableConsoleStreaming();
     }
 
     // Initialize rate limiter if needed
-    if (options?.rate_limit) {
-      this.setupRateLimiter(options.rate_limit);
+    if (this.options?.rate_limit && this.options.rate_limit > 0) {
+      this.rateLimiterInstance = new RateLimiter({
+        callsPerMinute: this.options.rate_limit,
+        verbose: this.verbose,
+      });
+
+      for (const step of this.steps) {
+        const agentToPatch = step.agent;
+        if (!this.originalAgentRuns.has(agentToPatch)) {
+          this.originalAgentRuns.set(agentToPatch, agentToPatch.run);
+          agentToPatch.run = async (
+            agentInput: string,
+            agentOptions?: AgentRunOptions
+          ) => {
+            if (this.rateLimiterInstance) {
+              await this.rateLimiterInstance.waitForToken();
+            }
+            const storedOriginalRun = this.originalAgentRuns.get(agentToPatch);
+            if (storedOriginalRun) {
+              return storedOriginalRun.call(
+                agentToPatch,
+                agentInput,
+                agentOptions
+              );
+            }
+            throw new Error(
+              "Original agent run method not found after patching."
+            );
+          };
+        }
+      }
     }
   }
 
@@ -348,78 +382,6 @@ export class Workflow {
     if (!this.verbose) return;
 
     console.log(`\n🏁 Workflow "${this.name}" completed successfully\n`);
-  }
-
-  /**
-   * Sets up a rate limiter for LLM API calls
-   * @param callsPerMinute Maximum number of calls allowed per minute
-   */
-  private setupRateLimiter(callsPerMinute: number): void {
-    this.rateLimiter = {
-      tokensRemaining: callsPerMinute,
-      lastResetTime: Date.now(),
-      waitingQueue: [],
-    };
-
-    // Patch the run method of all agents in the workflow to respect rate limiting
-    for (const step of this.steps) {
-      const agent = step.agent;
-      const originalAgentRun = agent.run;
-      agent.run = async (input: string, options?: AgentRunOptions) => {
-        await this.waitForRateLimit();
-        return originalAgentRun.call(agent, input, options);
-      };
-    }
-  }
-
-  /**
-   * Waits until a rate limit token is available
-   * @returns A promise that resolves when a token is available
-   */
-  private async waitForRateLimit(): Promise<void> {
-    if (!this.rateLimiter) return;
-
-    const now = Date.now();
-    const timeSinceReset = now - this.rateLimiter.lastResetTime;
-
-    // Reset tokens if a minute has passed
-    if (timeSinceReset >= 60000) {
-      const minutesPassed = Math.floor(timeSinceReset / 60000);
-      this.rateLimiter.lastResetTime += minutesPassed * 60000;
-      this.rateLimiter.tokensRemaining =
-        this.rateLimiter.tokensRemaining +
-        minutesPassed * this.rateLimiter.waitingQueue.length;
-
-      // Process waiting queue if tokens are available
-      while (
-        this.rateLimiter.tokensRemaining > 0 &&
-        this.rateLimiter.waitingQueue.length > 0
-      ) {
-        this.rateLimiter.tokensRemaining--;
-        const resolveWaiting = this.rateLimiter.waitingQueue.shift();
-        if (resolveWaiting) resolveWaiting();
-      }
-    }
-
-    // If no tokens available, wait in queue
-    if (this.rateLimiter.tokensRemaining <= 0) {
-      if (this.verbose) {
-        console.log("⏱️ Rate limit reached, waiting for next token...");
-      }
-
-      await new Promise<void>((resolve) => {
-        if (this.rateLimiter) {
-          this.rateLimiter.waitingQueue.push(resolve);
-        }
-      });
-
-      if (this.verbose) {
-        console.log("✅ Token received, continuing execution");
-      }
-    } else {
-      // Token available, use it
-      this.rateLimiter.tokensRemaining--;
-    }
   }
 
   /**
