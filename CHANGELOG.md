@@ -1,4 +1,12 @@
 ## What's Changed
+* Add docs by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/23
+
+
+**Full Changelog**: https://github.com/frostlogic-ab/agent-forge/compare/v1.4.0-beta.2...v1.4.0-beta.3
+
+# [1.4.0-beta.3](https://github.com/frostlogic-ab/agent-forge/compare/v1.4.0-beta.2...v1.4.0-beta.3) (2025-05-15)
+
+## What's Changed
 * Cursor rules, improved ts type safety by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/21
 
 
