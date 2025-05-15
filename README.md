@@ -61,7 +61,7 @@ graph TD
 
     subgraph "Agent Forge Core"
         AF[AgentForge Instance]
-        LLM[LLM Provider (via token.js)]
+        LLM["LLM Provider (via token.js)"]
         YAML[Agent YAML Definitions]
         TR[ToolRegistry]
         MCPMgr[MCPManager]
