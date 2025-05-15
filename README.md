@@ -3,9 +3,9 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
 
-Agent Forge is a TypeScript framework for creating, configuring, and orchestrating AI agents that connect to LLMs (Large Language Models). It allows developers to define agents through YAML configuration files and enables both sequential and hierarchical execution patterns.
+Agent Forge is a TypeScript framework for creating, configuring, and orchestrating AI agents that connect to LLMs (Large Language Models). It allows developers to define agents through YAML configuration files and enables both sequential and hierarchical execution patterns. Its core goal is to simplify the development of sophisticated agent-based applications by providing a structured approach to agent definition, tool integration, and multi-agent collaboration.
 
-## 📋 Table of Contents
+##  Table of Contents
 
 - [Features](#features)
 - [Installation](#installation)
@@ -336,7 +336,7 @@ const result = await workflow.run(
 
 ### 9. Use Model Context Protocol (MCP) to extend agent capabilities
 
-Agent Forge supports the Model Context Protocol (MCP), which allows agents to connect to external tool servers and use their capabilities.
+Agent Forge supports the Model Context Protocol (MCP), which allows agents to connect to external tool servers and use their capabilities. This section demonstrates how to integrate MCP clients, making it a more advanced example for significantly extending agent functionalities.
 
 ```typescript
 import {
