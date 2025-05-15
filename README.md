@@ -70,9 +70,13 @@ pnpm add agent-forge
 ### 1. Create Agent Forge instance
 
 ```typescript
+import { AgentForge, LLM } from "agent-forge";
+
 // Create an LLM provider
+// Replace 'YOUR_OPENAI_API_KEY' with your actual OpenAI API key
 // You can use one of the available TokenJS providers from here:
 // https://github.com/token-js/token.js/tree/main?tab=readme-ov-file#supported-providers
+const apiKey = process.env.OPENAI_API_KEY || "YOUR_OPENAI_API_KEY"; // Example: load from env or use a placeholder
 
 const llmProvider = new LLM("openai", {
   apiKey,
@@ -100,10 +104,17 @@ tools:
 ### 3. Create and run your agent
 
 ```typescript
-import { AgentForge, loadAgentFromYaml } from "agent-forge";
+import { loadAgentFromYaml } from "agent-forge";
+// This example assumes 'forge' (an AgentForge instance from Example 1) is in scope.
+// 'forge' should be initialized with an LLM provider:
+// const forge = new AgentForge(llmProvider); // From Example 1
 
-// Load agent from YAML
+// Load agent from YAML file (e.g., the agent.yaml defined in step 2)
 const agent = await loadAgentFromYaml("./agent.yaml");
+
+// Register the agent with the AgentForge instance.
+// This applies the default LLM provider (set on 'forge') to the agent.
+forge.registerAgent(agent);
 
 // Run the agent
 const result = await agent.run("What are the latest developments in AI?");
@@ -114,10 +125,16 @@ console.log(result);
 
 ```typescript
 import { Workflow, loadAgentFromYaml } from "agent-forge";
+// Assumes 'forge' (AgentForge instance from Example 1) is in scope.
 
-// Load multiple agents
+// Load multiple agents (ensure these YAML files exist, e.g., research-agent.yaml, summary-agent.yaml)
 const researchAgent = await loadAgentFromYaml("./research-agent.yaml");
+// Register the agent with AgentForge to apply the default LLM provider
+forge.registerAgent(researchAgent);
+
 const summaryAgent = await loadAgentFromYaml("./summary-agent.yaml");
+// Register the agent with AgentForge to apply the default LLM provider
+forge.registerAgent(summaryAgent);
 
 // Create a workflow
 const workflow = new Workflow().addStep(researchAgent).addStep(summaryAgent);
@@ -133,11 +150,17 @@ console.log(result);
 
 ```typescript
 import { Team, loadAgentFromYaml } from "agent-forge";
+// Assumes 'forge' (AgentForge instance from Example 1) is in scope.
 
-// Load manager and specialized agents
+// Load manager and specialized agents (ensure these YAML files exist)
 const managerAgent = await loadAgentFromYaml("./manager-agent.yaml");
+forge.registerAgent(managerAgent); // Register to apply default LLM provider
+
 const codeAgent = await loadAgentFromYaml("./code-agent.yaml");
+forge.registerAgent(codeAgent); // Register to apply default LLM provider
+
 const designAgent = await loadAgentFromYaml("./design-agent.yaml");
+forge.registerAgent(designAgent); // Register to apply default LLM provider
 
 // Create a team with a manager
 const team = new Team(managerAgent).addAgent(codeAgent).addAgent(designAgent);
