@@ -1,4 +1,12 @@
 ## What's Changed
+* Cursor rules, improved ts type safety by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/21
+
+
+**Full Changelog**: https://github.com/frostlogic-ab/agent-forge/compare/v1.4.0-beta.1...v1.4.0-beta.2
+
+# [1.4.0-beta.2](https://github.com/frostlogic-ab/agent-forge/compare/v1.4.0-beta.1...v1.4.0-beta.2) (2025-05-15)
+
+## What's Changed
 * feat: add MCP support by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/9
 * Linting fixes for MCP support by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/10
 * fix: tool imports by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/11
