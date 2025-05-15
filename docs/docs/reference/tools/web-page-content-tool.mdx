@@ -1,0 +1,116 @@
+---
+sidebar_label: 'WebPageContentTool'
+title: 'WebPageContentTool API Reference'
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+The `WebPageContentTool` is designed to fetch and extract the textual content from a given webpage URL. It can optionally attempt to isolate the main article content, stripping away boilerplate like navigation, footers, and ads.
+
+## Overview
+
+This tool is useful when an agent has a URL (perhaps obtained from [`WebSearchTool`](./web-search-tool.mdx) or other sources) and needs to understand the content of that page. It handles fetching the page, and then either returns the full HTML or a cleaned-up version of its main text content.
+
+## `WebPageContentTool` Class
+
+This class extends [`Tool`](./tool.mdx).
+
+### Constructor
+
+```typescript
+constructor()
+```
+
+Creates a new `WebPageContentTool` instance.
+
+*   **Tool Name**: `"WebPageContent"`
+*   **Tool Description**: `"Extract the text content from a webpage. Use this tool to get the content of a webpage if you need to. Always use this tool if you find a URL in a query."`
+*   **Tool Parameters**:
+    *   `url: string` (required): The URL of the webpage to extract content from.
+    *   `extractMainContent: boolean` (optional, default: `true`): If `true`, the tool attempts to extract and clean only the main textual content of the page. If `false`, it returns the full HTML content.
+*   **Tool ReturnType Description**: `"Returns the text content of the specified webpage"`
+
+### `run` Method
+
+The core logic is implemented in the `protected async run()` method, invoked via the `execute()` method from the base `Tool` class.
+
+```typescript
+protected async run(params: { url: string; extractMainContent?: boolean }): Promise<PageContentResult>
+```
+
+*   **`params: { url: string; extractMainContent?: boolean }`**: An object containing:
+    *   `url: string`: The URL of the webpage.
+    *   `extractMainContent?: boolean`: Whether to extract main content (defaults to `true`).
+*   **Returns**: A `Promise` that resolves to a `PageContentResult` object.
+
+### `PageContentResult` Object Structure (Conceptual)
+
+The object returned by the `run` method typically has the following structure:
+
+```typescript
+interface PageContentResult {
+  url: string;      // The URL from which content was fetched
+  content: string;  // The extracted content (either main text or full HTML, potentially truncated if very long)
+  source: "live" | "cache"; // Indicates if the content was fetched live or served from cache
+  error?: string;   // An error message if fetching or extraction failed
+}
+```
+If an error occurs (e.g., invalid URL, network issue, page not found), the `content` field will typically contain an error message, and the `error` field will be populated.
+The tool includes features like caching and rate limiting.
+
+### Example Usage with an Agent
+
+```typescript
+// Conceptual example
+import { Agent, AgentForge, LLM, WebPageContentTool } from "agent-forge";
+import dotenv from 'dotenv';
+
+dotenv.config();
+
+async function getContentWithAgent() {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) { return; }
+
+  const llmProvider = new LLM("openai", { apiKey });
+  const forge = new AgentForge(llmProvider);
+
+  const contentTool = new WebPageContentTool();
+  forge.registerTool(contentTool);
+
+  const readerAgentConfig = {
+    name: "PageReaderAgent",
+    role: "Content Extractor",
+    description: "An agent that reads and summarizes web page content.",
+    objective: "Extract and summarize content from a given URL.",
+    model: "gpt-4-turbo",
+    tools: [contentTool.getConfig()],
+  };
+  const readerAgent = new Agent(readerAgentConfig, [contentTool], llmProvider);
+  forge.registerAgent(readerAgent);
+
+  try {
+    // Agent's LLM would decide to use WebPageContentTool based on the task.
+    // Example: Task could be "Summarize the content of https://example.com/article"
+    const result = await readerAgent.run("Fetch and tell me about https://en.wikipedia.org/wiki/Artificial_intelligence, focusing on the main points.");
+    console.log("Agent Output based on page content:", result.output);
+
+    if (result.metadata?.toolCalls && result.metadata.toolCalls.length > 0) {
+      result.metadata.toolCalls.forEach(call => {
+        if (call.toolName === "WebPageContent") {
+          console.log("WebPageContent Tool Call Parameters:", call.parameters);
+          // The actual content in call.result.content can be very long
+          console.log("WebPageContent Tool Call Result (source):", call.result.source);
+          console.log("WebPageContent Tool Call Result (content snippet):", JSON.stringify(call.result.content, null, 2).substring(0, 300) + "...");
+        }
+      });
+    }
+
+  } catch (error) {
+    console.error("Error running reader agent:", error);
+  }
+}
+
+// getContentWithAgent();
+```
+This tool is essential for agents that need to process information from specific web pages. 

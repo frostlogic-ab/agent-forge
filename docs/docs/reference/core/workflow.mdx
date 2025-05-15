@@ -1,0 +1,154 @@
+---
+sidebar_label: 'Workflow'
+title: 'Workflow API Reference'
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+The `Workflow` class enables the sequential execution of a series of AI agents, where the output of one agent can serve as the input to the next. This is useful for creating multi-step processes or pipelines.
+
+## `WorkflowRunOptions` Interface
+
+Defines options for configuring the execution of a `Workflow`.
+
+```typescript
+export interface WorkflowRunOptions {
+  /**
+   * Maximum number of LLM calls allowed per minute across all agents in the workflow (default: no limit).
+   * Helps in managing API rate limits.
+   */
+  rate_limit?: number;
+
+  /**
+   * Enable detailed logging of workflow execution, including each step's input and output (default: false).
+   * Useful for debugging workflow progression.
+   */
+  verbose?: boolean;
+
+  /**
+   * Enable streaming of agent communications within the workflow (default: false).
+   * Allows for real-time observation of each agent's processing.
+   */
+  stream?: boolean;
+
+  /**
+   * If `stream` is true, also stream output to the console (default: false).
+   */
+  enableConsoleStream?: boolean;
+}
+```
+
+## `Workflow` Class
+
+### Overview
+
+The `Workflow` class allows you to define a sequence of `Agent` instances (steps). When the workflow is run, each agent executes in the order they were added. The output of a preceding agent typically becomes the input for the subsequent agent, though input transformation is possible at each step.
+
+### Constructor
+
+```typescript
+constructor(name: string = "Workflow", description: string = "A sequence of agents")
+```
+
+Creates a new `Workflow` instance.
+
+*   **`name?: string`** (optional): The name of the workflow. Defaults to "Workflow".
+*   **`description?: string`** (optional): A description for the workflow. Defaults to "A sequence of agents".
+
+### Workflow Configuration Methods
+
+#### `setName(name: string): Workflow`
+
+Sets or updates the name of the workflow.
+
+*   **`name: string`**: The new name for the workflow.
+*   **Returns**: The `Workflow` instance for method chaining.
+
+#### `setDescription(description: string): Workflow`
+
+Sets or updates the description of the workflow.
+
+*   **`description: string`**: The new description for the workflow.
+*   **Returns**: The `Workflow` instance for method chaining.
+
+#### `getName(): string`
+
+Retrieves the current name of the workflow.
+
+*   **Returns**: The workflow's name.
+
+#### `getDescription(): string`
+
+Retrieves the current description of the workflow.
+
+*   **Returns**: The workflow's description.
+
+### Step Management Methods
+
+#### `addStep(agent: Agent, inputTransform?: (input: string, previousResults: AgentResult[]) => string): Workflow`
+
+Adds a new step to the end of the workflow.
+
+*   **`agent: Agent`**: The [`Agent`](./agent.mdx) instance to be executed in this step.
+*   **`inputTransform?: (input: string, previousResults: AgentResult[]) => string`** (optional): A function that can modify the input passed to this step's agent. It receives the current input (which is the output of the previous step, or the initial workflow input for the first step) and an array of all `AgentResult` objects from preceding steps. It should return the transformed string input for the current agent.
+*   **Returns**: The `Workflow` instance for method chaining.
+
+#### `getSteps(): Array<{ agent: Agent, inputTransform?: Function }>`
+
+Retrieves all steps currently defined in the workflow.
+
+*   **Returns**: An array of objects, where each object contains the [`agent`](./agent.mdx) for that step and its optional `inputTransform` function.
+
+### Execution Method
+
+#### `async run(input: string, options?: WorkflowRunOptions): Promise<AgentResult>`
+
+Runs the workflow sequentially through all its defined steps. The `input` is provided to the first agent (potentially transformed). The output of each agent (potentially transformed) is passed as input to the next agent in sequence.
+
+*   **`input: string`**: The initial input to the first agent in the workflow.
+*   **`options?: WorkflowRunOptions`**: Optional parameters to configure the workflow's execution, such as rate limiting, verbose logging, or streaming. See [`WorkflowRunOptions`](#workflowrunoptions-interface).
+*   **Returns**: A `Promise` that resolves to the `AgentResult` object from the execution of the *last* agent in the workflow.
+
+```typescript
+// Example Usage (Conceptual)
+import { Agent, Workflow, LLM, AgentResult } from "agent-forge";
+// Assume researchAgentConfig, summarizeAgentConfig, translateAgentConfig are defined
+// and OPENAI_API_KEY is available in environment variables
+
+async function runWorkflowExample() {
+  const llmProvider = new LLM("openai", { apiKey: process.env.OPENAI_API_KEY });
+
+  // Define Agents (ensure they have LLM providers)
+  const researchAgent = new Agent({ name: "Researcher", /* ... */ llm: llmProvider });
+  const summarizeAgent = new Agent({ name: "Summarizer", /* ... */ llm: llmProvider });
+  const translateAgent = new Agent({ name: "Translator", /* ... */ llm: llmProvider });
+
+  // Create and configure the workflow
+  const myWorkflow = new Workflow("Research and Translate", "Researches, summarizes, then translates text.");
+
+  // Add steps
+  myWorkflow.addStep(researchAgent);
+  myWorkflow.addStep(summarizeAgent); // Receives output from researchAgent
+  myWorkflow.addStep(translateAgent, (summaryOutput, previousResults) => {
+    // Example transform: append context before translating
+    const researchResult = previousResults[0]?.output || ""; // Output of the first agent (Researcher)
+    console.log("Input to translate step will be: Summarized text based on initial research context.");
+    return `Translate this summary: ${summaryOutput}. The original research topic was about: ${researchResult.substring(0, 50)}...`;
+  });
+
+  const initialTask = "What are the latest advancements in renewable energy?";
+
+  try {
+    console.log(`Running workflow '${myWorkflow.getName()}' for task: "${initialTask}"`);
+    const finalResult = await myWorkflow.run(initialTask, { verbose: true, stream: true });
+    console.log("\nWorkflow Final Output (Translated Text):", finalResult.output);
+  } catch (error) {
+    console.error("Error running workflow:", error);
+  }
+}
+
+runWorkflowExample().catch(console.error);
+```
+
+The `Workflow` class uses [`Agent`](./agent.mdx) instances for its steps. Refer to the [`Agent`](./agent.mdx) API documentation for more on agent configuration. 

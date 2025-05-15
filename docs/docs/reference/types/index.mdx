@@ -1,0 +1,24 @@
+---
+sidebar_label: 'Types Overview'
+title: 'Common Types Reference'
+---
+
+This section provides documentation for common TypeScript types, interfaces, and enums used throughout the Agent Forge framework. Understanding these types is crucial for effectively configuring agents, defining tools, and interpreting results.
+
+Key type categories and important definitions include:
+
+*   **Core Configuration & Results:**
+    *   [`AgentConfig`](./core-types.mdx#agentconfig-interface): Defines the configuration for an `Agent`.
+    *   [`ToolConfig`](./core-types.mdx#toolconfig-interface): Describes the static configuration of a `Tool`.
+    *   [`ToolParameter`](./core-types.mdx#toolparameter-interface): Specifies the parameters a `Tool` accepts.
+    *   [`AgentResult`](./core-types.mdx#agentresult-interface): The standard structure for results returned by agents, workflows, and teams.
+    *   [`ToolCall`](./core-types.mdx#toolcall-interface): Details a single tool invocation made during an agent's run.
+
+*   **Communication & Events:**
+    *   [`Message`](./communication-types.mdx#message-interface): Represents a message in an agent's conversation history.
+    *   [`ExecutionMode`](./communication-types.mdx#executionmode-enum): Enum for agent execution modes (e.g., sequential, hierarchical).
+    *   [`AgentForgeEvents`](./communication-types.mdx#agentforgeevents-enum): Enum listing event types used by the framework's event emitter.
+
+Many simpler types or those specific to a single class (like `LLMResponse` or `TeamRunOptions`) are documented directly on the page of the class/function that uses them. Refer to the relevant API pages for those.
+
+Select a page from the sidebar to explore these common type definitions in more detail. 

@@ -1,0 +1,213 @@
+---
+sidebar_label: 'AgentForge'
+title: 'AgentForge API Reference'
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+The `AgentForge` class is the primary entry point for orchestrating AI agents, tools, and their execution within the Agent Forge framework. It provides a centralized way to manage configurations, register components, and run agent-based operations.
+
+## `AgentForge` Class
+
+### Overview
+
+The `AgentForge` class acts as a factory and a registry. You can use it to:
+*   Set a default LLM provider for all agents managed by it.
+*   Register tools that can be used by agents.
+*   Register agent instances or load them from YAML configurations.
+*   Create and run individual agents, sequential workflows, or collaborative teams.
+
+### Constructor
+
+```typescript
+constructor(llmProvider?: LLM)
+```
+
+Creates a new `AgentForge` instance.
+
+*   **`llmProvider?: LLM`** (optional): A default `LLM` provider instance to be used by agents that don't have one explicitly assigned. This can be set or changed later using `setDefaultLLMProvider`.
+
+### LLM Provider Management
+
+#### `setDefaultLLMProvider(provider: LLM): AgentForge`
+
+Sets or updates the default LLM provider for the `AgentForge` instance and all currently registered agents that do not have an LLM provider explicitly set.
+
+*   **`provider: LLM`**: The `LLM` provider instance.
+*   **Returns**: The `AgentForge` instance for method chaining.
+
+#### `getDefaultLLMProvider(): LLM | undefined`
+
+Retrieves the default `LLM` provider configured for this `AgentForge` instance.
+
+*   **Returns**: The `LLM` provider instance or `undefined` if not set.
+
+### Tool Management
+
+#### `registerTool(tool: Tool): AgentForge`
+
+Registers a single tool with the `AgentForge` instance, making it available to agents.
+
+*   **`tool: Tool`**: The `Tool` instance to register.
+*   **Returns**: The `AgentForge` instance for method chaining.
+
+#### `registerTools(tools: Tool[]): AgentForge`
+
+Registers multiple tools.
+
+*   **`tools: Tool[]`**: An array of `Tool` instances to register.
+*   **Returns**: The `AgentForge` instance for method chaining.
+
+#### `getTools(): Tool[]`
+
+Retrieves all tools currently registered with this `AgentForge` instance.
+
+*   **Returns**: An array of `Tool` instances.
+
+### Agent Management
+
+#### `registerAgent(agent: Agent): AgentForge`
+
+Registers a single [`Agent`](./agent.mdx) instance. If a default LLM provider is set on `AgentForge` and the agent doesn't have one, the default will be applied to the agent.
+
+*   **`agent: Agent`**: The [`Agent`](./agent.mdx) instance to register.
+*   **Returns**: The `AgentForge` instance for method chaining.
+
+#### `registerAgents(agents: Agent[]): AgentForge`
+
+Registers multiple [`Agent`](./agent.mdx) instances.
+
+*   **`agents: Agent[]`**: An array of [`Agent`](./agent.mdx) instances to register.
+*   **Returns**: The `AgentForge` instance for method chaining.
+
+#### `getAgents(): Agent[]`
+
+Retrieves all agents currently registered.
+
+*   **Returns**: An array of [`Agent`](./agent.mdx) instances.
+
+#### `getAgent(name: string): Agent | undefined`
+
+Retrieves a registered agent by its name.
+
+*   **`name: string`**: The name of the agent.
+*   **Returns**: The [`Agent`](./agent.mdx) instance or `undefined` if not found.
+
+#### `async loadAgentsFromDirectory(directoryPath: string): Promise<AgentForge>`
+
+Loads agent definitions from YAML files within the specified directory and registers them with the `AgentForge` instance.
+
+*   **`directoryPath: string`**: The path to the directory containing agent YAML files.
+*   **Returns**: A `Promise` that resolves to the `AgentForge` instance for method chaining.
+
+### Execution Control
+
+#### `createWorkflow(name?: string, description?: string): Workflow`
+
+Creates a new [`Workflow`](./workflow.mdx) instance. Agents can be added to this workflow later.
+
+*   **`name?: string`** (optional): The name for the workflow.
+*   **`description?: string`** (optional): A description for the workflow.
+*   **Returns**: A new [`Workflow`](./workflow.mdx) instance.
+
+#### `createTeam(managerName: string, name?: string, description?: string): Team`
+
+Creates a new [`Team`](./team.mdx) instance with a specified manager agent. The manager agent must be registered with `AgentForge` beforehand.
+
+*   **`managerName: string`**: The name of the registered agent to be designated as the manager of this team.
+*   **`name?: string`** (optional): The name for the team.
+*   **`description?: string`** (optional): A description for the team.
+*   **Returns**: A new [`Team`](./team.mdx) instance.
+
+#### `async runAgent(agentName: string, input: string): Promise<AgentResult>`
+
+Runs a single registered agent by its name with the given input.
+
+*   **`agentName: string`**: The name of the agent to run.
+*   **`input: string`**: The input string for the agent.
+*   **Returns**: A `Promise` that resolves to an `AgentResult` object.
+
+#### `async runWorkflow(agentNames: string[], input: string, options?: WorkflowRunOptions): Promise<AgentResult>`
+
+Dynamically creates and runs a sequential workflow composed of the specified registered agents. Tools registered with `AgentForge` are made available to these agents.
+
+*   **`agentNames: string[]`**: An array of names of registered agents to include in the workflow, in execution order.
+*   **`input: string`**: The input string for the workflow.
+*   **`options?: WorkflowRunOptions`**: Optional parameters for workflow execution (e.g., streaming options). Refer to [`WorkflowRunOptions`](./workflow.mdx#workflowrunoptions-interface) type.
+*   **Returns**: A `Promise` that resolves to an `AgentResult` from the last agent in the workflow.
+
+#### `async runTeam(managerName: string, agentNames: string[], input: string, options?: TeamRunOptions): Promise<AgentResult>`
+
+Dynamically creates and runs a team. The specified manager and member agents must be registered. Tools registered with `AgentForge` are made available to these agents.
+
+*   **`managerName: string`**: The name of the registered agent to act as the manager.
+*   **`agentNames: string[]`**: An array of names of registered agents to be members of the team.
+*   **`input: string`**: The input string for the team's task.
+*   **`options?: TeamRunOptions`**: Optional parameters for team execution (e.g., streaming, verbose logging). Refer to [`TeamRunOptions`](./team.mdx#teamrunoptions-interface) type.
+*   **Returns**: A `Promise` that resolves to an `AgentResult` from the team's execution.
+
+#### `async runWithMode(mode: ExecutionMode, managerOrFirstAgentName: string, memberAgentNames: string[], input: string, options?: TeamRunOptions | WorkflowRunOptions): Promise<AgentResult>`
+
+A flexible method to run agents in either `TEAM` or `WORKFLOW` mode.
+
+*   **`mode: ExecutionMode`**: The execution mode (`ExecutionMode.TEAM` or `ExecutionMode.WORKFLOW`).
+*   **`managerOrFirstAgentName: string`**: If mode is `TEAM`, this is the name of the manager agent. If `WORKFLOW`, this is the name of the first agent in the sequence.
+*   **`memberAgentNames: string[]`**: If mode is `TEAM`, an array of names for member agents. If `WORKFLOW`, an array of names for subsequent agents in the sequence (can be empty if only one agent in workflow).
+*   **`input: string`**: The input string.
+*   **`options?: TeamRunOptions | WorkflowRunOptions`**: Execution options appropriate for the chosen mode. Refer to [`TeamRunOptions`](./team.mdx#teamrunoptions-interface) or [`WorkflowRunOptions`](./workflow.mdx#workflowrunoptions-interface).
+*   **Returns**: A `Promise` that resolves to an `AgentResult`.
+
+```typescript
+// Example Usage (Conceptual)
+import { AgentForge, LLM, Agent, ExecutionMode } from "agent-forge";
+// Assume MyTool, researchAgentConfig, writerAgentConfig are defined
+// and OPENAI_API_KEY is available in environment variables
+
+async function setupAndRun() {
+  const llmProvider = new LLM("openai", { apiKey: process.env.OPENAI_API_KEY });
+  const forge = new AgentForge(llmProvider);
+
+  // Register tools
+  const searchTool = new MyTool();
+  forge.registerTool(searchTool);
+
+  // Register agents (or load from YAML)
+  const researcher = new Agent(researchAgentConfig);
+  const writer = new Agent(writerAgentConfig);
+  forge.registerAgent(researcher).registerAgent(writer);
+
+  // Run a single agent
+  const researchResult = await forge.runAgent("ResearcherAgentName", "Latest trends in AI");
+  console.log("Research Result:", researchResult.output);
+
+  // Run a workflow
+  const workflowResult = await forge.runWorkflow([
+    "ResearcherAgentName", 
+    "WriterAgentName"
+  ], "Write a blog post about AI trends", { stream: true, enableConsoleStream: true });
+  console.log("Workflow Final Output:", workflowResult.output);
+
+  // Run using runWithMode (WORKFLOW example)
+  const modeWorkflowResult = await forge.runWithMode(
+    ExecutionMode.WORKFLOW,
+    "ResearcherAgentName",
+    ["WriterAgentName"],
+    "Summarize recent AI advancements."
+  );
+  console.log("runWithMode (Workflow) Output:", modeWorkflowResult.output);
+
+  // Run a team (assuming 'ManagerAgentName' is also registered)
+  const teamResult = await forge.runTeam(
+    "ManagerAgentName", 
+    ["ResearcherAgentName", "WriterAgentName"], 
+    "Create a comprehensive report on quantum computing.",
+    { verbose: true }
+  );
+  console.log("Team Final Output:", teamResult.output);
+}
+
+setupAndRun().catch(console.error);
+```
+
+For more details on `LLM`, `Tool`, [`Agent`](./agent.mdx), [`Workflow`](./workflow.mdx), [`Team`](./team.mdx), `AgentResult`, `ExecutionMode`, [`WorkflowRunOptions`](./workflow.mdx#workflowrunoptions-interface), and [`TeamRunOptions`](./team.mdx#teamrunoptions-interface), please refer to their respective documentation or type definitions. 

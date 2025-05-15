@@ -1,0 +1,34 @@
+---
+sidebar_label: Core Overview
+sidebar_position: 0
+---
+
+# Core Module
+
+The Core module of Agent Forge lays the groundwork for creating, configuring, and running AI agents. It is central to the framework's operation, housing the primary abstractions and orchestration logic.
+
+Key components and responsibilities within the Core module typically include:
+
+*   **`AgentForge` Class:** This is often the main entry point and central orchestrator for the framework. Your application code initializes an `AgentForge` instance, usually providing it with a default LLM provider. The `AgentForge` instance is then responsible for:
+    *   Loading agent definitions (e.g., from YAML files via a method like `loadAgent`).
+    *   Managing a `ToolRegistry` where tools are registered and made available to agents.
+    *   Potentially managing an `MCPManager` for integrating tools from external Model Context Protocol servers.
+    *   Creating and running execution units like individual agents, `Workflow`s, or `Team`s.
+
+*   **`Agent` Class:** The fundamental representation of an AI agent. Each `Agent` instance encapsulates:
+    *   Its identity and persona (name, role, description, objective).
+    *   Configuration for interacting with an LLM (model, temperature, assigned `LLM` provider instance).
+    *   A list of tools it can use.
+    *   The core logic for executing tasks, which involves using its LLM and tools to achieve its objectives.
+
+*   **`Workflow` Class:** Enables sequential execution of agents. You add agents as steps in a workflow, and Agent Forge manages the flow of execution and data between them.
+
+*   **`Team` Class:** Facilitates hierarchical execution. A `Team` consists of a manager agent and one or more member agents. The manager delegates tasks to members to achieve a common goal.
+
+*   **`ToolRegistry`:** A central repository for all tools available within an `AgentForge` instance. Agents consult this registry (or are provided tools from it) to perform actions.
+
+*   **Configuration Loading:** Utilities to parse agent definitions, typically from YAML files (e.g., `loadAgentFromYaml` or similar functionality within `AgentForge`).
+
+This section aims to provide detailed documentation for these core classes and their functionalities, including constructors, methods, and properties.
+
+*(Specific API details for classes like `Agent`, `AgentForge`, `Workflow`, `Team`, etc., will be populated based on `src/core` contents or TypeDoc generation.)* 

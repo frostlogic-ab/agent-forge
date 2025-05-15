@@ -4,14 +4,18 @@
   "description": "A TypeScript framework for creating and orchestrating AI agents with LLM integration",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
-  "files": [
-    "dist",
-    "README.md",
-    "LICENSE"
-  ],
+  "files": ["dist", "README.md", "LICENSE"],
   "scripts": {
     "build": "tsc",
     "build:watch": "tsc --watch",
+    "docs:build": "docusaurus build docs --out-dir build/docs",
+    "docs:clear": "docusaurus clear docs",
+    "docs:deploy": "docusaurus deploy docs",
+    "docs:dev": "docusaurus start docs --port 3001",
+    "docs:serve": "docusaurus serve docs --out-dir build/docs --port 3001",
+    "docs:swizzle": "docusaurus swizzle docs",
+    "docs:write-translations": "docusaurus write-translations docs",
+    "docs:write-heading-ids": "docusaurus write-heading-ids docs",
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "test": "jest --passWithNoTests",
     "lint": "biome check src/",
@@ -26,14 +30,7 @@
     "example:streaming-example-team": "ts-node src/examples/streaming-example-team.ts",
     "example:web-page-content-example": "ts-node src/examples/web-page-content-example.ts"
   },
-  "keywords": [
-    "ai",
-    "agents",
-    "llm",
-    "framework",
-    "typescript",
-    "yaml"
-  ],
+  "keywords": ["ai", "agents", "llm", "framework", "typescript", "yaml"],
   "author": "",
   "license": "MIT",
   "dependencies": {
@@ -51,10 +48,16 @@
   "devDependencies": {
     "@biomejs/biome": "1.9.4",
     "@bobvanderlinden/semantic-release-pull-request-analyzer": "^1.0.4",
+    "@docusaurus/core": "^3.7.0",
+    "@docusaurus/preset-classic": "^3.7.0",
     "@semantic-release/changelog": "^6.0.3",
     "@semantic-release/git": "^10.0.1",
     "@types/jest": "^29.5.14",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
     "jest": "^29.7.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
     "semantic-release": "^24.2.3",
     "ts-jest": "^29.3.2",
     "ts-node": "^10.9.2",

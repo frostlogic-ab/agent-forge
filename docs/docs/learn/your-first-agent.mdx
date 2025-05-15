@@ -1,0 +1,82 @@
+---
+sidebar_position: 3
+---
+
+# Building Your First Agent Programmatically
+
+This tutorial will guide you through creating and running a basic AI agent by instantiating the `Agent` class directly using Agent Forge.
+
+## Prerequisites
+
+*   Agent Forge installed (see [Installation](./installation.mdx)).
+*   An LLM API Key (e.g., OpenAI) set up. You can set this as an environment variable (e.g., `OPENAI_API_KEY`). See the [Installation guide](./installation.mdx) for more on environment variables.
+
+## Step 1: Create Agent Forge Instance & LLM Provider
+
+First, you need to initialize an `LLM` provider and then an `AgentForge` instance. The `LLM` class acts as a wrapper around different Large Language Model providers, offering a unified interface.
+
+```typescript
+// myFirstAgent.ts
+import { AgentForge, LLM, Agent } from "agent-forge";
+import dotenv from 'dotenv';
+
+dotenv.config(); // Load environment variables from .env file
+
+async function main() {
+  // Create an LLM provider
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    // It's good practice to handle the absence of an API key.
+    // For a production app, you might throw an error or use a default behavior.
+    console.error("Error: OPENAI_API_KEY is not set. Please set it in your .env file or directly.");
+    return;
+  }
+
+  const llmProvider = new LLM("openai", {
+    apiKey,
+  });
+
+  // Create the AgentForge instance (optional for direct agent instantiation if not using other Forge features like YAML loading or global tool registration)
+  const forge = new AgentForge(llmProvider);
+  // console.log("AgentForge instance and LLM provider created.");
+
+  // Define and Instantiate Your Agent
+  const researchAgent = new Agent({
+    name: "ResearchAgentProgrammatic",
+    role: "Research Assistant",
+    description: "An agent that helps with online research, created programmatically.",
+    objective: "Find accurate and relevant information based on user queries.",
+    model: "gpt-4", // Or your preferred model like gpt-3.5-turbo. Ensure compatibility with your API key.
+    temperature: 0.7,
+    llm: llmProvider, // Assign the LLM provider directly
+    tools: [
+      // Example: If you have a WebSearchTool class instance, you could add it here:
+      // new WebSearchTool() 
+      // For this first example, we are not adding specific tools to keep it simple.
+    ],
+  });
+  // console.log(`Agent '${researchAgent.name}' created programmatically.`);
+  
+  // Run Your Agent
+  // console.log("Running agent...");
+  try {
+    const result = await researchAgent.run("What are the latest developments in AI?");
+    console.log("\nAgent Execution Result:", result);
+  } catch (error) {
+    console.error("Error running agent:", error);
+  }
+}
+
+main().catch(console.error);
+```
+
+This example shows how to create a functional agent by directly instantiating and configuring the `Agent` class. The next section, "YAML-Defined Agents," will show how to achieve similar configurations using external YAML files for better organization.
+
+## Next Steps
+
+Now that you've built a basic agent programmatically, you can explore:
+
+*   Defining agents using [YAML Configuration](./core-concepts/yaml-defined-agents.mdx).
+*   Defining and using [Custom Tools](./core-concepts/tools-ecosystem.mdx).
+*   Setting up more complex [Execution Patterns (Workflows & Teams)](./core-concepts/execution-patterns.mdx).
+*   Understanding [LLM Integrations](./core-concepts/llm-integration.mdx) in more detail. 
