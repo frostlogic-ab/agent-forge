@@ -1,4 +1,12 @@
 ## What's Changed
+* fix error in diagram by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/25
+
+
+**Full Changelog**: https://github.com/frostlogic-ab/agent-forge/compare/v1.4.0...v1.4.1
+
+## [1.4.1](https://github.com/frostlogic-ab/agent-forge/compare/v1.4.0...v1.4.1) (2025-05-15)
+
+## What's Changed
 * feat: add MCP support by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/9
 * Linting fixes for MCP support by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/10
 * fix: tool imports by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/11
