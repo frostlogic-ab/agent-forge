@@ -33,7 +33,7 @@ Agent Forge is a TypeScript framework for creating, configuring, and orchestrati
 - 🔄 **Flexible Execution Patterns**:
   - Sequential execution (workflow-based)
   - Hierarchical execution (manager AI delegates to specialized agents)
-- 🔌 **LLM Integration**: Connect to various language models through a unified interface
+- 🔌 **LLM Integration**: Connect to various language models through a unified interface. Powered by [`token.js`](https://github.com/token-js/token.js), Agent Forge supports all LLMs compatible with `token.js`. For a detailed list of supported providers, please refer to the [`token.js` documentation](https://github.com/token-js/token.js/tree/main?tab=readme-ov-file#supported-providers).
 - 🚦 **Rate Limiting**: Control API usage with built-in rate limiting to avoid quota issues
 - 📡 **Streaming Support**:
   - Stream agent communications in real-time
