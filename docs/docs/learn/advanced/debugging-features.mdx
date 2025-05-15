@@ -1,0 +1,164 @@
+---
+sidebar_position: 2
+sidebar_label: "Debugging Features"
+---
+
+# Debugging Agent Interactions
+
+Agent Forge includes features to help you debug and understand the interactions within your agent systems, particularly for `Team` executions. Verbose logging provides a detailed trace of the execution flow.
+
+## Enabling Verbose Logging
+
+You can enable verbose logging by passing the `verbose: true` option to the `run()` method of a `Team` (and potentially `Workflow`, though the example focuses on `Team`). This option provides a detailed trace of the execution flow.
+
+```typescript
+import { AgentForge, LLM, Agent, Team } from "agent-forge";
+import dotenv from 'dotenv';
+
+dotenv.config();
+
+async function runTeamWithVerboseLogging() {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    console.error("API Key not found. Please set OPENAI_API_KEY in your .env file.");
+    return;
+  }
+
+  const llmProvider = new LLM("openai", { apiKey });
+  // const forge = new AgentForge(llmProvider); // Optional: forge can manage agents and tools
+
+  // Define your agents (replace with your actual agent configurations or loading from YAML)
+  const managerAgent = new Agent({
+    name: "Manager",
+    role: "Overseer",
+    objective: "Manage tasks and synthesize results",
+    model: "gpt-4", // Ensure this model is compatible with your provider and API key
+    llm: llmProvider
+  });
+
+  const researchAgent = new Agent({
+    name: "Researcher",
+    role: "Investigator",
+    objective: "Find accurate and relevant information",
+    model: "gpt-4",
+    llm: llmProvider
+  });
+
+  const summaryAgent = new Agent({
+    name: "Summarizer",
+    role: "Condenser",
+    objective: "Summarize lengthy texts into concise points",
+    model: "gpt-4",
+    llm: llmProvider
+  });
+
+  const team = new Team(managerAgent)
+    .addAgent(researchAgent)
+    .addAgent(summaryAgent);
+
+  try {
+    // console.log("Running team with verbose logging...");
+    const result = await team.run(
+      "What are the ethical implications of AI in healthcare?",
+      { verbose: true } // Enable verbose logging for this team execution
+    );
+    console.log("\\nFinal result:", result.output);
+  } catch (error) {
+    console.error("Error running team:", error);
+  }
+}
+
+// To run this example, call the function:
+// runTeamWithVerboseLogging();
+```
+
+## Understanding Verbose Output
+
+Verbose output typically includes:
+
+*   **Team Initialization:** Confirmation of the team starting, number of agents, and the manager.
+*   **Task Assignment:** The overall task given to the team.
+*   **Manager's Plan:** Initial thoughts or plan from the manager agent.
+*   **Sub-task Creation:** Details of specific sub-tasks created by the manager and assigned to member agents, including any dependencies.
+*   **Agent Execution:** Indication of when a specific agent starts and completes a task, often with the agent's name and the task ID.
+*   **Agent Output/Findings:** The actual output or result produced by an agent for its assigned sub-task.
+*   **Progress Reports:** Summaries of completed tasks and their results, which the manager might use for further planning.
+*   **Manager's Iterations:** Subsequent instructions or new tasks assigned by the manager based on the progress and results from member agents.
+*   **Final Result Generation:** Indication that all tasks are completed and the manager is generating the final output.
+*   **Execution Summary:** Confirmation of successful completion and potentially timing information.
+
+**Example Verbose Output:**
+
+```
+🚀 Starting team execution with 2 agents and 1 manager
+📋 Task: "What are the ethical implications of AI in healthcare?"
+
+👨‍💼 Manager (Initial Plan):
+Assigning tasks to team members...
+
+🔄 System: Created task task-0 for Researcher: Research current AI applications in healthcare
+📌 Dependencies: none
+
+⏳ Starting task task-0 for agent "Researcher"...
+👤 Researcher (Task task-0):
+[Research findings...]
+✅ Task task-0 completed in 2.34s
+
+📊 Progress Report:
+Completed Tasks:
+- Task task-0 (Researcher): [Research results...]
+
+👨‍💼 Manager:
+[Next instructions...]
+
+🏁 All tasks completed. Generating final result...
+✅ Team execution completed successfully
+```
+
+## Combining with Other Options
+
+Verbose logging can be combined with other execution options, such as `rate_limit`:
+
+```typescript
+// This snippet assumes an initialized 'team' instance as shown in the example above.
+// If running this standalone, you would need to include the setup for 
+// apiKey, llmProvider, agent definitions, and team instantiation.
+
+async function runTeamWithVerboseAndRateLimit(teamInstance: Team) {
+  if (!teamInstance) {
+    console.error("Team instance not provided.");
+    return;
+  }
+  try {
+    // console.log("Running team with verbose logging and rate limiting...");
+    const result = await teamInstance.run(
+      "Explain the impact of blockchain on financial systems",
+      {
+        rate_limit: 15, // Limit to 15 LLM calls per minute
+        verbose: true,    // Enable detailed logging
+      }
+    );
+    console.log("\\nFinal result:", result.output);
+  } catch (error) {
+    console.error("Error running team with rate limit:", error);
+  }
+}
+
+// To run this example, you would first get a team instance:
+// const previouslyCreatedTeam = team; // From the example above
+// if (previouslyCreatedTeam) {
+//   runTeamWithVerboseAndRateLimit(previouslyCreatedTeam);
+// }
+```
+
+Using verbose logging is invaluable for:
+
+*   Understanding the step-by-step execution flow within a team.
+*   Identifying bottlenecks or issues in agent communication or task handoff.
+*   Verifying that agents are performing their roles as expected.
+*   Fine-tuning manager prompts and member agent capabilities.
+
+## Next Steps
+
+*   Learn about [Streaming Support](./streaming-support.mdx) for another way to get real-time insights.
+*   Consider how [Rate Limiting](./rate-limiting.mdx) interacts with complex, verbose team executions. 

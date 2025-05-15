@@ -1,0 +1,83 @@
+---
+sidebar_position: 2
+---
+
+# Installation
+
+Getting Agent Forge set up in your project is straightforward. You can install it using your preferred Node.js package manager, Yarn or npm.
+
+## Prerequisites
+
+*   **Node.js:** Agent Forge requires Node.js. We recommend using version 18.x or higher. You can download it from [nodejs.org](https://nodejs.org/).
+*   **Package Manager:** You'll need either Yarn (version 1.x or newer) or npm (usually comes with Node.js).
+
+## Installing Agent Forge
+
+Navigate to your project's root directory in your terminal and run one of the following commands:
+
+### Using Yarn
+
+```bash
+yarn add agent-forge
+```
+
+### Using npm
+
+```bash
+npm install agent-forge
+```
+
+### Using pnpm
+
+```bash
+pnpm add agent-forge
+```
+
+This will add `agent-forge` to your project's dependencies.
+
+## Setting up Environment Variables (Recommended)
+
+Many AI agents require API keys for Large Language Models (LLMs) or other services. Agent Forge often uses environment variables to configure these.
+
+It's a good practice to use a `.env` file to manage your API keys and other sensitive information. Install the `dotenv` package if you haven't already:
+
+### Using Yarn
+```bash
+yarn add dotenv
+```
+
+### Using npm
+```bash
+npm install dotenv
+```
+
+Then, create a `.env` file in the root of your project:
+
+```env
+# .env file
+OPENAI_API_KEY="your_openai_api_key_here"
+# Add other API keys or configurations as needed
+# ANTHROPIC_API_KEY="your_anthropic_api_key_here"
+```
+
+**Important:** Remember to add `.env` to your `.gitignore` file to prevent committing your API keys to version control.
+
+```gitignore
+# .gitignore
+.env
+```
+
+In your application code (usually at the entry point, like `index.ts` or `app.ts`), you can then load these environment variables:
+
+```typescript
+import dotenv from 'dotenv';
+dotenv.config();
+
+// Your Agent Forge application logic starts here
+```
+
+## Next Steps
+
+With Agent Forge installed and your environment potentially configured, you're ready to build your first agent!
+
+Head over to the [Building Your First Agent](./your-first-agent.mdx) tutorial. 

@@ -1,0 +1,88 @@
+---
+sidebar_label: 'EventEmitter'
+title: 'EventEmitter API Reference'
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+The `EventEmitter` class provides a simple mechanism for implementing event-driven patterns in your application. It allows different parts of your code to subscribe to named events and to trigger those events with associated data.
+
+## `EventEmitter` Class
+
+### Constructor
+
+```typescript
+constructor()
+```
+
+Creates a new `EventEmitter` instance.
+
+### Methods
+
+#### `on(event: string, listener: (...args: any[]) => void): void`
+
+Registers a listener function to be called when a specific event is emitted.
+
+*   **`event: string`**: The name of the event to listen for.
+*   **`listener: (...args: any[]) => void`**: The callback function to execute when the event is emitted. It will receive any arguments passed to the `emit` method.
+
+#### `emit(event: string, ...args: any[]): void`
+
+Emits an event, causing all registered listeners for that event to be called with the provided arguments.
+
+*   **`event: string`**: The name of the event to emit.
+*   **`...args: any[]`**: Optional arguments to pass to the listener functions.
+
+#### `off(event: string, listener: (...args: any[]) => void): void`
+
+Removes a specific listener function for a given event.
+
+*   **`event: string`**: The name of the event.
+*   **`listener: (...args: any[]) => void`**: The listener function that was originally registered with `on`.
+
+#### `removeAllListeners(event?: string): void`
+
+Removes all listeners for a specific event, or all listeners for all events if no event name is provided.
+
+*   **`event?: string`** (optional): The name of the event for which to remove listeners. If omitted, all listeners for all events will be removed.
+
+### Example Usage
+
+```typescript
+import { EventEmitter } from "agent-forge"; // Assuming EventEmitter is exported from the main package
+
+const myEmitter = new EventEmitter();
+
+function handleTaskUpdate(taskId: string, status: string) {
+  console.log(`Task ${taskId} updated to: ${status}`);
+}
+
+// Register a listener
+myEmitter.on("taskUpdate", handleTaskUpdate);
+
+// Emit an event
+myEmitter.emit("taskUpdate", "123", "in-progress"); // Output: Task 123 updated to: in-progress
+
+// Later, remove the listener
+myEmitter.off("taskUpdate", handleTaskUpdate);
+
+// This emission will no longer call handleTaskUpdate
+myEmitter.emit("taskUpdate", "456", "completed");
+
+// Remove all listeners for "taskUpdate" (if any remained)
+myEmitter.removeAllListeners("taskUpdate");
+
+// Remove all listeners from the emitter entirely
+// myEmitter.removeAllListeners();
+```
+
+## `globalEventEmitter`
+
+Agent Forge also exports a pre-instantiated `globalEventEmitter`:
+
+```typescript
+export const globalEventEmitter = new EventEmitter();
+```
+
+This instance can be used for framework-level or application-wide events. However, for more localized event handling within your own modules or agent logic, it is often cleaner to create and use your own `EventEmitter` instances. 

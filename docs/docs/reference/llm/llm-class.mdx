@@ -1,0 +1,227 @@
+---
+sidebar_label: 'LLM Class'
+title: 'LLM Class API Reference'
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+The `LLM` class is the central component in Agent Forge for interacting with various Large Language Model providers. It leverages the `token.js` library to offer a unified interface for chat completions, supporting both streaming and non-streaming modes.
+
+## Key Configuration and Parameter Types
+
+These types are essential for configuring the `LLM` class and preparing parameters for its methods.
+
+### `LLMProvider` Type
+
+This type represents the identifier for the LLM provider you intend to use. It's passed to the `LLM` class constructor.
+
+```typescript
+// Type alias from token.js, typically a string
+// export type LLMProvider = string; 
+// Example values: "openai", "anthropic", "google"
+type LLMProvider = string;
+```
+The specific string values correspond to the providers supported by the `token.js` library.
+
+### `LLMProviderConfig` Interface
+
+This interface outlines common configuration options that you might provide when instantiating the `LLM` class. These settings are typically passed to the underlying `token.js` library.
+
+```typescript
+export interface LLMProviderConfig {
+  apiKey?: string;             // Your API key for the LLM provider.
+  organizationId?: string;     // Optional: Organization ID for some providers (e.g., OpenAI).
+  baseUrl?: string;            // Optional: Custom base URL for the API (e.g., for proxies or self-hosted models).
+  maxRetries?: number;         // Optional: Maximum number of retries for failed API requests.
+  timeout?: number;            // Optional: Request timeout in milliseconds.
+}
+```
+**Note:** The `LLM` class constructor actually accepts a `ConfigOptions` object directly from the `token.js` library. `LLMProviderConfig` represents a common subset of these options. For provider-specific or more advanced configurations, refer to the `token.js` documentation for its `ConfigOptions` structure.
+
+### `LLMRequestOptions` Interface
+
+This interface defines the core structure for the `params` argument of the `LLM.chat()` and `LLM.chatStream()` methods.
+
+```typescript
+// import type { Message } from "../types"; // Actual source import
+// import type { ChatCompletionMessageParam } from "token.js"; // Actual source import for toolDefinitions
+
+export interface LLMRequestOptions {
+  model: string;                         // The specific model to use (e.g., "gpt-4-turbo", "claude-2").
+  messages: Message[];                   // An array of [Message](../../types/communication-types.mdx#message-interface) objects representing the conversation history.
+  temperature?: number;                  // Optional: Sampling temperature (0.0 to 2.0).
+  maxTokens?: number;                    // Optional: Maximum number of tokens to generate.
+  stopSequences?: string[];              // Optional: An array of sequences where the API will stop generating further tokens.
+  toolDefinitions?: any;                 // Optional: Tool definitions available to the LLM. 
+                                         // This corresponds to 'ChatCompletionMessageParam.tools' or similar structures 
+                                         // from 'token.js'. Refer to 'token.js' for the exact structure based on 
+                                         // the provider and completion type.
+}
+```
+When calling `LLM.chat()` or `LLM.chatStream()`, you provide an object conforming to these options. The actual methods in `LLM.ts` use more specific types from `token.js` (like `CompletionNonStreaming` and `CompletionStreaming`), but `LLMRequestOptions` covers the main user-provided fields.
+
+## `LLMResponseToolCall` Interface
+
+Defines the structure for a tool call requested by the LLM.
+
+```typescript
+export interface LLMResponseToolCall {
+  id: string; // Unique identifier for the tool call
+  toolName: string; // Name of the tool the LLM wants to use
+  parameters: Record<string, any>; // Parameters for the tool, parsed as an object
+}
+```
+
+## `LLMResponse` Interface
+
+Defines the structure of a response received from the `LLM` class methods.
+
+```typescript
+export interface LLMResponse {
+  content: string; // The textual content of the LLM's response
+  model: string; // Identifier of the model that generated the response
+  tokenUsage?: {
+    completion: number; // Tokens used for the completion
+    prompt: number; // Tokens used for the prompt
+    total: number; // Total tokens used
+  };
+  toolCalls?: LLMResponseToolCall[]; // Optional array of tool calls requested by the LLM
+}
+```
+
+## `LLM` Class
+
+### Overview
+
+The `LLM` class acts as an abstraction layer over different LLM providers supported by `token.js`. It simplifies the process of sending requests to LLMs, handling responses, and managing configurations like API keys and provider-specific options.
+
+### Constructor
+
+```typescript
+constructor(provider: LLMProvider, config: any /* ConfigOptions from token.js */)
+```
+
+Creates a new `LLM` instance.
+
+*   **`provider: LLMProvider`**: The name of the LLM provider to use (e.g., `"openai"`, `"anthropic"`, `"google"`). See [`LLMProvider`](#llmprovider-type) above.
+*   **`config: any /* ConfigOptions */`**: Configuration options for the `token.js` library. This typically includes the `apiKey` (as outlined in [`LLMProviderConfig`](#llmproviderconfig-interface)) and any other provider-specific settings. Refer to `token.js` documentation for details on `ConfigOptions` for each provider.
+
+### Methods
+
+#### `getEventEmitter(): EventEmitter`
+
+Retrieves an `EventEmitter` instance associated with this `LLM` instance. This can be used to subscribe to events, particularly for streaming responses (e.g., `AgentForgeEvents.LLM_STREAM_CHUNK`, `AgentForgeEvents.LLM_STREAM_COMPLETE`).
+
+*   **Returns**: An `EventEmitter` instance.
+
+#### `async chat(params: any /* Omit<CompletionNonStreaming<any>, "provider" | "stream"> */): Promise<LLMResponse>`
+
+Sends a request to the LLM for chat completion in non-streaming mode.
+
+*   **`params`**: An object containing parameters for the chat completion, primarily based on [`LLMRequestOptions`](#llmrequestoptions-interface). Key fields include:
+    *   `model: string` (from `LLMRequestOptions`)
+    *   `messages: Message[]` (from `LLMRequestOptions`)
+    *   `tools?: any /* ToolDefinition[] from token.js */` (from `LLMRequestOptions` as `toolDefinitions`)
+    *   Other provider-specific parameters (e.g., `temperature`, `max_tokens` from `LLMRequestOptions`).
+    The actual type expected by the underlying `token.js` call is `Omit<CompletionNonStreaming<any>, "provider" | "stream">`. For full details, refer to `token.js` documentation.
+*   **Returns**: A `Promise` that resolves to an [`LLMResponse`](#llmresponse-interface) object.
+
+#### `async chatStream(params: any /* Omit<CompletionStreaming<any>, "provider" | "stream"> & { onChunk: (chunk: any /* CompletionResponseChunk */) => void; } */): Promise<LLMResponse>`
+
+Sends a request to the LLM for chat completion in streaming mode.
+
+*   **`params`**: An object containing parameters based on [`LLMRequestOptions`](#llmrequestoptions-interface), and must also include:
+    *   `onChunk: (chunk: any /* CompletionResponseChunk from token.js */) => void`: A callback function that will be invoked for each chunk of data received from the LLM stream. The `chunk` object structure is defined by `token.js`.
+    The actual type expected by the underlying `token.js` call is `Omit<CompletionStreaming<any>, "provider" | "stream"> & { onChunk: ... }`. For full details, refer to `token.js` documentation.
+*   **Returns**: A `Promise` that resolves to an [`LLMResponse`](#llmresponse-interface) object once the stream is complete. This final response object is aggregated from all chunks.
+
+#### `async complete(params: any /* Omit<ProviderCompletionParams<any>, "provider" | "stream"> */): Promise<LLMResponse>`
+
+An alternative method for requesting completions from the LLM. Generally, `chat` or `chatStream` are preferred for modern chat-based models.
+
+*   **`params`**: Parameters for the completion. (Refer to `token.js` `ProviderCompletionParams` type).
+*   **Returns**: A `Promise` that resolves to an [`LLMResponse`](#llmresponse-interface).
+
+```typescript
+// Example Usage (Conceptual)
+import { LLM, AgentForgeEvents } from "agent-forge"; 
+// For actual type safety in your project, you might import directly from token.js for some params:
+// import type { ChatCompletionMessageParam, CompletionResponseChunk } from "token.js"; 
+// Agent Forge re-exports core types, these imports would look like:
+import type { LLMProvider, LLMRequestOptions, Message, LLMProviderConfig } from "agent-forge";
+
+async function llmExample() {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    console.error("API key not found.");
+    return;
+  }
+
+  const llmProvider: LLMProvider = "openai";
+  // Config object for token.js, using fields from LLMProviderConfig as a guide
+  const llmConfig: LLMProviderConfig = { apiKey }; 
+
+  const llm = new LLM(llmProvider, llmConfig as any); // Cast to any if LLMProviderConfig is not identical to token.js ConfigOptions
+
+  // Example: Non-streaming chat
+  try {
+    const messages: Message[] = [
+      { role: "system", content: "You are a helpful assistant." },
+      { role: "user", content: "What is Agent Forge?" }
+    ];
+    const requestParams: LLMRequestOptions = { model: "gpt-3.5-turbo", messages };
+    const response = await llm.chat(requestParams);
+    console.log("Non-streaming response:", response.content);
+    if (response.tokenUsage) {
+      console.log("Token usage:", response.tokenUsage);
+    }
+  } catch (error) {
+    console.error("Error in non-streaming chat:", error);
+  }
+
+  // Example: Streaming chat
+  try {
+    const messages: Message[] = [
+      { role: "system", content: "You are a poetic assistant." },
+      { role: "user", content: "Write a short poem about AI." }
+    ];
+    
+    console.log("\nStreaming response:");
+    // The 'onChunk' callback parameter type is 'CompletionResponseChunk' from token.js
+    const onChunkCallback = (chunk: any /* CompletionResponseChunk */) => {
+      const content = chunk.choices?.[0]?.delta?.content;
+      if (content) {
+        process.stdout.write(content); // Write content as it arrives
+      }
+    };
+
+    // For llm.chatStream, the params object matches LLMRequestOptions and adds onChunk
+    const streamRequestParams = {
+      model: "gpt-3.5-turbo", 
+      messages,
+      onChunk: onChunkCallback 
+    };
+
+    const fullStreamResponse = await llm.chatStream(streamRequestParams);
+    process.stdout.write("\n"); // Newline after stream finishes
+
+    console.log("\nStreaming complete. Final aggregated content:", fullStreamResponse.content);
+    if (fullStreamResponse.tokenUsage) {
+      console.log("Token usage (from stream end):", fullStreamResponse.tokenUsage);
+    }
+  } catch (error) {
+    console.error("\nError in streaming chat:", error);
+  }
+  
+  // Subscribing to events from EventEmitter
+  // const eventEmitter = llm.getEventEmitter();
+  // eventEmitter.on(AgentForgeEvents.LLM_STREAM_CHUNK, (data) => {
+  //   console.log("EVENT (LLM_STREAM_CHUNK):", data.chunk);
+  // });
+}
+
+// llmExample().catch(console.error);
+```
+
+**Note on `token.js` types:** The `LLM` class heavily relies on types from the `token.js` library (e.g., `LLMProvider`, `ConfigOptions`, `ChatCompletionMessageParam`, `CompletionNonStreaming`, `CompletionStreaming`, `CompletionResponseChunk`). For detailed information on these types and provider-specific configurations, refer to the official `token.js` documentation. 

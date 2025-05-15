@@ -33,6 +33,11 @@ yarn-error.log*
 # Coverage directory
 coverage/
 
+# Docusaurus
+.docusaurus/
+.slush/
+.cache-loader/
+
 # Example YAML files
 src/examples/yaml/
 

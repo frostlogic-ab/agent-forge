@@ -1,0 +1,107 @@
+---
+sidebar_label: 'YAML Loader'
+title: 'YAML Configuration Loader API'
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+The `yaml-loader.ts` module provides functions for loading and validating agent configurations from YAML files. This allows for defining agents declaratively and instantiating them programmatically.
+
+## `async loadAgentConfigFromYaml(filePath: string): Promise<AgentConfig>`
+
+Reads a YAML file from the given `filePath`, parses its content, and validates it against the expected [`AgentConfig`](../types/core-types.mdx#agentconfig-interface) structure.
+
+*   **`filePath: string`**: The absolute or relative path to the YAML file containing the agent configuration.
+*   **Returns**: A `Promise` that resolves to a validated `AgentConfig` object.
+*   **Throws**: An error if the file cannot be read, is not valid YAML, or if the configuration does not match the `AgentConfig` schema (e.g., missing required fields, incorrect types).
+
+**Example YAML (`my-agent.yaml`):**
+```yaml
+name: MyYamlAgent
+role: Assistant
+description: An agent loaded from YAML.
+objective: To demonstrate YAML loading.
+model: gpt-3.5-turbo
+temperature: 0.7
+# tools: (Optional tool configurations can also be defined here)
+#   - name: MyCalculator
+#     description: A simple calculator tool.
+#     parameters:
+#       - name: expression
+#         type: string
+#         description: The mathematical expression to evaluate.
+#         required: true
+```
+
+**Usage:**
+```typescript
+import { loadAgentConfigFromYaml } from "agent-forge"; // Assuming path
+
+async function getConfig() {
+  try {
+    const agentConfig = await loadAgentConfigFromYaml("./path/to/my-agent.yaml");
+    console.log("Loaded Agent Config:", agentConfig);
+    // You can now use this config to manually create an Agent or for other purposes.
+  } catch (error) {
+    console.error("Error loading agent config:", error);
+  }
+}
+// getConfig();
+```
+
+## `async loadAgentFromYaml(filePath: string): Promise<Agent>`
+
+Loads an agent's configuration from the specified YAML `filePath` (using `loadAgentConfigFromYaml`) and then uses that configuration to instantiate and return an [`Agent`](../core/agent.mdx) object.
+
+*   **`filePath: string`**: The path to the YAML file.
+*   **Returns**: A `Promise` that resolves to an initialized `Agent` instance.
+*   **Throws**: Errors under the same conditions as `loadAgentConfigFromYaml`.
+
+**Usage:**
+```typescript
+import { loadAgentFromYaml } from "agent-forge"; // Assuming path
+
+async function getAgent() {
+  try {
+    const agent = await loadAgentFromYaml("./path/to/my-agent.yaml");
+    console.log(`Agent "${agent.name}" loaded successfully.`);
+    // const result = await agent.run("Hello!");
+    // console.log(result.output);
+  } catch (error) {
+    console.error("Error loading agent:", error);
+  }
+}
+// getAgent();
+```
+
+## `async loadAgentsFromDirectory(directoryPath: string): Promise<Agent[]>`
+
+Scans the specified `directoryPath` for files with `.yaml` or `.yml` extensions, loads each one as an [`Agent`](../core/agent.mdx) (using `loadAgentFromYaml`), and returns an array of the successfully loaded `Agent` instances.
+
+If an individual YAML file in the directory is invalid or fails to load, a warning is logged to the console for that file, and the process continues with the next files. Other errors (e.g., directory not readable) will throw.
+
+This function is used internally by `AgentForge.loadAgentsFromDirectory()` but can be used standalone if needed.
+
+*   **`directoryPath: string`**: The path to the directory containing agent YAML files.
+*   **Returns**: A `Promise` that resolves to an array of `Agent` instances.
+*   **Throws**: An error if the directory cannot be read.
+
+**Usage:**
+```typescript
+import { loadAgentsFromDirectory } from "agent-forge"; // Assuming path
+
+async function getAllAgents() {
+  try {
+    const agents = await loadAgentsFromDirectory("./path/to/agents-directory/");
+    console.log(`Loaded ${agents.length} agents:`);
+    agents.forEach(agent => console.log(`- ${agent.name}`));
+    // These agents can then be registered with AgentForge or used directly.
+  } catch (error) {
+    console.error("Error loading agents from directory:", error);
+  }
+}
+// getAllAgents();
+```
+
+These utilities simplify managing agent configurations in external YAML files, promoting a separation of configuration from code. 

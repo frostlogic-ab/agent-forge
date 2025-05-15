@@ -1,0 +1,142 @@
+---
+sidebar_label: 'Agent'
+title: 'Agent API Reference'
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+The `Agent` class is a core component of the Agent Forge framework, representing an autonomous entity capable of performing tasks using Language Models (LLMs) and a defined set of tools.
+
+## `AgentRunOptions` Interface
+
+Defines options for controlling an agent's execution run.
+
+```typescript
+export interface AgentRunOptions {
+  /**
+   * Enable streaming of LLM responses (default: false)
+   */
+  stream?: boolean;
+
+  /**
+   * Maximum number of turns to run (default: 10)
+   */
+  maxTurns?: number;
+
+  /**
+   * Maximum execution time in milliseconds (default: 120000, i.e., 2 minutes)
+   */
+  maxExecutionTime?: number;
+}
+```
+
+## `Agent` Class
+
+### Overview
+
+The `Agent` class encapsulates the logic for an AI agent, including its configuration, conversation history, toolset, and interaction with an LLM provider. It's designed to execute objectives by processing input, generating responses, and potentially utilizing tools in a loop.
+
+### Constructor
+
+```typescript
+constructor(config: AgentConfig, tools: Tool[] = [], llmProvider?: LLM)
+```
+
+Creates a new `Agent` instance.
+
+*   **`config: AgentConfig`**: The configuration object for the agent. This typically includes properties like `name`, `role`, `description`, `objective`, and `model`. (Refer to `AgentConfig` type definition for details).
+*   **`tools: Tool[]`** (optional): An array of `Tool` instances to be made available to the agent. Defaults to an empty array.
+*   **`llmProvider?: LLM`** (optional): An instance of an `LLM` provider to be used by the agent.
+
+### Properties
+
+These are accessible via getter methods.
+
+*   **`name: string`**: Gets the name of the agent.
+*   **`description: string`**: Gets the description of the agent.
+*   **`role: string`**: Gets the role of the agent (e.g., "AI Assistant", "Coder").
+*   **`objective: string`**: Gets the primary objective or goal of the agent.
+
+### Methods
+
+#### `setLLMProvider(provider: LLM): void`
+
+Sets or updates the LLM provider for the agent.
+
+*   **`provider: LLM`**: The LLM provider instance.
+
+#### `getLLMProvider(): LLM | undefined`
+
+Retrieves the current LLM provider for the agent.
+
+*   **Returns**: The `LLM` provider instance or `undefined` if not set.
+
+#### `getConfig(): AgentConfig`
+
+Retrieves a copy of the agent's configuration.
+
+*   **Returns**: The `AgentConfig` object.
+
+#### `resetConversation(): void`
+
+Clears the agent's current conversation history and re-initializes it with the system message derived from the agent's configuration (name, role, description, objective).
+
+#### `getConversation(): ChatCompletionMessageParam[]`
+
+Retrieves a copy of the agent's current conversation history.
+
+*   **Returns**: An array of `ChatCompletionMessageParam` objects representing the conversation.
+
+#### `addTool(tool: Tool): void`
+
+Registers a new tool with the agent, making it available for use.
+
+*   **`tool: Tool`**: The `Tool` instance to add.
+
+#### `getTools(): Tool[]`
+
+Retrieves all tools currently registered with the agent.
+
+*   **Returns**: An array of `Tool` instances.
+
+#### `async run(input: string, options?: AgentRunOptions): Promise<AgentResult>`
+
+Executes the agent's main operational loop to achieve its objective based on the provided input. This method orchestrates the interaction with the LLM, tool usage, and conversation management.
+
+*   **`input: string`**: The user input or task for the agent to process.
+*   **`options?: AgentRunOptions`**: Optional parameters to control the execution, such as enabling streaming, setting maximum turns, or a timeout. See [`AgentRunOptions`](#agentrunoptions-interface).
+*   **Returns**: A `Promise` that resolves to an `AgentResult` object. The `AgentResult` typically contains the final output from the agent and metadata about the execution (e.g., token usage, execution time, tool calls).
+
+```typescript
+// Example (Conceptual)
+// Assuming AgentConfig, MyTool, and MyLLMProvider are defined
+
+const agentConfig: AgentConfig = {
+  name: "MyAssistant",
+  role: "Helpful AI",
+  description: "An AI designed to assist with various tasks.",
+  objective: "Provide helpful and accurate responses to user queries.",
+  model: "gpt-4" // Or any other compatible model
+};
+
+const llmProvider = new MyLLMProvider({ apiKey: "YOUR_API_KEY" });
+const customTool = new MyTool();
+
+const agent = new Agent(agentConfig, [customTool], llmProvider);
+
+async function runAgent() {
+  try {
+    const result = await agent.run("What is the weather like today?");
+    console.log("Agent Output:", result.output);
+    if (result.metadata.toolCalls) {
+      console.log("Tool Calls:", result.metadata.toolCalls);
+    }
+  } catch (error) {
+    console.error("Agent run failed:", error);
+  }
+}
+
+runAgent();
+```
+This page outlines the primary interface of the `Agent` class. For more detailed information on types like `AgentConfig`, `Tool`, `LLM`, `ChatCompletionMessageParam`, and `AgentResult`, please refer to their respective documentation or type definitions within the `agent-forge` codebase. 

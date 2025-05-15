@@ -1,0 +1,151 @@
+---
+sidebar_label: 'SECApiTool'
+title: 'SECApiTool API Reference'
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+The `SECApiTool` allows agents to retrieve and search within SEC (Securities and Exchange Commission) 10-K (annual) and 10-Q (quarterly) filings for publicly traded companies. It uses the [sec-api.io](https://sec-api.io/) service.
+
+## Overview
+
+This tool can fetch the most recent 10-K or 10-Q filing for a given stock ticker. If a search query is provided, it will also perform a basic keyword search within the text content of that filing and return matching snippets.
+
+## Setup
+
+1.  **Get an API Key:** You need an API key from [sec-api.io](https://sec-api.io/). They offer a free tier suitable for testing and light use.
+2.  **Configure Environment Variable:** Set the `SEC_API_KEY` environment variable in your project (e.g., in a `.env` file) to your sec-api.io API key.
+    `SEC_API_KEY=your_sec_api_io_key`
+
+If `SEC_API_KEY` is not set, the tool will log a warning and attempts to use it will fail.
+
+## `SECApiTool` Class
+
+This class extends [`Tool`](./tool.mdx).
+
+### Constructor
+
+```typescript
+constructor()
+```
+
+Creates a new `SECApiTool` instance. The constructor reads the `SEC_API_KEY` environment variable.
+
+*   **Tool Name**: `"SECApi"`
+*   **Tool Description**: `"Retrieve and search SEC 10-K and 10-Q filings for publicly traded companies"`
+*   **Tool Parameters**:
+    *   `ticker: string` (required): The stock ticker symbol (e.g., `AAPL`, `MSFT`, `TSLA`).
+    *   `formType: string` (required): Type of SEC form to retrieve. Must be either `"10-K"` or `"10-Q"` (case-insensitive, will be normalized).
+    *   `searchQuery: string` (optional): A query string to search for within the fetched SEC filing document. If not provided, the tool returns metadata and a preview of the filing.
+*   **Tool ReturnType Description**: `"Returns the requested SEC filing data or search results"`
+
+### `run` Method
+
+The core logic is implemented in the `protected async run()` method, invoked by the `execute()` method of the base `Tool` class.
+
+```typescript
+protected async run(params: { 
+  ticker: string; 
+  formType: string; 
+  searchQuery?: string; 
+}): Promise<SECFilingsResult | SECSearchResult>
+```
+
+*   **`params: { ticker: string; formType: string; searchQuery?: string }`**: An object containing:
+    *   `ticker: string`: The stock ticker symbol.
+    *   `formType: string`: `"10-K"` or `"10-Q"`.
+    *   `searchQuery?: string`: Optional search query.
+*   **Returns**: A `Promise` that resolves to an `SECFilingsResult` object if no `searchQuery` is provided, or an `SECSearchResult` object if a `searchQuery` is provided. Both include error fields if issues occur.
+
+### Result Object Structures (Conceptual)
+
+**1. `SECFilingsResult` (when `searchQuery` is NOT provided):**
+
+```typescript
+interface SECFilingsResult {
+  ticker: string;          // Normalized ticker symbol
+  formType: string;        // Normalized form type (10-K or 10-Q)
+  contentLength: number;   // Length of the fetched filing content
+  contentPreview: string;  // A preview snippet of the filing content (e.g., first 500 characters)
+  error?: string;           // Error message if retrieval failed
+  errorDetails?: string;    // More details about the error
+}
+```
+
+**2. `SECSearchResult` (when `searchQuery` IS provided):**
+
+```typescript
+interface SearchMatch {
+  context: string; // Snippet of text (e.g., 100 chars before and after match) containing the search query
+  paragraph: string; // The full paragraph where the match was found (may be truncated if very long)
+}
+
+interface SECSearchResult {
+  ticker: string;
+  formType: string;
+  searchQuery: string;
+  matchesFound: number;    // Number of matching paragraphs found (capped at 5)
+  results: SearchMatch[];  // Array of matching snippets/paragraphs
+  error?: string;
+  errorDetails?: string;
+}
+```
+
+### Example Usage with an Agent
+
+```typescript
+// Conceptual example
+import { Agent, AgentForge, LLM, SECApiTool } from "agent-forge";
+import dotenv from 'dotenv';
+
+dotenv.config(); // Ensure SEC_API_KEY is loaded
+
+async function searchFilingsWithAgent() {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!process.env.SEC_API_KEY || !apiKey) { 
+    console.error("Required API key(s) missing.");
+    return; 
+  }
+
+  const llmProvider = new LLM("openai", { apiKey });
+  const forge = new AgentForge(llmProvider);
+
+  const secTool = new SECApiTool();
+  forge.registerTool(secTool);
+
+  const financialAnalystAgentConfig = {
+    name: "FinancialAnalystAgent",
+    role: "SEC Filings Analyst",
+    description: "An agent that retrieves and searches SEC filings.",
+    objective: "Find key information in company SEC filings based on user queries.",
+    model: "gpt-4-turbo",
+    tools: [secTool.getConfig()],
+  };
+  const analystAgent = new Agent(financialAnalystAgentConfig, [secTool], llmProvider);
+  forge.registerAgent(analystAgent);
+
+  try {
+    // Example 1: Get latest 10-K metadata for AAPL
+    // const result1 = await analystAgent.run("Get the latest 10-K for AAPL.");
+    // console.log("Agent Output (10-K Metadata for AAPL):", result1.output);
+    // if (result1.metadata?.toolCalls?.[0]?.toolName === "SECApi") {
+    //   console.log("Tool Call Result:", result1.metadata.toolCalls[0].result);
+    // }
+
+    // Example 2: Search within the latest 10-Q for MSFT for "cloud revenue"
+    const result2 = await analystAgent.run("Search the latest 10-Q for MSFT regarding their cloud revenue.");
+    console.log("\nAgent Output (MSFT 10-Q Search for 'cloud revenue'):", result2.output);
+    if (result2.metadata?.toolCalls?.[0]?.toolName === "SECApi") {
+      console.log("Tool Call Parameters:", result2.metadata.toolCalls[0].parameters);
+      console.log("Tool Call Result (Matches):", result2.metadata.toolCalls[0].result.results);
+    }
+
+  } catch (error) {
+    console.error("Error running financial analyst agent:", error);
+  }
+}
+
+// searchFilingsWithAgent();
+```
+This tool helps agents access valuable financial information directly from official company filings. 

@@ -1,0 +1,173 @@
+---
+sidebar_label: 'Team'
+title: 'Team API Reference'
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+The `Team` class represents a group of AI agents collaborating under the direction of a designated manager agent to accomplish a common goal. It orchestrates the interactions between the manager and member agents.
+
+## `TeamRunOptions` Interface
+
+Defines options for configuring the execution of a `Team`.
+
+```typescript
+export interface TeamRunOptions {
+  /**
+   * Maximum number of LLM calls allowed per minute across all agents in the team (default: no limit).
+   * Useful for preventing API rate limit issues.
+   */
+  rate_limit?: number;
+
+  /**
+   * Enable detailed logging of communication between the manager and agents, 
+   * including task assignments and intermediate results (default: false).
+   * Useful for debugging team interactions.
+   */
+  verbose?: boolean;
+
+  /**
+   * Enable streaming of agent communications (default: false).
+   * This allows for real-time observation of the team's progress.
+   */
+  stream?: boolean;
+
+  /**
+   * If `stream` is true, also stream output to the console (default: false).
+   */
+  enableConsoleStream?: boolean;
+}
+```
+
+## `Team` Class
+
+### Overview
+
+The `Team` class allows you to define a hierarchical structure of agents where a `manager` agent delegates tasks to `member` agents. The team works collectively on an input task, with the manager planning, assigning sub-tasks, and synthesizing results from the members.
+
+### Constructor
+
+```typescript
+constructor(manager: Agent, name: string = "Team", description: string = "A team of agents with a manager")
+```
+
+Creates a new `Team` instance.
+
+*   **`manager: Agent`**: The [`Agent`](./agent.mdx) instance designated as the manager of this team.
+*   **`name?: string`** (optional): The name of the team. Defaults to "Team".
+*   **`description?: string`** (optional): A description for the team. Defaults to "A team of agents with a manager".
+
+### Team Configuration Methods
+
+#### `setName(name: string): Team`
+
+Sets or updates the name of the team.
+
+*   **`name: string`**: The new name for the team.
+*   **Returns**: The `Team` instance for method chaining.
+
+#### `setDescription(description: string): Team`
+
+Sets or updates the description of the team.
+
+*   **`description: string`**: The new description for the team.
+*   **Returns**: The `Team` instance for method chaining.
+
+#### `getName(): string`
+
+Retrieves the current name of the team.
+
+*   **Returns**: The team's name.
+
+#### `getDescription(): string`
+
+Retrieves the current description of the team.
+
+*   **Returns**: The team's description.
+
+### Agent Management Methods
+
+#### `addAgent(agent: Agent): Team`
+
+Adds a member [`Agent`](./agent.mdx) to the team.
+
+*   **`agent: Agent`**: The [`Agent`](./agent.mdx) instance to add as a member.
+*   **Returns**: The `Team` instance for method chaining.
+
+#### `getAgent(name: string): Agent | undefined`
+
+Retrieves a member agent from the team by its name.
+
+*   **`name: string`**: The name of the agent to retrieve.
+*   **Returns**: The [`Agent`](./agent.mdx) instance or `undefined` if not found.
+
+#### `getAgents(): Agent[]`
+
+Retrieves all member agents currently in the team.
+
+*   **Returns**: An array of [`Agent`](./agent.mdx) instances.
+
+#### `getManager(): Agent`
+
+Retrieves the manager [`Agent`](./agent.mdx) of the team.
+
+*   **Returns**: The manager [`Agent`](./agent.mdx) instance.
+
+#### `setManager(manager: Agent): void`
+
+Assigns a new manager [`Agent`](./agent.mdx) to the team.
+
+*   **`manager: Agent`**: The new [`Agent`](./agent.mdx) instance to be the manager.
+
+### Execution Method
+
+#### `async run(input: string, options?: TeamRunOptions): Promise<AgentResult>`
+
+Runs the team to accomplish the task defined by the `input`. The manager agent will devise a plan, assign tasks to member agents, and synthesize their outputs to produce a final result.
+
+*   **`input: string`**: The overall task or problem statement for the team to address.
+*   **`options?: TeamRunOptions`**: Optional parameters to configure the team's execution, such as rate limiting, verbose logging, or streaming. See [`TeamRunOptions`](#teamrunoptions-interface).
+*   **Returns**: A `Promise` that resolves to an `AgentResult` object, containing the final output from the team's collaborative effort and metadata about the execution.
+
+```typescript
+// Example Usage (Conceptual)
+import { Agent, Team, LLM } from "agent-forge";
+// Assume managerAgent, researchAgent, writingAgent are existing Agent instances
+// and OPENAI_API_KEY is available in environment variables
+
+async function runTeamExample() {
+  const llmProvider = new LLM("openai", { apiKey: process.env.OPENAI_API_KEY });
+  
+  // Define Agents (ensure they have LLM providers if not using AgentForge default)
+  const managerConfig = { name: "ProjectManager", role: "Coordinator", objective: "Oversee project completion", model: "gpt-4", llm: llmProvider };
+  const researchConfig = { name: "Researcher", role: "Information Gatherer", objective: "Find relevant data", model: "gpt-4", llm: llmProvider };
+  const writerConfig = { name: "Writer", role: "Content Creator", objective: "Write reports", model: "gpt-4", llm: llmProvider };
+
+  const managerAgent = new Agent(managerConfig);
+  const researchAgent = new Agent(researchConfig);
+  const writingAgent = new Agent(writerConfig);
+
+  // Create and configure the team
+  const projectTeam = new Team(managerAgent, "AI Project Team", "Team to research and report on AI topics.");
+  projectTeam.addAgent(researchAgent);
+  projectTeam.addAgent(writingAgent);
+
+  const task = "Generate a report on the future of AI in education.";
+  
+  try {
+    console.log(`Running team '${projectTeam.getName()}' for task: "${task}"`);
+    const result = await projectTeam.run(task, { verbose: true, stream: true, enableConsoleStream: true });
+    console.log("\nTeam Final Output:", result.output);
+    if (result.metadata.toolCalls) {
+      console.log("Total Tool Calls in Team execution:", result.metadata.toolCalls.length);
+    }
+  } catch (error) {
+    console.error("Error running team:", error);
+  }
+}
+
+runTeamExample().catch(console.error);
+```
+
+The `Team` class relies on the [`Agent`](./agent.mdx) class for its members and manager. Refer to the [`Agent`](./agent.mdx) API documentation for details on agent configuration and capabilities. 
