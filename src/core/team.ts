@@ -1,7 +1,22 @@
 import { AgentForgeEvents, type AgentResult } from "../types";
 import { globalEventEmitter } from "../utils/event-emitter";
+import { RateLimiter, type RateLimiterOptions } from "../utils/rate-limiter";
 import { enableConsoleStreaming } from "../utils/streaming";
 import type { Agent, AgentRunOptions } from "./agent";
+
+/**
+ * Defines the structure of a task managed by the Team.
+ */
+interface Task {
+  id: string;
+  agentName: string;
+  description: string;
+  status: "pending" | "in_progress" | "completed" | "failed";
+  dependencies: string[]; // IDs of tasks that must be completed first
+  result?: string; // Should this be string or any/unknown if tools return complex objects?
+  startTime?: number;
+  endTime?: number;
+}
 
 /**
  * Options for team execution
@@ -38,13 +53,10 @@ export class Team {
   private agents: Map<string, Agent> = new Map();
   private name: string;
   private description: string;
-  private rateLimiter?: {
-    tokensRemaining: number;
-    lastResetTime: number;
-    waitingQueue: Array<() => void>;
-  };
+  private rateLimiterInstance?: RateLimiter;
   private verbose = false;
   private options?: TeamRunOptions;
+  private originalAgentRuns = new WeakMap<Agent, Agent["run"]>();
 
   /**
    * Creates a new team with a manager agent
@@ -146,26 +158,43 @@ export class Team {
    * @returns The final result
    */
   async run(input: string, options?: TeamRunOptions): Promise<AgentResult> {
-    // Reset all agent conversations
     this.reset();
-
-    // Store options for use in other methods
     this.options = options;
-
-    // Set verbose mode if specified
     this.verbose = options?.verbose || false;
-
-    // Set streaming mode if specified
     const stream = options?.stream || false;
 
-    // Initialize console streaming if requested
     if (stream && options?.enableConsoleStream) {
       enableConsoleStreaming();
     }
 
     // Initialize rate limiter if needed
-    if (options?.rate_limit) {
-      this.setupRateLimiter(options.rate_limit);
+    if (options?.rate_limit && options.rate_limit > 0) {
+      this.rateLimiterInstance = new RateLimiter({
+        callsPerMinute: options.rate_limit,
+        verbose: this.verbose,
+      });
+
+      const agentsToPatch = [this.manager, ...Array.from(this.agents.values())];
+      for (const agent of agentsToPatch) {
+        if (!this.originalAgentRuns.has(agent)) {
+          this.originalAgentRuns.set(agent, agent.run); // Store original
+          agent.run = async (
+            agentInput: string,
+            agentOptions?: AgentRunOptions
+          ) => {
+            if (this.rateLimiterInstance) {
+              await this.rateLimiterInstance.waitForToken();
+            }
+            const storedOriginalRun = this.originalAgentRuns.get(agent);
+            if (storedOriginalRun) {
+              return storedOriginalRun.call(agent, agentInput, agentOptions);
+            }
+            throw new Error(
+              "Original agent run method not found after patching."
+            );
+          };
+        }
+      }
     }
 
     if (this.verbose) {
@@ -244,98 +273,20 @@ ${agentDescriptions}
 
       return result;
     } finally {
-      // Clean up the rate limiter
-      this.rateLimiter = undefined;
-    }
-  }
-
-  /**
-   * Sets up a rate limiter for LLM API calls
-   * @param callsPerMinute Maximum number of calls allowed per minute
-   */
-  private setupRateLimiter(callsPerMinute: number): void {
-    this.rateLimiter = {
-      tokensRemaining: callsPerMinute,
-      lastResetTime: Date.now(),
-      waitingQueue: [],
-    };
-
-    // Patch the run method of all agents to respect rate limiting
-    const originalManagerRun = this.manager.run;
-    this.manager.run = async (input: string, options?: AgentRunOptions) => {
-      await this.waitForRateLimit();
-      return originalManagerRun.call(this.manager, input, options);
-    };
-
-    for (const agent of this.agents.values()) {
-      const originalAgentRun = agent.run;
-      agent.run = async (input: string, options?: AgentRunOptions) => {
-        await this.waitForRateLimit();
-        return originalAgentRun.call(agent, input, options);
-      };
-    }
-  }
-
-  /**
-   * Waits until a rate limit token is available
-   * @returns A promise that resolves when a token is available
-   */
-  private async waitForRateLimit(): Promise<void> {
-    if (!this.rateLimiter) return;
-
-    const now = Date.now();
-    const timeSinceReset = now - this.rateLimiter.lastResetTime;
-
-    // Reset tokens if a minute has passed
-    if (timeSinceReset >= 60000) {
-      const minutesPassed = Math.floor(timeSinceReset / 60000);
-      this.rateLimiter.lastResetTime += minutesPassed * 60000;
-      this.rateLimiter.tokensRemaining =
-        this.rateLimiter.tokensRemaining +
-        minutesPassed * this.rateLimiter.waitingQueue.length;
-
-      // Process waiting queue
-      while (
-        this.rateLimiter.tokensRemaining > 0 &&
-        this.rateLimiter.waitingQueue.length > 0
-      ) {
-        const resolve = this.rateLimiter.waitingQueue.shift();
-        if (resolve) {
-          this.rateLimiter.tokensRemaining--;
-          resolve();
+      this.rateLimiterInstance = undefined;
+      // Unpatch agents
+      const agentsToUnpatch = [
+        this.manager,
+        ...Array.from(this.agents.values()),
+      ];
+      for (const agent of agentsToUnpatch) {
+        const originalRun = this.originalAgentRuns.get(agent);
+        if (originalRun) {
+          agent.run = originalRun;
+          this.originalAgentRuns.delete(agent);
         }
       }
     }
-
-    // If we have tokens available, use one and proceed
-    if (this.rateLimiter.tokensRemaining > 0) {
-      this.rateLimiter.tokensRemaining--;
-      return;
-    }
-
-    // Otherwise, wait for a token to become available
-    return new Promise<void>((resolve) => {
-      if (this.rateLimiter) {
-        this.rateLimiter.waitingQueue.push(resolve);
-
-        // Calculate when the next token will be available
-        const timeUntilReset = 60000 - (now - this.rateLimiter.lastResetTime);
-
-        // Log waiting message if queue is getting long
-        if (this.rateLimiter.waitingQueue.length > 3) {
-          console.log(
-            `Rate limit reached. Waiting ${Math.ceil(
-              timeUntilReset / 1000
-            )}s for next available slot. ${
-              this.rateLimiter.waitingQueue.length
-            } calls in queue.`
-          );
-        }
-      } else {
-        // If rate limiter was removed during execution, resolve immediately
-        resolve();
-      }
-    });
   }
 
   /**
@@ -361,18 +312,6 @@ ${agentDescriptions}
 
     // Initialize conversation history to track the whole team interaction
     const conversationHistory: string[] = [`Manager: ${managerResult.output}`];
-
-    // Enhanced task management structures
-    interface Task {
-      id: string;
-      agentName: string;
-      description: string;
-      status: "pending" | "in_progress" | "completed" | "failed";
-      dependencies: string[]; // IDs of tasks that must be completed first
-      result?: string;
-      startTime?: number;
-      endTime?: number;
-    }
 
     // Task tracking
     const tasks: Map<string, Task> = new Map();
@@ -521,7 +460,7 @@ What tasks would you like to assign to each team member?
    */
   private createTasksFromAssignments(
     managerResponse: string,
-    tasks: Map<string, any>,
+    tasks: Map<string, Task>,
     taskIdCounter: number,
     conversationHistory: string[]
   ): number {
@@ -572,7 +511,7 @@ What tasks would you like to assign to each team member?
    */
   private createDefaultTasksForAllAgents(
     managerResponse: string,
-    tasks: Map<string, any>,
+    tasks: Map<string, Task>,
     taskIdCounter: number,
     conversationHistory: string[]
   ): number {
@@ -613,7 +552,7 @@ What tasks would you like to assign to each team member?
    */
   private processAssignedTasks(
     assignments: Array<{ agentName: string; task: string }>,
-    tasks: Map<string, any>,
+    tasks: Map<string, Task>,
     taskIdCounter: number,
     conversationHistory: string[]
   ): number {
@@ -732,11 +671,11 @@ What tasks would you like to assign to each team member?
    * Processes and executes tasks that are ready to run
    */
   private async processReadyTasks(
-    tasks: Map<string, any>,
+    tasks: Map<string, Task>,
     completedTasks: Set<string>,
     failedTasks: Set<string>,
     conversationHistory: string[]
-  ): Promise<any[]> {
+  ): Promise<Task[]> {
     // Process ready tasks (no dependencies or all dependencies completed)
     const readyTasks = this.findReadyTasks(tasks, completedTasks);
 
@@ -762,10 +701,10 @@ What tasks would you like to assign to each team member?
    * Finds tasks that are ready to execute
    */
   private findReadyTasks(
-    tasks: Map<string, any>,
+    tasks: Map<string, Task>,
     completedTasks: Set<string>
-  ): any[] {
-    const readyTasks: any[] = [];
+  ): Task[] {
+    const readyTasks: Task[] = [];
 
     for (const task of tasks.values()) {
       if (task.status === "pending") {
@@ -788,7 +727,7 @@ What tasks would you like to assign to each team member?
    * Handles tasks with failed dependencies
    */
   private handleTasksWithFailedDependencies(
-    tasks: Map<string, any>,
+    tasks: Map<string, Task>,
     failedTasks: Set<string>,
     conversationHistory: string[]
   ): boolean {
@@ -819,9 +758,9 @@ What tasks would you like to assign to each team member?
    * Executes a single task
    */
   private async executeTask(
-    task: any,
+    task: Task,
     conversationHistory: string[]
-  ): Promise<any> {
+  ): Promise<Task> {
     const agentName = task.agentName;
     const agent = this.agents.get(agentName);
 
@@ -884,7 +823,7 @@ Please provide a clear and detailed response.
       });
     }
 
-    return agentResult;
+    return task;
   }
 
   /**
@@ -920,53 +859,43 @@ Please provide a clear and detailed response.
    * Generate a progress report showing task status
    */
   private generateProgressReport(
-    results: any[],
-    tasks: Map<string, any>
+    results: Task[],
+    tasks: Map<string, Task>
   ): string {
     // Create a more structured task progress report
-    const completedTasks = Array.from(tasks.values()).filter(
-      (task) => task.status === "completed"
-    );
-
-    let report = "Task Progress Report:\n\n";
-
-    if (completedTasks.length > 0) {
-      report += "Completed Tasks:\n";
-      for (const task of completedTasks) {
-        report += `- Task ${task.id} (${task.agentName}): ${task.description}\n  Result: ${task.result ? task.result.substring(0, 150) + (task.result.length > 150 ? "..." : "") : "No textual result provided or result is not a string."}\n`;
+    let report = "\n# Current Task Status\n";
+    for (const task of tasks.values()) {
+      report += `**Task ID:** ${task.id}\n`;
+      report += `**Agent:** ${task.agentName}\n`;
+      report += `**Status:** ${task.status}\n`;
+      if (task.dependencies.length > 0) {
+        report += `**Depends on:** ${task.dependencies.join(", ")}\n`;
       }
-    } else {
-      report += "No tasks have been completed yet.\n";
+      if (task.result) {
+        report += `**Result:** ${task.result.substring(0, 200)}${task.result.length > 200 ? "..." : ""}\n`;
+      }
+      report += "---\n";
     }
 
-    const pendingTasks = Array.from(tasks.values()).filter(
-      (task) => task.status === "pending" || task.status === "in_progress"
-    );
-
-    if (pendingTasks.length > 0) {
-      report += "\nPending Tasks:\n";
-      for (const task of pendingTasks) {
-        report += `- Task ${task.id} (${task.agentName}): ${task.description}\n`;
-      }
-    }
-
-    // Add information about the most recent results
-    if (results && results.length > 0) {
-      report += "\nRecent Updates:\n";
-      for (const result of results) {
-        if (result.taskId && result.agentName) {
-          report += `- Agent ${result.agentName} completed task ${result.taskId}\n`;
+    if (results.length > 0) {
+      report += "\n# Recent Task Results\n";
+      for (const task of results) {
+        report += `**Task ID:** ${task.id}\n`;
+        report += `**Agent:** ${task.agentName}\n`;
+        report += `**Status:** ${task.status}\n`;
+        if (task.result) {
+          report += `**Result:** ${task.result.substring(0, 200)}${task.result.length > 200 ? "..." : ""}\n`;
         }
+        report += "---\n";
       }
     }
-
     return report;
   }
 
   /**
    * Checks if the workflow is complete
    */
-  private isWorkflowComplete(tasks: Map<string, any>): boolean {
+  private isWorkflowComplete(tasks: Map<string, Task>): boolean {
     // No tasks created yet
     if (tasks.size === 0) {
       return false;
@@ -1005,9 +934,9 @@ Please provide a clear and detailed response.
    * Handles potential deadlock in task dependencies
    */
   private async handlePotentialDeadlock(
-    tasks: Map<string, any>,
+    tasks: Map<string, Task>,
     conversationHistory: string[]
-  ): Promise<any> {
+  ): Promise<AgentResult> {
     if (this.verbose) {
       console.log(
         "\n⚠️ Potential deadlock detected in workflow. Requesting manager guidance..."
@@ -1064,9 +993,9 @@ IMPORTANT: If you choose option 2, start your message with "FINAL RESPONSE:" and
    * Generates the final result from the team's work
    */
   private async generateFinalResult(
-    tasks: Map<string, any>,
+    tasks: Map<string, Task>,
     conversationHistory: string[]
-  ): Promise<any> {
+  ): Promise<AgentResult> {
     if (this.verbose) {
       console.log("\n🏁 All tasks completed. Generating final result...");
     }

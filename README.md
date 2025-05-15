@@ -8,6 +8,7 @@ Agent Forge is a TypeScript framework for creating, configuring, and orchestrati
 ##  Table of Contents
 
 - [Features](#features)
+- [Architecture Overview](#architecture-overview)
 - [Installation](#installation)
 - [Quick Start](#quick-start)
   - [Create Agent Forge Instance](#1-create-agent-forge-instance)
@@ -48,9 +49,88 @@ Agent Forge is a TypeScript framework for creating, configuring, and orchestrati
 
 ---
 
+## 🏗️ Architecture Overview
+
+The following diagram illustrates the core components of Agent Forge and how they interact:
+
+```mermaid
+graph TD
+    subgraph "User Application"
+        UA(Your Application Code)
+    end
+
+    subgraph "Agent Forge Core"
+        AF[AgentForge Instance]
+        LLM[LLM Provider (via token.js)]
+        YAML[Agent YAML Definitions]
+        TR[ToolRegistry]
+        MCPMgr[MCPManager]
+    end
+
+    subgraph "Execution Units"
+        A1[Agent 1]
+        A2[Agent 2]
+        W[Workflow]
+        T[Team]
+    end
+
+    subgraph "Tools"
+        T_WebSearch[WebSearchTool]
+        T_WebPage[WebPageContentTool]
+        T_Custom[Custom Tool]
+        T_MCP[MCP Tools]
+    end
+
+    UA -->|Initializes & Runs| AF
+    AF -->|Uses| LLM
+    AF -->|Loads| YAML
+    AF -->|Manages| TR
+    AF -->|Manages| MCPMgr
+
+    YAML -->|Defines| A1
+    YAML -->|Defines| A2
+
+    AF -->|Creates/Runs Agent directly| A1
+    AF -->|Creates/Runs Workflow| W
+    AF -->|Creates/Runs Team| T
+
+    W -->|Contains| A1
+    W -->|Contains| A2
+
+    T -->|Managed by| A1(Manager Agent)
+    T -->|Contains| A2(Member Agent)
+
+    A1 -->|Uses| TR
+    A2 -->|Uses| TR
+
+    TR -->|Provides| T_WebSearch
+    TR -->|Provides| T_WebPage
+    TR -->|Provides| T_Custom
+
+    MCPMgr -->|Provides Tools to| TR
+    T_MCP -->|Fetched via| MCPMgr
+
+    classDef default fill:#222,stroke:#bbb,stroke-width:2px,color:#fff;
+    classDef subgraphStyle fill:none,stroke:#777,stroke-width:2px,color:#fff;
+    class AF,LLM,YAML,TR,MCPMgr,A1,A2,W,T,T_WebSearch,T_WebPage,T_Custom,T_MCP,UA subgraphStyle
+
+```
+
+**Key Component Interactions:**
+
+- **Your Application** initializes an `AgentForge` instance and an `LLM` provider.
+- **AgentForge** is the central orchestrator. It loads agent definitions from **YAML files**, manages a **ToolRegistry**, and can utilize an **MCPManager** for external tools.
+- **Agents** are defined by their roles, objectives, and the tools they can use. They execute tasks using the configured **LLM provider**.
+- **Tools** (like `WebSearchTool`, `WebPageContentTool`, your custom tools, or tools from MCP) provide specific functionalities to Agents.
+- **Workflows** define sequences of Agents to execute tasks step-by-step.
+- **Teams** allow for hierarchical task execution, where a manager Agent delegates tasks to member Agents.
+- **MCPManager** connects to external Model Context Protocol servers to dynamically make their tools available within Agent Forge.
+
+---
+
 ## 📦 Installation
 
-Choose your preferred package manager:
+Choose your preferred packageManager:
 
 ```bash
 # npm
@@ -62,6 +142,11 @@ yarn add agent-forge
 # pnpm
 pnpm add agent-forge
 ```
+
+### Prerequisites
+
+- **Node.js**: Agent Forge is a TypeScript framework and requires Node.js to run. We recommend using the latest LTS version.
+- **LLM API Keys**: To connect to Large Language Models, you will need API keys from your chosen provider (e.g., OpenAI, Anthropic).
 
 ---
 
@@ -101,6 +186,69 @@ tools:
     description: Search the web for information
 ```
 
+#### Extending Agent Capabilities with Custom Tools
+
+Agent Forge allows you to create and integrate your own custom tools to extend agent capabilities beyond built-in or MCP-provided tools. Here's a brief overview:
+
+1.  **Create a Custom Tool Class**: Your custom tool should extend the base `Tool` class and implement the `run` method.
+
+    ```typescript
+    // src/tools/my-custom-tool.ts
+    import { Tool, ToolParameter } from "agent-forge";
+
+    export class MyCustomTool extends Tool {
+      constructor() {
+        const parameters: ToolParameter[] = [
+          {
+            name: "inputData",
+            type: "string",
+            description: "Data to process",
+            required: true,
+          },
+        ];
+        super("MyCustomTool", "Processes custom data.", parameters, "Returns a processing status.");
+      }
+
+      protected async run(params: { inputData: string }): Promise<any> {
+        console.log(`MyCustomTool received: ${params.inputData}`);
+        // Your custom tool logic here
+        return { status: "processed", input: params.inputData };
+      }
+    }
+    ```
+
+2.  **Register Your Custom Tool**:
+    -   **With AgentForge Instance (for global availability)**:
+        ```typescript
+        import { MyCustomTool } from "./src/tools/my-custom-tool"; // Adjust path as needed
+        // ... (forge instance setup)
+        const myTool = new MyCustomTool();
+        forge.registerTool(myTool);
+        ```
+        Agents created or run via this `forge` instance (e.g., through `runWorkflow` or `runTeam`) can then access "MyCustomTool" if listed in their YAML, or if tools are dynamically provided.
+
+    -   **Directly with an Agent**:
+        ```typescript
+        import { MyCustomTool } from "./src/tools/my-custom-tool";
+        // ... (agent loading/creation)
+        const myTool = new MyCustomTool();
+        agent.addTool(myTool);
+        ```
+
+3.  **Use in Agent YAML**:
+    ```yaml
+    # agent-using-custom-tool.yaml
+    name: MySpecialAgent
+    # ... other properties
+    tools:
+      - name: MyCustomTool
+        description: Processes custom data.
+      - name: WebSearch # Can mix with other tools
+        description: Search the web for information
+    ```
+
+This allows for a highly modular and extensible tool system tailored to your specific needs.
+
 ### 3. Create and run your agent
 
 ```typescript
@@ -114,6 +262,10 @@ const agent = await loadAgentFromYaml("./agent.yaml");
 
 // Register the agent with the AgentForge instance.
 // This applies the default LLM provider (set on 'forge') to the agent.
+// If the agent definition in YAML lists tools, ensure those tools are registered
+// either globally with the AgentForge instance (e.g., `forge.registerTool(new WebSearchTool())`)
+// or directly with the agent (e.g., `agent.addTool(new WebSearchTool())`) if not using AgentForge's dynamic tool injection.
+// AgentForge's `runWorkflow` and `runTeam` methods automatically provide registered Forge tools to agents.
 forge.registerAgent(agent);
 
 // Run the agent
@@ -172,26 +324,43 @@ console.log(result);
 
 ### 6. Use rate limiting to avoid API quota issues
 
+Agent Forge helps you manage LLM API usage with built-in rate limiting. You can specify the maximum number of LLM calls per minute for `Team` and `Workflow` executions.
+
 ```typescript
-import { Team, loadAgentFromYaml } from "agent-forge";
+import { Team, Workflow, loadAgentFromYaml } from "agent-forge";
+// Assumes 'forge' (AgentForge instance from Example 1) is in scope and agents are registered.
 
-// Load manager and specialized agents
+// Load agents
 const managerAgent = await loadAgentFromYaml("./manager-agent.yaml");
+forge.registerAgent(managerAgent);
 const researchAgent = await loadAgentFromYaml("./research-agent.yaml");
+forge.registerAgent(researchAgent);
 const summaryAgent = await loadAgentFromYaml("./summary-agent.yaml");
+forge.registerAgent(summaryAgent);
 
-// Create a team with a manager
+// For a Team:
 const team = new Team(managerAgent)
   .addAgent(researchAgent)
   .addAgent(summaryAgent);
 
-// Run the team with rate limiting (max 20 LLM calls per minute)
-const result = await team.run(
+const teamResult = await team.run(
   "What is quantum computing and how might it affect cybersecurity?",
-  { rate_limit: 20 }
+  { rate_limit: 20 } // Max 20 LLM calls per minute for this team execution
 );
-console.log(result);
+console.log("Team Result:", teamResult.output);
+
+// For a Workflow:
+const workflow = new Workflow()
+  .addStep(researchAgent)
+  .addStep(summaryAgent);
+
+const workflowResult = await workflow.run(
+  "Explain the impact of blockchain on financial systems",
+  { rate_limit: 10 } // Max 10 LLM calls per minute for this workflow execution
+);
+console.log("Workflow Result:", workflowResult.output);
 ```
+This feature is crucial for preventing unexpected costs and staying within API provider quotas, especially in complex multi-agent scenarios.
 
 ### 7. Debug team interactions with verbose logging
 
