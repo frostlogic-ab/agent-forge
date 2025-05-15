@@ -1,0 +1,8 @@
+---
+description: 
+globs: **/*.ts
+alwaysApply: false
+---
+- Group related functionality into modules
+- Use index files to simplify imports
+- Separate concerns: keep business logic, UI components, and utilities in different directories

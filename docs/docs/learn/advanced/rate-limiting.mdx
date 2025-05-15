@@ -1,0 +1,108 @@
+---
+sidebar_position: 1
+sidebar_label: "Rate Limiting"
+---
+
+# Rate Limiting LLM API Calls
+
+When working with Large Language Models (LLMs), especially in complex multi-agent scenarios or long-running tasks, it's crucial to manage your API usage to avoid hitting rate limits imposed by providers and to control costs. Agent Forge provides built-in rate limiting capabilities for `Team` and `Workflow` executions.
+
+## Why is Rate Limiting Important?
+
+*   **Prevent Quota Issues:** LLM providers (like OpenAI, Anthropic, etc.) enforce rate limits on how many requests you can make in a given time period (e.g., requests per minute, tokens per minute).
+*   **Cost Control:** Uncontrolled API calls can lead to unexpectedly high bills.
+*   **Service Stability:** Adhering to rate limits ensures fair usage and stability of the LLM provider's services for all users.
+
+## How Agent Forge Handles Rate Limiting
+
+You can specify the maximum number of LLM calls per minute when running a `Team` or a `Workflow`.
+
+**Example for a Team:**
+
+```typescript
+// This is a conceptual example. 
+// Ensure an LLM provider, Agent, and Team classes are imported,
+// and that agent/team instances are properly defined and initialized.
+// For example:
+// import { AgentForge, LLM, Agent, Team } from "agent-forge";
+// import dotenv from 'dotenv';
+// dotenv.config();
+
+async function runTeamWithRateLimit() {
+  // const apiKey = process.env.OPENAI_API_KEY;
+  // if (!apiKey) { console.error("API Key not found"); return; }
+  // const llmProvider = new LLM("openai", { apiKey });
+  // const managerAgent = new Agent({ name: "Manager", llm: llmProvider, model: "gpt-4", objective: "manage" });
+  // const researchAgent = new Agent({ name: "Researcher", llm: llmProvider, model: "gpt-4", objective: "research" });
+  // const team = new Team(managerAgent).addAgent(researchAgent);
+
+  // Assuming 'team' is an initialized Team instance:
+  try {
+    const teamResult = await team.run(
+      "What is quantum computing and how might it affect cybersecurity?",
+      { rate_limit: 20 } // Max 20 LLM calls per minute for this specific team execution
+    );
+    console.log("\\nTeam Result:", teamResult.output);
+  } catch (error) {
+    console.error("Error running team with rate limit:", error);
+  }
+}
+
+// To run this example:
+// runTeamWithRateLimit();
+```
+
+**Example for a Workflow:**
+
+```typescript
+// This is a conceptual example. 
+// Ensure an LLM provider, Agent, and Workflow classes are imported,
+// and that agent/workflow instances are properly defined and initialized.
+// For example:
+// import { AgentForge, LLM, Agent, Workflow } from "agent-forge";
+// import dotenv from 'dotenv';
+// dotenv.config();
+
+async function runWorkflowWithRateLimit() {
+  // const apiKey = process.env.OPENAI_API_KEY;
+  // if (!apiKey) { console.error("API Key not found"); return; }
+  // const llmProvider = new LLM("openai", { apiKey });
+  // const researchAgent = new Agent({ name: "Researcher", llm: llmProvider, model: "gpt-4", objective: "research" });
+  // const summaryAgent = new Agent({ name: "Summarizer", llm: llmProvider, model: "gpt-4", objective: "summarize" });
+  // const workflow = new Workflow().addStep(researchAgent).addStep(summaryAgent);
+
+  // Assuming 'workflow' is an initialized Workflow instance:
+  try {
+    const workflowResult = await workflow.run(
+      "Explain the impact of blockchain on financial systems",
+      { rate_limit: 10 } // Max 10 LLM calls per minute for this specific workflow execution
+    );
+    console.log("\\nWorkflow Result:", workflowResult.output);
+  } catch (error) {
+    console.error("Error running workflow with rate limit:", error);
+  }
+}
+
+// To run this example:
+// runWorkflowWithRateLimit();
+```
+
+**Key Points:**
+
+*   The `rate_limit` option is passed in the second argument (an options object) to the `run()` method of `Team` or `Workflow` instances.
+*   The value (e.g., `20` or `10`) specifies the maximum number of LLM API calls that Agent Forge will attempt to make per minute *for that particular execution run*.
+*   Agent Forge internally manages the timing of LLM calls to stay within this specified limit.
+
+## Best Practices
+
+*   **Monitor Usage:** Keep an eye on your API usage through your LLM provider's dashboard.
+*   **Start Conservatively:** If you're unsure, start with a lower rate limit and increase it if necessary and if your provider's limits allow.
+*   **Consider Task Complexity:** More complex tasks or teams with many agents interacting frequently might require more LLM calls.
+*   **Provider-Specific Limits:** Always be aware of the actual rate limits of your chosen LLM provider, as Agent Forge's rate limiting helps you stay *within* those, but doesn't change them.
+
+By utilizing Agent Forge's rate limiting feature, you can develop more robust and cost-effective AI agent applications.
+
+## Next Steps
+
+*   Explore [Debugging Features](./debugging-features.mdx) for insights into agent execution.
+*   Learn about [Streaming Support](./streaming-support.mdx) for real-time feedback during agent operations. 

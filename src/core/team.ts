@@ -1,7 +1,22 @@
 import { AgentForgeEvents, type AgentResult } from "../types";
 import { globalEventEmitter } from "../utils/event-emitter";
+import { RateLimiter, type RateLimiterOptions } from "../utils/rate-limiter";
 import { enableConsoleStreaming } from "../utils/streaming";
 import type { Agent, AgentRunOptions } from "./agent";
+
+/**
+ * Defines the structure of a task managed by the Team.
+ */
+interface Task {
+  id: string;
+  agentName: string;
+  description: string;
+  status: "pending" | "in_progress" | "completed" | "failed";
+  dependencies: string[]; // IDs of tasks that must be completed first
+  result?: string; // Should this be string or any/unknown if tools return complex objects?
+  startTime?: number;
+  endTime?: number;
+}
 
 /**
  * Options for team execution
@@ -38,13 +53,10 @@ export class Team {
   private agents: Map<string, Agent> = new Map();
   private name: string;
   private description: string;
-  private rateLimiter?: {
-    tokensRemaining: number;
-    lastResetTime: number;
-    waitingQueue: Array<() => void>;
-  };
+  private rateLimiterInstance?: RateLimiter;
   private verbose = false;
   private options?: TeamRunOptions;
+  private originalAgentRuns = new WeakMap<Agent, Agent["run"]>();
 
   /**
    * Creates a new team with a manager agent
@@ -146,26 +158,43 @@ export class Team {
    * @returns The final result
    */
   async run(input: string, options?: TeamRunOptions): Promise<AgentResult> {
-    // Reset all agent conversations
     this.reset();
-
-    // Store options for use in other methods
     this.options = options;
-
-    // Set verbose mode if specified
     this.verbose = options?.verbose || false;
-
-    // Set streaming mode if specified
     const stream = options?.stream || false;
 
-    // Initialize console streaming if requested
     if (stream && options?.enableConsoleStream) {
       enableConsoleStreaming();
     }
 
     // Initialize rate limiter if needed
-    if (options?.rate_limit) {
-      this.setupRateLimiter(options.rate_limit);
+    if (options?.rate_limit && options.rate_limit > 0) {
+      this.rateLimiterInstance = new RateLimiter({
+        callsPerMinute: options.rate_limit,
+        verbose: this.verbose,
+      });
+
+      const agentsToPatch = [this.manager, ...Array.from(this.agents.values())];
+      for (const agent of agentsToPatch) {
+        if (!this.originalAgentRuns.has(agent)) {
+          this.originalAgentRuns.set(agent, agent.run); // Store original
+          agent.run = async (
+            agentInput: string,
+            agentOptions?: AgentRunOptions
+          ) => {
+            if (this.rateLimiterInstance) {
+              await this.rateLimiterInstance.waitForToken();
+            }
+            const storedOriginalRun = this.originalAgentRuns.get(agent);
+            if (storedOriginalRun) {
+              return storedOriginalRun.call(agent, agentInput, agentOptions);
+            }
+            throw new Error(
+              "Original agent run method not found after patching."
+            );
+          };
+        }
+      }
     }
 
     if (this.verbose) {
@@ -185,23 +214,40 @@ export class Team {
 
     // Create a manager-specific prompt
     const managerPrompt = `
-Task: ${input}
+# Task 
+${input}
 
+# Instructions
 You are the manager of a team. Your role is to analyze the task and decide which team member(s) should handle it.
-The task will be broken down into subtasks as needed, and assigned to the appropriate team member.
 
-Available team members:
+## Task breakdown
+- First, think carefully step by step about what subtasks are needed to answer the query and what are the dependencies between them.
+- The task will be broken down into subtasks as needed, and assigned to the appropriate team member.
+- CRITICAL: Ensure no task has a circular dependency (e.g., a task depending on itself or a chain of tasks that loops back). Dependencies must flow towards a final resolution.
+- AVOID REDUNDANCY: Do not re-assign or re-create tasks that have already successfully completed and provided their output in previous steps, unless the goal or input parameters for that task have significantly changed. Refer to and use the results from already completed tasks whenever possible.
+
+## Team members
+- Team members will be able to handle multiple tasks if needed.
+- Team members will not talk between themselves, they will only do the tasks assigned to them.
+- Always pass the required context to the team members.
+
+**Available team members:**
 ${agentDescriptions}
 
-For each subtask:
-1. Choose the most appropriate team member
-2. Explain why you chose them
-3. Clearly describe the subtask they need to complete
-4. Wait for their response before proceeding
+## Format
+**For each subtask, use this EXACT format:**
+**Task #:** [Task title]
+**Team member:** [Team member name]
+**Why:** [Brief explanation]
+**Subtask:** [Clear description of what they need to do]
+**Depends on:** [Task ID(s) from 'Current task status' for PREVIOUSLY COMPLETED tasks, or system-generated IDs for other tasks you are defining in THIS planning step, or "none"]
 
-You'll receive responses from team members as they complete their assigned subtasks.
-When all subtasks are completed, provide a final comprehensive response to the original task.
+**IMPORTANT:** Tasks will be processed in parallel unless you specify dependencies! For sequential tasks, you MUST use the "Depends on:" field.
+**IMPORTANT:** Wait for each team member's response before proceeding with dependent tasks. When all subtasks are completed, provide a final response to the original task.
 `;
+    if (this.verbose) {
+      console.log(`\n👨‍💼 Manager Prompt:\n${managerPrompt}\n`);
+    }
 
     // If streaming is enabled, emit an event to indicate team is starting
     if (stream) {
@@ -227,98 +273,20 @@ When all subtasks are completed, provide a final comprehensive response to the o
 
       return result;
     } finally {
-      // Clean up the rate limiter
-      this.rateLimiter = undefined;
-    }
-  }
-
-  /**
-   * Sets up a rate limiter for LLM API calls
-   * @param callsPerMinute Maximum number of calls allowed per minute
-   */
-  private setupRateLimiter(callsPerMinute: number): void {
-    this.rateLimiter = {
-      tokensRemaining: callsPerMinute,
-      lastResetTime: Date.now(),
-      waitingQueue: [],
-    };
-
-    // Patch the run method of all agents to respect rate limiting
-    const originalManagerRun = this.manager.run;
-    this.manager.run = async (input: string, options?: AgentRunOptions) => {
-      await this.waitForRateLimit();
-      return originalManagerRun.call(this.manager, input, options);
-    };
-
-    for (const agent of this.agents.values()) {
-      const originalAgentRun = agent.run;
-      agent.run = async (input: string, options?: AgentRunOptions) => {
-        await this.waitForRateLimit();
-        return originalAgentRun.call(agent, input, options);
-      };
-    }
-  }
-
-  /**
-   * Waits until a rate limit token is available
-   * @returns A promise that resolves when a token is available
-   */
-  private async waitForRateLimit(): Promise<void> {
-    if (!this.rateLimiter) return;
-
-    const now = Date.now();
-    const timeSinceReset = now - this.rateLimiter.lastResetTime;
-
-    // Reset tokens if a minute has passed
-    if (timeSinceReset >= 60000) {
-      const minutesPassed = Math.floor(timeSinceReset / 60000);
-      this.rateLimiter.lastResetTime += minutesPassed * 60000;
-      this.rateLimiter.tokensRemaining =
-        this.rateLimiter.tokensRemaining +
-        minutesPassed * this.rateLimiter.waitingQueue.length;
-
-      // Process waiting queue
-      while (
-        this.rateLimiter.tokensRemaining > 0 &&
-        this.rateLimiter.waitingQueue.length > 0
-      ) {
-        const resolve = this.rateLimiter.waitingQueue.shift();
-        if (resolve) {
-          this.rateLimiter.tokensRemaining--;
-          resolve();
+      this.rateLimiterInstance = undefined;
+      // Unpatch agents
+      const agentsToUnpatch = [
+        this.manager,
+        ...Array.from(this.agents.values()),
+      ];
+      for (const agent of agentsToUnpatch) {
+        const originalRun = this.originalAgentRuns.get(agent);
+        if (originalRun) {
+          agent.run = originalRun;
+          this.originalAgentRuns.delete(agent);
         }
       }
     }
-
-    // If we have tokens available, use one and proceed
-    if (this.rateLimiter.tokensRemaining > 0) {
-      this.rateLimiter.tokensRemaining--;
-      return;
-    }
-
-    // Otherwise, wait for a token to become available
-    return new Promise<void>((resolve) => {
-      if (this.rateLimiter) {
-        this.rateLimiter.waitingQueue.push(resolve);
-
-        // Calculate when the next token will be available
-        const timeUntilReset = 60000 - (now - this.rateLimiter.lastResetTime);
-
-        // Log waiting message if queue is getting long
-        if (this.rateLimiter.waitingQueue.length > 3) {
-          console.log(
-            `Rate limit reached. Waiting ${Math.ceil(
-              timeUntilReset / 1000
-            )}s for next available slot. ${
-              this.rateLimiter.waitingQueue.length
-            } calls in queue.`
-          );
-        }
-      } else {
-        // If rate limiter was removed during execution, resolve immediately
-        resolve();
-      }
-    });
   }
 
   /**
@@ -345,23 +313,11 @@ When all subtasks are completed, provide a final comprehensive response to the o
     // Initialize conversation history to track the whole team interaction
     const conversationHistory: string[] = [`Manager: ${managerResult.output}`];
 
-    // Enhanced task management structures
-    interface Task {
-      id: string;
-      agentName: string;
-      description: string;
-      status: "pending" | "in_progress" | "completed" | "failed";
-      dependencies: string[]; // IDs of tasks that must be completed first
-      result?: string;
-      startTime?: number;
-      endTime?: number;
-    }
-
     // Task tracking
     const tasks: Map<string, Task> = new Map();
     const completedTasks: Set<string> = new Set();
     const failedTasks: Set<string> = new Set();
-    const taskIdCounter = 0;
+    let taskIdCounter = 0;
 
     // Extract initial tasks from the manager's response
     let currentManagerResponse = managerResult.output;
@@ -375,7 +331,7 @@ When all subtasks are completed, provide a final comprehensive response to the o
 
     for (let iteration = 0; iteration < MAX_ITERATIONS; iteration++) {
       // Create new tasks from manager's assignments
-      this.createTasksFromAssignments(
+      taskIdCounter = this.createTasksFromAssignments(
         currentManagerResponse,
         tasks,
         taskIdCounter,
@@ -403,12 +359,22 @@ When all subtasks are completed, provide a final comprehensive response to the o
         currentManagerResponse = nextManagerResult.output;
 
         // Check if the workflow is complete
-        if (currentManagerResponse.includes("WORKFLOW COMPLETE")) {
+        if (this.isWorkflowCompletionMarked(currentManagerResponse)) {
+          if (this.verbose) {
+            console.log(
+              "🔔 Manager indicated workflow completion. Finalizing..."
+            );
+          }
           break;
         }
       } else {
         // Handle cases with no ready tasks
         if (this.isWorkflowComplete(tasks)) {
+          if (this.verbose) {
+            console.log(
+              "🔔 All tasks have been completed. Finalizing workflow..."
+            );
+          }
           break;
         }
 
@@ -420,7 +386,12 @@ When all subtasks are completed, provide a final comprehensive response to the o
 
         currentManagerResponse = deadlockResult.output;
 
-        if (currentManagerResponse.includes("WORKFLOW COMPLETE")) {
+        if (this.isWorkflowCompletionMarked(currentManagerResponse)) {
+          if (this.verbose) {
+            console.log(
+              "🔔 Manager resolved deadlock with workflow completion. Finalizing..."
+            );
+          }
           break;
         }
       }
@@ -449,12 +420,14 @@ When all subtasks are completed, provide a final comprehensive response to the o
       const explicitAssignmentPrompt = `
 You need to assign specific tasks to team members to complete this work.
 
-Please explicitly assign tasks using the format:
-"[AgentName]: [Task description]" or "Assign [AgentName] to: [Task description]"
+Please use this EXACT format for each task:
+**Task #:** [Task title]
+**Team member:** [Team member name]
+**Why:** [Brief explanation]
+**Subtask:** [Clear description of what they need to do]
+**Depends on:** [Task ID(s) of dependencies separated by commas, e.g., "task-0, task-1" or write "none" if no dependencies]
 
-For example:
-Researcher: Research the basics of quantum computing and its current state.
-Assign Summarizer to: Create a concise summary of the implications for cybersecurity.
+**IMPORTANT:** Tasks will be processed in parallel unless you specify dependencies! For sequential tasks, you MUST use the "Depends on:" field.
 
 What tasks would you like to assign to each team member?
 `;
@@ -487,7 +460,7 @@ What tasks would you like to assign to each team member?
    */
   private createTasksFromAssignments(
     managerResponse: string,
-    tasks: Map<string, any>,
+    tasks: Map<string, Task>,
     taskIdCounter: number,
     conversationHistory: string[]
   ): number {
@@ -502,12 +475,32 @@ What tasks would you like to assign to each team member?
         conversationHistory
       );
     } else {
+      // Log task assignments for debugging if verbose
+      if (this.verbose && rawAssignments.length > 0) {
+        console.log(`🔍 Found ${rawAssignments.length} task assignments:`);
+        for (const assignment of rawAssignments) {
+          console.log(
+            `- ${assignment.agentName}: ${assignment.task.substring(0, 50)}...`
+          );
+        }
+      }
+
       counter = this.processAssignedTasks(
         rawAssignments,
         tasks,
         counter,
         conversationHistory
       );
+    }
+
+    // Log all created tasks for debugging if verbose
+    if (this.verbose) {
+      console.log(`📋 Current task status (${tasks.size} total tasks):`);
+      for (const [taskId, task] of tasks.entries()) {
+        console.log(
+          `- ${taskId} (${task.agentName}): ${task.status}, Dependencies: ${task.dependencies.join(", ") || "none"}`
+        );
+      }
     }
 
     return counter;
@@ -518,7 +511,7 @@ What tasks would you like to assign to each team member?
    */
   private createDefaultTasksForAllAgents(
     managerResponse: string,
-    tasks: Map<string, any>,
+    tasks: Map<string, Task>,
     taskIdCounter: number,
     conversationHistory: string[]
   ): number {
@@ -559,7 +552,7 @@ What tasks would you like to assign to each team member?
    */
   private processAssignedTasks(
     assignments: Array<{ agentName: string; task: string }>,
-    tasks: Map<string, any>,
+    tasks: Map<string, Task>,
     taskIdCounter: number,
     conversationHistory: string[]
   ): number {
@@ -602,11 +595,26 @@ What tasks would you like to assign to each team member?
    * Extracts task dependencies from a task description
    */
   private extractDependenciesFromDescription(description: string): string[] {
-    const dependencyMatch = description.match(/depends on:\s*(task-[\d,\s]+)/i);
+    // Look for dependencies in the original format
+    const oldFormatMatch = description.match(/depends on:\s*(task-[\d,\s]+)/i);
 
-    return dependencyMatch
-      ? dependencyMatch[1].split(",").map((id) => id.trim())
-      : [];
+    if (oldFormatMatch) {
+      return oldFormatMatch[1].split(",").map((id) => id.trim());
+    }
+
+    // Look for dependencies in the new structured format
+    const newFormatMatch = description.match(
+      /\*\*Depends on:\*\*\s*(task-[\d,\s]+|none)/i
+    );
+
+    if (newFormatMatch) {
+      const dependsOn = newFormatMatch[1].trim().toLowerCase();
+      return dependsOn === "none"
+        ? []
+        : dependsOn.split(",").map((id) => id.trim());
+    }
+
+    return [];
   }
 
   /**
@@ -663,11 +671,11 @@ What tasks would you like to assign to each team member?
    * Processes and executes tasks that are ready to run
    */
   private async processReadyTasks(
-    tasks: Map<string, any>,
+    tasks: Map<string, Task>,
     completedTasks: Set<string>,
     failedTasks: Set<string>,
     conversationHistory: string[]
-  ): Promise<any[]> {
+  ): Promise<Task[]> {
     // Process ready tasks (no dependencies or all dependencies completed)
     const readyTasks = this.findReadyTasks(tasks, completedTasks);
 
@@ -693,10 +701,10 @@ What tasks would you like to assign to each team member?
    * Finds tasks that are ready to execute
    */
   private findReadyTasks(
-    tasks: Map<string, any>,
+    tasks: Map<string, Task>,
     completedTasks: Set<string>
-  ): any[] {
-    const readyTasks: any[] = [];
+  ): Task[] {
+    const readyTasks: Task[] = [];
 
     for (const task of tasks.values()) {
       if (task.status === "pending") {
@@ -719,7 +727,7 @@ What tasks would you like to assign to each team member?
    * Handles tasks with failed dependencies
    */
   private handleTasksWithFailedDependencies(
-    tasks: Map<string, any>,
+    tasks: Map<string, Task>,
     failedTasks: Set<string>,
     conversationHistory: string[]
   ): boolean {
@@ -750,9 +758,9 @@ What tasks would you like to assign to each team member?
    * Executes a single task
    */
   private async executeTask(
-    task: any,
+    task: Task,
     conversationHistory: string[]
-  ): Promise<any> {
+  ): Promise<Task> {
     const agentName = task.agentName;
     const agent = this.agents.get(agentName);
 
@@ -815,7 +823,7 @@ Please provide a clear and detailed response.
       });
     }
 
-    return agentResult;
+    return task;
   }
 
   /**
@@ -851,55 +859,74 @@ Please provide a clear and detailed response.
    * Generate a progress report showing task status
    */
   private generateProgressReport(
-    results: any[],
-    tasks: Map<string, any>
+    results: Task[],
+    tasks: Map<string, Task>
   ): string {
     // Create a more structured task progress report
-    const completedTasks = Array.from(tasks.values()).filter(
-      (task) => task.status === "completed"
-    );
-
-    let report = "Task Progress Report:\n\n";
-
-    if (completedTasks.length > 0) {
-      report += "Completed Tasks:\n";
-      for (const task of completedTasks) {
-        report += `- Task ${task.id} (${task.agentName}): ${task.description}\n`;
+    let report = "\n# Current Task Status\n";
+    for (const task of tasks.values()) {
+      report += `**Task ID:** ${task.id}\n`;
+      report += `**Agent:** ${task.agentName}\n`;
+      report += `**Status:** ${task.status}\n`;
+      if (task.dependencies.length > 0) {
+        report += `**Depends on:** ${task.dependencies.join(", ")}\n`;
       }
-    } else {
-      report += "No tasks have been completed yet.\n";
+      if (task.result) {
+        report += `**Result:** ${task.result.substring(0, 200)}${task.result.length > 200 ? "..." : ""}\n`;
+      }
+      report += "---\n";
     }
 
-    const pendingTasks = Array.from(tasks.values()).filter(
-      (task) => task.status === "pending" || task.status === "in_progress"
-    );
-
-    if (pendingTasks.length > 0) {
-      report += "\nPending Tasks:\n";
-      for (const task of pendingTasks) {
-        report += `- Task ${task.id} (${task.agentName}): ${task.description}\n`;
-      }
-    }
-
-    // Add information about the most recent results
-    if (results && results.length > 0) {
-      report += "\nRecent Updates:\n";
-      for (const result of results) {
-        if (result.taskId && result.agentName) {
-          report += `- Agent ${result.agentName} completed task ${result.taskId}\n`;
+    if (results.length > 0) {
+      report += "\n# Recent Task Results\n";
+      for (const task of results) {
+        report += `**Task ID:** ${task.id}\n`;
+        report += `**Agent:** ${task.agentName}\n`;
+        report += `**Status:** ${task.status}\n`;
+        if (task.result) {
+          report += `**Result:** ${task.result.substring(0, 200)}${task.result.length > 200 ? "..." : ""}\n`;
         }
+        report += "---\n";
       }
     }
-
     return report;
   }
 
   /**
    * Checks if the workflow is complete
    */
-  private isWorkflowComplete(tasks: Map<string, any>): boolean {
-    return [...tasks.values()].every(
+  private isWorkflowComplete(tasks: Map<string, Task>): boolean {
+    // No tasks created yet
+    if (tasks.size === 0) {
+      return false;
+    }
+
+    // Check if all tasks are either completed or failed
+    const allTasksFinished = [...tasks.values()].every(
       (t) => t.status === "completed" || t.status === "failed"
+    );
+
+    // If there are pending or in-progress tasks, the workflow is not complete
+    const hasPendingTasks = [...tasks.values()].some(
+      (t) => t.status === "pending" || t.status === "in_progress"
+    );
+
+    return allTasksFinished && !hasPendingTasks;
+  }
+
+  /**
+   * Checks if manager response indicates workflow completion
+   */
+  private isWorkflowCompletionMarked(response: string): boolean {
+    const completionMarkers = [
+      "WORKFLOW COMPLETE",
+      "ALL TASKS COMPLETE",
+      "FINAL RESPONSE",
+      "FINAL ANSWER",
+    ];
+
+    return completionMarkers.some((marker) =>
+      response.toUpperCase().includes(marker)
     );
   }
 
@@ -907,9 +934,9 @@ Please provide a clear and detailed response.
    * Handles potential deadlock in task dependencies
    */
   private async handlePotentialDeadlock(
-    tasks: Map<string, any>,
+    tasks: Map<string, Task>,
     conversationHistory: string[]
-  ): Promise<any> {
+  ): Promise<AgentResult> {
     if (this.verbose) {
       console.log(
         "\n⚠️ Potential deadlock detected in workflow. Requesting manager guidance..."
@@ -917,7 +944,7 @@ Please provide a clear and detailed response.
     }
 
     const deadlockedPrompt = `
-There appears to be a deadlock in the workflow. Some tasks have dependencies that cannot be satisfied.
+There appears to be a deadlock or issue in the workflow. Some tasks may have dependencies that cannot be satisfied.
 
 Current task status:
 ${[...tasks.values()]
@@ -925,14 +952,27 @@ ${[...tasks.values()]
     (t) =>
       `- Task ${t.id} (${t.agentName}): ${t.status}, Dependencies: ${
         t.dependencies.join(", ") || "none"
-      }`
+      }${t.result ? `, Result: ${t.result.substring(0, 100)}${t.result.length > 100 ? "..." : ""}` : ""}`
   )
   .join("\n")}
 
-Please provide revised instructions to resolve this situation. You can:
-1. Cancel pending tasks that are no longer needed
-2. Create new tasks with adjusted dependencies
-3. Decide if we have enough information to finish the workflow (mark with "WORKFLOW COMPLETE")
+Please analyze the 'Current task status' CAREFULLY. Provide revised instructions to resolve this situation. Choose ONE of these options:
+
+1. Create new tasks or revise existing task dependencies to continue the workflow.
+   - When defining dependencies, you MUST use the exact task IDs (e.g., "task-0", "task-5") listed in the 'Current task status' for PREVIOUSLY COMPLETED tasks, or system-generated IDs for other tasks you are defining in THIS planning step, or "none".
+   - If defining new tasks that depend on each other within this response, ensure your references are consistent for the system to map.
+   - AVOID REDUNDANCY: Do not re-assign or re-create tasks that have already successfully completed (check 'Current task status'). Use their existing results instead of running them again, unless the goal or input parameters for that task have significantly changed.
+   - Use the EXACT standard task assignment format:
+     **Task #:** [Task title]
+     **Team member:** [Team member name]
+     **Why:** [Brief explanation]
+     **Subtask:** [Clear description of what they need to do]
+     **Depends on:** [Task ID(s) from 'Current task status' for PREVIOUSLY COMPLETED tasks, or system-generated IDs for other tasks you are defining in THIS planning step, or "none"]
+2. If enough information is ALREADY AVAILABLE from COMPLETED tasks (check their 'result' in 'Current task status') to address the original user query, respond with "FINAL RESPONSE:" followed by your comprehensive final answer.
+   - DO NOT state that data is missing if it exists in the 'result' of a completed task. UTILIZE THIS DATA.
+   - DO NOT INVENT OR HALLUCINATE data values (e.g., incident counts). Use only data provided by previous agents or the original query. If critical data is genuinely missing AFTER checking all completed task results, you should prefer option 1 to create a task to retrieve it.
+
+IMPORTANT: If you choose option 2, start your message with "FINAL RESPONSE:" and provide a complete answer to the original task using ONLY confirmed information from COMPLETED TASKS.
 `;
 
     const deadlockResult = await this.manager.run(deadlockedPrompt);
@@ -953,9 +993,9 @@ Please provide revised instructions to resolve this situation. You can:
    * Generates the final result from the team's work
    */
   private async generateFinalResult(
-    tasks: Map<string, any>,
+    tasks: Map<string, Task>,
     conversationHistory: string[]
-  ): Promise<any> {
+  ): Promise<AgentResult> {
     if (this.verbose) {
       console.log("\n🏁 All tasks completed. Generating final result...");
     }
@@ -976,12 +1016,18 @@ Please provide revised instructions to resolve this situation. You can:
       .join("\n");
 
     const finalPrompt = `
-The team has completed its work on the task. Below is a summary of all tasks and their results:
+The team workflow is now COMPLETE. All assigned tasks have been finished, and NO MORE TASKS should be created.
+
+Below is a summary of all completed tasks and their results:
 
 ${taskSummary}
 
-Based on all the work and responses from the team, please provide a final comprehensive response to the original task.
-Include key insights, conclusions, and recommendations.
+## Instructions
+- IMPORTANT: The workflow is COMPLETE. DO NOT create any new tasks. Your ONLY job now is to synthesize all the information from the 'taskSummary' into a FINAL RESPONSE to the original query.
+- Based on all the work and responses from the team (detailed in 'taskSummary'), provide a comprehensive final response to the original task.
+- Include key insights, conclusions, and recommendations gathered from all the completed tasks.
+- Your response should come as is from you, do not make references to agents or internal task IDs, just provide the final answer as if you are directly answering the user.
+- Your response should be the final deliverable to present to the user.
 `;
 
     const finalResult = await this.manager.run(finalPrompt);
@@ -1043,6 +1089,18 @@ Include key insights, conclusions, and recommendations.
           `task\\s+(?:for|to)\\s+${agentName}\\s*:\\s*([^\\n]+(?:\\n(?!\\n|${agentNames.join(
             "|"
           )})[^\\n]+)*)`,
+          "i"
+        ),
+
+        // Markdown style with "Team member:" format
+        new RegExp(
+          `\\*\\*Team\\s+member:\\*\\*\\s*${agentName}[^\\n]*\\n(?:[^\\n]*\\n)*?\\*\\*Subtask:\\*\\*\\s*([^\\n]+(?:\\n(?!\\n|\\*\\*Team\\s+member)[^\\n]+)*)`,
+          "i"
+        ),
+
+        // Direct mention in subtask
+        new RegExp(
+          `\\*\\*Subtask:\\*\\*\\s*${agentName},?\\s+([^\\n]+(?:\\n(?!\\n|\\*\\*)[^\\n]+)*)`,
           "i"
         ),
       ];

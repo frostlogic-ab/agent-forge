@@ -1,0 +1,205 @@
+---
+sidebar_label: 'MCP Tools'
+title: 'MCP (Model Context Protocol) Tools Integration'
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+Agent Forge supports integrating external tools served via the Model Context Protocol (MCP). This allows agents to use a wide array of tools hosted on separate MCP-compliant servers.
+
+The core components for MCP integration are:
+*   **MCP Configuration**: Defines how to connect to an MCP server.
+*   **`MCPClientWrapper`**: An object (typically an instance of `MCPSdkClientWrapper`) that manages the connection and communication with a single MCP server.
+*   **`MCPManager`**: Manages multiple `MCPClientWrapper` instances and aggregates their tools.
+*   **`MCPToolWrapper`**: Adapts a tool discovered via MCP to the standard Agent Forge [`Tool`](./tool.mdx) interface, making it usable by agents.
+
+## `MCPTool` Interface
+
+This interface describes the structure of a tool as defined by an MCP server. When an MCP client lists tools from a server, the metadata for each tool conforms to this structure.
+
+```typescript
+export interface MCPTool {
+  name: string;               // The name of the tool.
+  description: string;        // A description of what the tool does.
+  parameters: ToolParameter[]; // An array of parameters the tool accepts.
+                              // See [ToolParameter](../types/core-types.mdx#toolparameter-interface) for its structure.
+  returnType?: string;       // Optional: A string describing the type of the return value.
+}
+```
+
+## MCP Connection Configuration
+
+### `MCPProtocolType` Enum
+
+Specifies the protocol used by the MCP server.
+
+```typescript
+export enum MCPProtocolType {
+  STDIO = "stdio",            // For local MCP servers managed via standard I/O
+  SSE = "sse",                // For MCP servers providing tools over Server-Sent Events
+  STREAMABLE_HTTP = "streamable_http" // For MCP servers using streamable HTTP
+}
+```
+
+### Configuration Interfaces
+
+Based on the `MCPProtocolType`, you will use one of the following configuration interfaces:
+
+#### 1. `MCPStdioConfig`
+
+For `MCPProtocolType.STDIO`.
+
+```typescript
+export interface MCPStdioConfig {
+  command: string;        // The command to start the MCP server executable.
+  args?: string[];         // Optional arguments for the command.
+  env?: Record<string, string>; // Optional environment variables for the server process.
+  verbose?: boolean;       // Optional: Enable verbose logging for the client.
+}
+```
+
+#### 2. `MCPSseConfig`
+
+For `MCPProtocolType.SSE`.
+
+```typescript
+export interface MCPSseConfig {
+  url: string;              // The URL of the MCP SSE endpoint.
+  headers?: Record<string, string>; // Optional headers for the connection.
+  verbose?: boolean;       // Optional: Enable verbose logging for the client.
+}
+```
+
+#### 3. `MCPStreamableHttpConfig`
+
+For `MCPProtocolType.STREAMABLE_HTTP`.
+
+```typescript
+export interface MCPStreamableHttpConfig {
+  baseUrl: string | URL;    // The base URL of the MCP Streamable HTTP server.
+  headers?: Record<string, string>; // Optional headers for requests.
+  verbose?: boolean;       // Optional: Enable verbose logging for the client.
+  timeout?: number;          // Optional: Timeout for requests in milliseconds.
+}
+```
+
+## `createMCPClient` Function
+
+This factory function creates and configures an MCP client wrapper instance. This wrapper is responsible for the direct communication with a single MCP server, including connecting, listing available tools, and executing them.
+
+```typescript
+createMCPClient(
+  type: MCPProtocolType,
+  config: MCPStdioConfig | MCPSseConfig | MCPStreamableHttpConfig
+): MCPClientWrapper
+```
+
+*   **`type: MCPProtocolType`**: The protocol type of the MCP server.
+*   **`config`**: The corresponding configuration object (`MCPStdioConfig`, `MCPSseConfig`, or `MCPStreamableHttpConfig`).
+*   **Returns**: An `MCPClientWrapper` instance. Agent Forge provides the `MCPSdkClientWrapper` class (which extends `MCPClientWrapper`) as the concrete implementation for this. `MCPSdkClientWrapper` uses the official `@modelcontextprotocol/sdk` to handle the underlying MCP communication. While you receive an `MCPClientWrapper`, you typically won't need to call its methods directly if you use the `MCPManager`.
+
+## `MCPManager` Class
+
+The `MCPManager` class is used to manage connections to one or more MCP servers and to retrieve the tools they offer.
+
+### Constructor
+
+```typescript
+constructor()
+```
+
+Creates a new `MCPManager` instance.
+
+### Methods
+
+#### `async addClient(client: MCPClientWrapper): Promise<void>`
+
+Adds a pre-configured `MCPClientWrapper` (obtained from `createMCPClient`) to the manager. The manager will then attempt to initialize the client (connect to the server) and discover its tools.
+
+*   **`client: MCPClientWrapper`**: The MCP client wrapper to add.
+
+#### `getTools(): Tool[]`
+
+Retrieves all tools discovered from all successfully connected MCP clients managed by this `MCPManager`.
+
+*   **Returns**: An array of [`Tool`](./tool.mdx) instances. Each tool is an instance of `MCPToolWrapper` (see below), which internally handles communication with the MCP server but conforms to the standard Agent Forge `Tool` interface. These tools can then be registered with an `AgentForge` instance or directly with agents.
+
+#### `async close(): Promise<void>`
+
+Closes all active MCP client connections managed by this manager.
+
+## `MCPToolWrapper` Class
+
+This class extends [`Tool`](./tool.mdx) and acts as an adapter for a tool discovered via MCP. When you retrieve tools from `MCPManager.getTools()`, each tool in the returned array is an instance of `MCPToolWrapper`.
+
+The `MCPManager` internally creates `MCPToolWrapper` instances. Each wrapper holds an `MCPTool` definition (as fetched from the server) and the `MCPClientWrapper` instance responsible for communicating with that server.
+
+The primary role of `MCPToolWrapper` is to make an external MCP tool behave like any other native Agent Forge tool. Its `name`, `description`, and `parameters` are derived from the `MCPTool` definition. When an agent invokes the `run` method of an `MCPToolWrapper`:
+1. The wrapper uses its associated `MCPClientWrapper`.
+2. The `MCPClientWrapper` sends the tool execution request (with parameters) to the remote MCP server.
+3. The result from the MCP server is returned.
+
+This abstraction allows agents to use MCP-based tools without needing to be aware of the underlying MCP communication, promoting seamless integration.
+
+## Using MCP Tools
+
+1.  **Choose Protocol and Configure**: Determine the `MCPProtocolType` and create the appropriate configuration object (`MCPStdioConfig`, `MCPSseConfig`, or `MCPStreamableHttpConfig`).
+2.  **Create Client**: Use `createMCPClient()` with the type and config to get an `MCPClientWrapper`.
+3.  **Initialize Manager**: Create an `MCPManager` instance.
+4.  **Add Client to Manager**: Call `manager.addClient(yourClient)`.
+5.  **Retrieve Tools**: Call `manager.getTools()` to get an array of `Tool` instances.
+6.  **Register Tools**: Register these tools with your `AgentForge` instance or directly with your agents, just like any other custom tool.
+
+```typescript
+// Conceptual Example: Connecting to an SSE MCP Server
+import {
+  MCPProtocolType,
+  type MCPSseConfig,
+  createMCPClient,
+  MCPManager,
+  AgentForge,
+  // ... other necessary imports
+} from "agent-forge"; 
+
+async function setupMCPTools() {
+  // 1. Configure
+  const sseConfig: MCPSseConfig = {
+    url: "https://my-mcp-server.example.com/tools-sse",
+    verbose: true,
+  };
+
+  // 2. Create Client
+  const mcpSseClient = createMCPClient(MCPProtocolType.SSE, sseConfig);
+
+  // 3. Initialize Manager
+  const mcpManager = new MCPManager();
+
+  try {
+    // 4. Add Client to Manager (this will also connect and fetch tool definitions)
+    await mcpManager.addClient(mcpSseClient);
+    console.log("Successfully connected to MCP server and fetched tool definitions.");
+
+    // 5. Retrieve Tools
+    const mcpTools = mcpManager.getTools(); // Each 'tool' here is an MCPToolWrapper
+    console.log(`Discovered ${mcpTools.length} MCP tools:`);
+    mcpTools.forEach(tool => console.log(`- ${tool.name}: ${tool.description}`));
+
+    // 6. Register Tools (e.g., with AgentForge)
+    // const forge = new AgentForge();
+    // forge.registerTools(mcpTools);
+
+    // Now agents created with this 'forge' instance can use the MCP tools.
+
+  } catch (error) {
+    console.error("Failed to setup MCP tools:", error);
+  } finally {
+    // Optionally close connections when done
+    // await mcpManager.close();
+  }
+}
+
+// setupMCPTools();
+```
+
+When an agent uses a tool retrieved via `MCPManager`, the `MCPToolWrapper` handles calling the remote tool on the MCP server and returning the result. 

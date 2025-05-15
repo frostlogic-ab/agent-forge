@@ -3,6 +3,7 @@ import type { LLM } from "../llm/llm";
 import type { Tool } from "../tools/tool";
 import { ToolRegistry } from "../tools/tool-registry";
 import {
+  type AgentResult,
   ExecutionMode,
   type TeamRunOptions,
   type WorkflowRunOptions,
@@ -87,11 +88,8 @@ export class AgentForge {
    * @returns The AgentForge instance for method chaining
    */
   registerAgent(agent: Agent): AgentForge {
-    // Apply the default LLM provider if set
-    if (
-      this.llmProvider &&
-      !Object.prototype.hasOwnProperty.call(agent.getConfig(), "llmProvider")
-    ) {
+    // Apply the default LLM provider if set and agent doesn't have one
+    if (this.llmProvider && !agent.getLLMProvider()) {
       agent.setLLMProvider(this.llmProvider);
     }
 
@@ -170,7 +168,7 @@ export class AgentForge {
    * @param input Input for the agent
    * @returns The agent's result
    */
-  async runAgent(agentName: string, input: string): Promise<any> {
+  async runAgent(agentName: string, input: string): Promise<AgentResult> {
     const agent = this.getAgent(agentName);
     if (!agent) {
       throw new Error(`Agent with name '${agentName}' is not registered`);
@@ -190,31 +188,34 @@ export class AgentForge {
     agentNames: string[],
     input: string,
     options?: WorkflowRunOptions
-  ): Promise<any> {
+  ): Promise<AgentResult> {
     if (agentNames.length === 0) {
       throw new Error("No agents specified for workflow");
     }
 
-    // If console streaming is enabled, initialize it
     if (options?.stream && options?.enableConsoleStream) {
       enableConsoleStreaming();
     }
 
-    // Create a workflow with the specified agents
     const workflow = new Workflow(
       "Dynamic Workflow",
       "Dynamically created workflow"
     );
+    const forgeTools = this.tools.getAll(); // Get tools from AgentForge
 
     for (const agentName of agentNames) {
       const agent = this.getAgent(agentName);
       if (!agent) {
         throw new Error(`Agent "${agentName}" not found`);
       }
+      // Add tools from the forge to the agent
+      // Agent.addTool should handle duplicates gracefully (e.g., by name)
+      for (const tool of forgeTools) {
+        agent.addTool(tool);
+      }
       workflow.addStep(agent);
     }
 
-    // Run the workflow
     return await workflow.run(input, options);
   }
 
@@ -231,36 +232,43 @@ export class AgentForge {
     agentNames: string[],
     input: string,
     options?: TeamRunOptions
-  ): Promise<any> {
+  ): Promise<AgentResult> {
     if (agentNames.length === 0) {
       throw new Error("No agents specified for team");
     }
 
-    // If console streaming is enabled, initialize it
     if (options?.stream && options?.enableConsoleStream) {
       enableConsoleStreaming();
     }
 
-    // Get the manager agent
     const manager = this.getAgent(managerName);
     if (!manager) {
       throw new Error(`Manager agent "${managerName}" not found`);
     }
+    const forgeTools = this.tools.getAll(); // Get tools from AgentForge
 
-    // Create a team with the manager
+    // Add tools from the forge to the manager
+    // Agent.addTool should handle duplicates gracefully
+    for (const tool of forgeTools) {
+      manager.addTool(tool);
+    }
+
     const team = new Team(manager, "Dynamic Team", "Dynamically created team");
 
-    // Add team members
     for (const agentName of agentNames) {
-      if (agentName === managerName) continue; // Skip manager
+      if (agentName === managerName) continue;
       const agent = this.getAgent(agentName);
       if (!agent) {
         throw new Error(`Agent "${agentName}" not found`);
       }
+      // Add tools from the forge to the agent
+      // Agent.addTool should handle duplicates gracefully
+      for (const tool of forgeTools) {
+        agent.addTool(tool);
+      }
       team.addAgent(agent);
     }
 
-    // Run the team
     return await team.run(input, options);
   }
 
@@ -279,7 +287,7 @@ export class AgentForge {
     agentNames: string[],
     input: string,
     options?: TeamRunOptions | WorkflowRunOptions
-  ): Promise<any> {
+  ): Promise<AgentResult> {
     switch (mode) {
       case ExecutionMode.SEQUENTIAL:
         return this.runWorkflow(

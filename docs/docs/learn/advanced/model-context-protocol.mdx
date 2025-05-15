@@ -1,0 +1,256 @@
+---
+sidebar_position: 4
+sidebar_label: "Model Context Protocol (MCP)"
+---
+
+# Model Context Protocol (MCP) Integration
+
+Agent Forge significantly extends agent capabilities through its support for the Model Context Protocol (MCP). MCP allows your agents to connect to external tool servers, effectively giving them access to a vast array of third-party services and specialized functionalities without needing to implement each tool within Agent Forge itself.
+
+## What is MCP?
+
+MCP is a standardized way for AI models or agents (like those in Agent Forge) to discover and use tools hosted on separate servers. This promotes a modular and extensible tool ecosystem.
+
+**Key Benefits of using MCP:**
+
+*   **Extended Capabilities:** Access hundreds of potential third-party services and tools.
+*   **Specialized Tools:** Connect to servers offering highly specialized tools (e.g., advanced data analysis, specific API integrations) that might be too complex or niche to build directly into every agent framework.
+*   **Standardization:** Tool interactions are standardized, making it easier to integrate diverse tool providers.
+*   **Decoupling:** Keeps your core Agent Forge application cleaner, as complex tool logic resides on external servers.
+
+## Integrating MCP Clients in Agent Forge
+
+To integrate MCP clients, follow these steps:
+
+1.  **`MCPManager`:** This class in Agent Forge is central to managing connections to one or more MCP tool servers.
+    ```typescript
+    import { MCPManager } from "agent-forge";
+    const mcpManager = new MCPManager();
+    ```
+
+2.  **`createMCPClient`:** A factory function to create clients for different MCP server types.
+    Agent Forge supports creating clients for:
+    *   **STDIO:** Connecting to a local MCP server that communicates over standard input/output (e.g., a Python script).
+        ```typescript
+        import { createMCPClient, MCPProtocolType, MCPManager } from "agent-forge";
+        // Pre-requisite: Ensure you have an MCP server script, e.g., 'mcp_server.py'
+        // and it's executable and in the correct path.
+
+        async function connectToStdioMCP() {
+          const mcpManagerStdio = new MCPManager();
+          const stdioClient = createMCPClient(MCPProtocolType.STDIO, {
+            command: "python", // Or python3, etc.
+            args: ["./path/to/your/mcp_server.py"], // Adjust path to your server script
+            // env: { CUSTOM_ENV_VAR: "value_for_server" }, // Optional environment variables for the server process
+            verbose: true, // For debugging the client-server communication
+          });
+          try {
+            await mcpManagerStdio.addClient(stdioClient);
+            const tools = mcpManagerStdio.getTools();
+            console.log(`Found ${tools.length} tools via STDIO MCP.`);
+          } catch (error) {
+            console.error("Failed to connect to STDIO MCP server:", error);
+          }
+        }
+        connectToStdioMCP();
+        ```
+    *   **Streamable HTTP (Recommended):** Connecting to a remote MCP server using a modern, streamable HTTP-based protocol.
+        ```typescript
+        import { createMCPClient, MCPProtocolType, MCPManager } from "agent-forge";
+
+        async function connectToStreamableHttpMCP() {
+          const mcpManagerHttp = new MCPManager();
+          const streamableHttpClient = createMCPClient(MCPProtocolType.STREAMABLE_HTTP, {
+            baseUrl: "https://your-mcp-server.example.com/mcp", // Replace with actual server URL
+            // headers: { Authorization: "Bearer your-token" }, // Optional: if your server requires auth
+          });
+          try {
+            await mcpManagerHttp.addClient(streamableHttpClient);
+            const tools = mcpManagerHttp.getTools();
+            console.log(`Found ${tools.length} tools via Streamable HTTP MCP.`);
+          } catch (error) {
+            console.error("Failed to add Streamable HTTP MCP client:", error);
+          }
+        }
+        connectToStreamableHttpMCP();
+        ```
+    *   **SSE (Server-Sent Events - Deprecated):** Connecting to legacy MCP servers using SSE.
+        ```typescript
+        import { createMCPClient, MCPProtocolType, MCPManager } from "agent-forge";
+
+        async function connectToSseMCP() {
+          const mcpManagerSse = new MCPManager();
+          const sseClient = createMCPClient(MCPProtocolType.SSE, {
+            url: "https://your-legacy-mcp-server.example.com/sse", // Replace with actual server URL
+            // headers: { Authorization: "Bearer your-token" }, // Optional: if server requires auth
+          });
+          try {
+            await mcpManagerSse.addClient(sseClient);
+            const tools = mcpManagerSse.getTools();
+            console.log(`Found ${tools.length} tools via SSE MCP.`);
+          } catch (error) {
+            console.error("Failed to add SSE MCP client:", error);
+          }
+        }
+        connectToSseMCP();
+        ```
+
+3.  **Fetching Tools:** Once clients are added to the `mcpManager`, you can retrieve all tools they expose:
+    ```typescript
+    // Assuming 'mcpManager' is an initialized MCPManager instance
+    // with one or more clients added as shown in the examples above.
+    // For this snippet to be runnable, 'mcpManager' needs to be defined and clients added.
+    // Example:
+    // const mcpManager = new MCPManager();
+    // const client = createMCPClient(...); /* as shown above */
+    // await mcpManager.addClient(client);
+
+    const mcpTools = mcpManager.getTools();
+    console.log(`Retrieved ${mcpTools.length} tools from MCP servers.`);
+    mcpTools.forEach(tool => console.log(`- ${tool.name}: ${tool.description}`));
+    ```
+
+4.  **Using MCP Tools with an Agent:** These `mcpTools` can then be provided to an Agent, typically during its instantiation:
+    ```typescript
+    // This is a conceptual continuation.
+    // Assumes 'mcpTools' is an array of Tool instances obtained from mcpManager.getTools(),
+    // and an 'llmProvider' (e.g., from new LLM("openai", {apiKey: ...})) is initialized.
+    import { Agent, LLM, Tool } from "agent-forge";
+    // import { LLM } from "agent-forge"; // Assuming LLM is correctly imported if not covered by Agent
+
+    function createAgentWithMCPTools(mcpTools: Tool[], llmProviderInstance: LLM) {
+      if (!llmProviderInstance) {
+        console.error("LLM Provider not available.");
+        return;
+      }
+      if (!mcpTools || mcpTools.length === 0) {
+        console.warn("No MCP tools provided for agent.");
+      }
+
+      const agent = new Agent({
+        name: "MCP-Enabled Agent",
+        role: "Assistant with extended capabilities via MCP",
+        objective: "Leverage external tools through MCP for complex tasks",
+        model: "gpt-4-turbo", // Ensure model compatibility
+        llm: llmProviderInstance,
+        temperature: 0.7,
+      }, mcpTools); // Pass the array of MCP tools (or use agent.addTools(mcpTools))
+
+      console.log(`Agent '${agent.name}' created with ${mcpTools.length} MCP tools.`);
+
+      // You can now run the agent:
+      async function runAgent() {
+         // Replace with an actual tool name available from your MCP server
+         const result = await agent.run("Analyze this data using the specialized 'ExternalDataAnalyzerTool'.");
+         console.log("Agent run result:", result);
+      }
+      runAgent();
+    }
+
+    // Example usage (conceptual):
+    // const apiKey = process.env.OPENAI_API_KEY; // Ensure dotenv is configured if using process.env
+    // if (apiKey) {
+    //   const llm = new LLM("openai", { apiKey });
+    //   // Assuming mcpManager is set up and tools have been fetched:
+    //   // const mcpManager = new MCPManager();
+    //   // /* ... add clients to mcpManager ... */
+    //   // const toolsFromMCP = mcpManager.getTools();
+    //   // createAgentWithMCPTools(toolsFromMCP, llm);
+    // } else {
+    //   console.error("OpenAI API Key not set. Cannot run conceptual example.");
+    // }
+    ```
+    The agent's LLM can then decide to use these external tools just like it would use locally defined/registered tools.
+
+5.  **Closing Connections:** It's important to close MCP client connections when they are no longer needed:
+    ```typescript
+    // Assuming 'mcpManager' is an initialized MCPManager instance with clients.
+    async function closeMCPConnections(mcpManagerInstance: MCPManager) { // Pass the instance
+      try {
+        await mcpManagerInstance.close();
+        console.log("MCP connections closed.");
+      } catch (error) {
+        console.error("Error closing MCP connections:", error);
+      }
+    }
+    // Example: closeMCPConnections(mcpManager); // Call with your MCPManager instance
+    ```
+
+## Example Code Structure
+
+Here's a conceptual example of how to integrate and use MCP tools:
+
+```typescript
+import {
+  Agent, LLM, MCPManager, createMCPClient, MCPProtocolType, Tool
+} from "agent-forge";
+import dotenv from 'dotenv';
+
+dotenv.config();
+
+async function runMCPExample() {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    console.error("OPENAI_API_KEY not set. Please set it in your .env file.");
+    return;
+  }
+
+  const llmProvider = new LLM("openai", { apiKey });
+
+  const mcpManagerInstance = new MCPManager();
+
+  // Example: Connect to a Streamable HTTP MCP server
+  // Replace with your actual MCP server details or choose a different protocol (STDIO, SSE)
+  const streamableHttpClient = createMCPClient(MCPProtocolType.STREAMABLE_HTTP, {
+    baseUrl: "https://your-mcp-server.example.com/mcp", // Replace with actual server URL
+    headers: { Authorization: "Bearer your-token" }, // Replace with actual token if server requires auth
+  });
+
+  try {
+    await mcpManagerInstance.addClient(streamableHttpClient);
+    console.log("Connected to MCP server via Streamable HTTP.");
+  } catch (error) {
+    console.error("Failed to connect to MCP server:", error);
+    await mcpManagerInstance.close(); // Close manager if connection failed
+    return;
+  }
+
+  const mcpTools: Tool[] = mcpManagerInstance.getTools();
+  if (mcpTools.length > 0) {
+    console.log("Tools retrieved from MCP server:");
+    mcpTools.forEach(tool => console.log(`  - Tool: ${tool.name}`));
+  } else {
+    console.warn("No tools retrieved from MCP. Agent will have limited external capabilities.");
+  }
+
+  const agent = new Agent({
+    name: "MCP-Powered Agent",
+    role: "Assistant leveraging external tools via MCP",
+    objective: "Perform tasks using any available specialized tools from MCP.",
+    model: "gpt-4-turbo", // Ensure model compatibility
+    temperature: 0.7,
+    llm: llmProvider,
+  }, mcpTools); // Provide the retrieved MCP tools to the agent
+
+  // Example task - adjust based on actual tools available from your MCP server
+  const task = "Use the 'ExampleExternalTool' to process 'some data'.";
+  try {
+    const result = await agent.run(task);
+    console.log("\nAgent Execution Result:", result);
+  } catch (error) {
+    console.error("Error during agent execution with MCP tools:", error);
+  }
+
+  await mcpManagerInstance.close();
+  console.log("MCP example finished and connections closed.");
+}
+
+runMCPExample().catch(console.error);
+```
+
+Integrating with MCP tool servers via Agent Forge allows for a highly scalable and versatile agent architecture.
+
+## Next Steps
+
+*   Explore the [Tools Ecosystem overview](../core-concepts/tools-ecosystem.mdx) to understand how local and MCP tools fit together.
+*   If you are developing MCP tool servers, consult the Model Context Protocol specification for details on server-side implementation. 

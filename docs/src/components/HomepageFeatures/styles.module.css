@@ -1,0 +1,96 @@
+/* Overall features section */
+.features {
+  padding: 4rem 0;
+  /* Ensures the section itself has a very dark background in dark mode, and light in light mode */
+  background-color: var(--ifm-background-color);
+}
+
+/* Each feature item will be a full-width row-like container */
+.featureItemContainer {
+  padding: 3rem 0; /* More vertical padding for each feature section */
+  border-bottom: 1px solid var(--ifm-hr-border-color); /* Separator line */
+}
+
+.featureItemContainer:last-child {
+  border-bottom: none;
+}
+
+/* Inner container for the 2-column layout (SVG + Text) */
+.featureContentWrapper {
+  display: flex;
+  flex-direction: column; /* Stack on small screens */
+  align-items: center;
+  gap: 2rem;
+}
+
+/* SVG pane */
+.featureSvgPane {
+  flex: 1 1 40%; /* Takes up about 40% of width, allows shrinking/growing */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 1rem;
+}
+
+.featureSvg {
+  max-width: 100%; /* Ensure SVG is responsive */
+  height: auto; /* Maintain aspect ratio */
+  max-height: 250px; /* Limit max height to keep things balanced */
+}
+
+/* Text pane */
+.featureTextPane {
+  flex: 1 1 60%; /* Takes up about 60% of width */
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center; /* Vertically center text content */
+}
+
+.featureTextPane h3 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  font-size: 1.75rem; /* Larger heading for features */
+  color: var(--ifm-color-primary);
+}
+
+.featureTextPane p {
+  font-size: 1rem;
+  line-height: 1.7;
+  color: var(--ifm-font-color-secondary);
+  margin-bottom: 0;
+}
+
+/* Dark theme overrides */
+[data-theme="dark"] .featureTextPane h3 {
+  color: var(--ifm-color-primary-lightest);
+}
+
+/* Responsive adjustments for side-by-side layout */
+@media (min-width: 997px) {
+  /* Docusaurus md breakpoint */
+  .featureContentWrapper {
+    flex-direction: row; /* Side-by-side on medium screens and up */
+    align-items: center; /* Vertically align items in the row */
+  }
+
+  /* Alternate SVG and Text panes */
+  .featureItemContainer:nth-child(even) .featureContentWrapper {
+    flex-direction: row-reverse; /* Reverse order for even items */
+  }
+
+  .featureSvgPane {
+    padding: 2rem;
+  }
+
+  .featureTextPane {
+    padding: 2rem;
+  }
+}
+
+/* Remove styles for old .featureCard, .featureRow, .featureItem as they are being replaced or repurposed */
+/* .featureRow { ... } */
+/* .featureItem { ... } */
+/* .featureCard { ... } */
+/* .featureSvgContainer { ... } */
+/* .featureTextContainer { ... } */
