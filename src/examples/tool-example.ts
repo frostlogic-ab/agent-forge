@@ -1,4 +1,4 @@
-import dotenv from "dotenv";
+import * as dotenv from "dotenv";
 import {
   AgentForge,
   Agent,
@@ -10,7 +10,7 @@ import { Tool } from "../tools/tool";
 import { ToolParameter } from "../types";
 import { LLMProvider } from "../types";
 
-// Load environment variables
+// Load environment variables from .env file at the project root
 dotenv.config();
 
 // Create a simple calculator tool for demonstration
@@ -112,17 +112,21 @@ class WeatherTool extends Tool {
   }
 }
 
-async function main() {
-  // Check for API key
-  const provider = process.env.LLM_PROVIDER as LLMProvider  || "openai";
-  const apiKey = process.env.LLM_API_KEY;
-  const model = process.env.LLM_MODEL || "gpt-4o-mini";
-  
-  if (!apiKey) {
-    console.error("Error: LLM_API_KEY environment variable not set");
-    process.exit(1);
-  }
+// LLM Configuration moved to top level
+const provider = (process.env.LLM_PROVIDER as LLMProvider) || "openai";
+const apiKey = process.env.LLM_API_KEY;
+const model = process.env.LLM_API_MODEL!;
 
+if (!apiKey) {
+  console.error(
+      `Error: LLM_API_KEY environment variable not set. ` +
+      "Please create a .env file in the project root (from .env.sample) " +
+      "and add your LLM_API_KEY (and optionally LLM_PROVIDER, LLM_MODEL)."
+  );
+  process.exit(1);
+}
+
+async function main() {
   try {
     // Create an LLM provider
     const llmProvider = new LLM(provider, {

@@ -1,0 +1,141 @@
+---
+title: Setting up the A2A Server
+sidebar_label: 1. A2A Server Setup
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+# Part 1: Setting up Your A2A Server
+
+In this first part of the tutorial, we'll focus on the server-side of Agent-to-Agent (A2A) communication. You will learn how to use the `A2AServer` class from the `agent-forge` package to host one of your own Agent Forge agents, making it accessible over the network from within your project.
+
+## Creating Your A2A Server Script (`my-a2a-server.ts`)
+
+First, create a new file named `my-a2a-server.ts` in your project directory (e.g., inside `my-agent-forge-project` if you followed the setup in the introduction).
+
+Copy and paste the following code into your `my-a2a-server.ts` file:
+
+```typescript
+import { Agent, LLM, A2AServer, defaultAgentToTaskHandlerAdapter } from "agent-forge";
+import type { AgentConfig } from "agent-forge";
+
+async function runMyA2AServer() {
+    // 1. Define an agent-forge agent
+    const agentConfig: AgentConfig = {
+        name: "HelpfulAssistantAgent",
+        role: "Helpful Assistant",
+        description: "An AI assistant that tries to be helpful, hosted via A2A.",
+        objective: "To answer questions and perform tasks as a helpful AI assistant.",
+        model: "gpt-3.5-turbo", // Or your preferred model
+    };
+
+    // Configure your LLM provider
+    const llmConfig = {
+      apiKey: process.env.OPENAI_API_KEY || "YOUR_OPENAI_API_KEY_HERE",
+    };
+
+    if (!llmConfig.apiKey || llmConfig.apiKey === "YOUR_OPENAI_API_KEY_HERE") {
+      console.error("OpenAI API key is not configured. Please set the OPENAI_API_KEY environment variable or update the script.");
+      process.exit(1);
+    }
+    
+    const llmProvider = new LLM("openai", llmConfig);
+    const helpfulAgent = new Agent(agentConfig, [], llmProvider);
+
+    // 2. Configure and instantiate A2AServer
+    // The A2AServer constructor takes the agent to host, server options, and an optional task handler adapter.
+    // The serverOptions object allows you to configure various aspects of the server:
+    const serverOptions = {
+        port: 41241, // You can change this port if needed
+        host: "localhost", // The hostname the server will listen on. Use '0.0.0.0' to listen on all available interfaces.
+        endpoint: "/a2a", // The base path for the A2A JSON-RPC endpoint.
+        verbose: true, // If true, logs detailed LLM inputs/outputs for tasks.
+        // logger: console, // Optional: Provide a custom logger object (e.g., winston, pino). Defaults to global console.
+    };
+
+    // More details on A2AServerOptions:
+    // - `host` (optional, string): Defaults to 'localhost'. Change to '0.0.0.0' to make the server accessible from your local network.
+    // - `port` (optional, number): Defaults to 3000.
+    // - `endpoint` (optional, string): Defaults to '/a2a'. This is the path where the A2A API will be available.
+    // - `logger` (optional, object): Expects an object with `info`, `warn`, and `error` methods (e.g., `console` or a custom logger instance).
+    // - `verbose` (optional, boolean): Defaults to `false`. If set to `true`, the server will log the detailed input sent to the agent's LLM and the raw output received from it for each task processed via A2A. This is very helpful for debugging the agent's behavior when it's operating as a remote service.
+
+    console.log(`Preparing to start A2A Server for agent '${helpfulAgent.name}' on http://${serverOptions.host}:${serverOptions.port}${serverOptions.endpoint}`);
+
+    const a2aServer = new A2AServer(
+        helpfulAgent, 
+        serverOptions, 
+        defaultAgentToTaskHandlerAdapter // Handles task lifecycle and agent interaction
+    );
+
+    // 3. Start the server
+    try {
+        await a2aServer.start();
+        console.log(`A2A Server for agent '${helpfulAgent.name}' is listening!`);
+        console.log(`Agent Card available at http://${serverOptions.host}:${serverOptions.port}/.well-known/agent.json`);
+        console.log("Press Ctrl+C to stop the server.");
+
+        // Graceful shutdown
+        process.on('SIGINT', async () => {
+            console.log("\nShutting down A2A server...");
+            await a2aServer.stop();
+            console.log("Server stopped.");
+            process.exit(0);
+        });
+
+    } catch (error) {
+        console.error("Failed to start A2A server:", error);
+        process.exit(1);
+    }
+}
+
+runMyA2AServer();
+```
+
+**Key points about this script:**
+
+*   **Imports**: It imports necessary classes (`Agent`, `LLM`, `A2AServer`, `defaultAgentToTaskHandlerAdapter`) and types from the `agent-forge` package.
+*   **Agent Definition**: A standard `HelpfulAssistantAgent` is defined and instantiated.
+*   **LLM Configuration**: It sets up an LLM provider. **Remember to replace `"YOUR_OPENAI_API_KEY_HERE"` or set the `OPENAI_API_KEY` environment variable.**
+*   **`A2AServer` Initialization**: An `A2AServer` instance is created, taking your agent, server options (port, host, endpoint, verbose logging, and custom logger), and the `defaultAgentToTaskHandlerAdapter`.
+*   **Server Start**: The `a2aServer.start()` method initiates the HTTP server.
+*   **Agent Card**: The server automatically makes an Agent Card available at the `/.well-known/agent.json` path (e.g., `http://localhost:41241/.well-known/agent.json`). This card provides metadata about your hosted agent.
+
+## Running Your A2A Server
+
+1.  **Open a Terminal**: Navigate to your project directory (e.g., `my-agent-forge-project`) where you saved `my-a2a-server.ts`.
+2.  **Ensure API Key is Set**: As highlighted in the script and the [tutorial introduction](./index.mdx#prerequisites), your `OPENAI_API_KEY` (or equivalent) must be available.
+3.  **Run the Server Script**:
+    You can run your TypeScript file directly using `ts-node` (if you installed it as per the prerequisites):
+    ```bash
+    npx ts-node my-a2a-server.ts
+    ```
+    Alternatively, you can compile it to JavaScript first using the TypeScript compiler (`tsc`) and then run it with Node.js:
+    ```bash
+    npx tsc my-a2a-server.ts
+    node my-a2a-server.js
+    ```
+
+## Expected Server Output
+
+If the server starts successfully, you should see output similar to this:
+
+```text
+Preparing to start A2A Server for agent 'HelpfulAssistantAgent' on http://localhost:41241/a2a
+A2A Server for agent 'HelpfulAssistantAgent' is listening!
+Agent Card available at http://localhost:41241/.well-known/agent.json
+Press Ctrl+C to stop the server.
+```
+
+This confirms your A2A server is active and hosting your `HelpfulAssistantAgent`.
+
+**Keep this terminal window open and the server running.** You'll need it for the next part of the tutorial where we set up the client to interact with this server.
+
+To stop the server, press `Ctrl+C` in its terminal window.
+
+## Next Steps
+
+With your A2A server up and running, you're now ready to create a client in your project that can communicate with your hosted agent.
+
+Proceed to: [**Part 2: Creating the A2A Client and Team**](./creating-a2a-client-and-team.mdx) 

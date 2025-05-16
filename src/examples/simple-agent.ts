@@ -1,18 +1,21 @@
-import dotenv from "dotenv";
+import * as dotenv from "dotenv";
 import { AgentForge, Agent, LLM } from "../index";
 import { LLMProvider } from "../types";
 
-// Load environment variables
+// Load environment variables from .env file at the project root
 dotenv.config();
 
 async function main() {
-  // Check for API key
-  const provider = process.env.LLM_PROVIDER as LLMProvider  || "openai";
+  const provider = (process.env.LLM_PROVIDER as LLMProvider) || "openai";
   const apiKey = process.env.LLM_API_KEY;
-  const model = process.env.LLM_MODEL || "gpt-4o-mini";
+  const model = process.env.LLM_API_MODEL!;
 
   if (!apiKey) {
-    console.error("Error: LLM_API_KEY environment variable not set");
+    console.error(
+        `Error: LLM_API_KEY environment variable not set. ` +
+        "Please create a .env file in the project root (from .env.sample) " +
+        "and add your LLM_API_KEY (and optionally LLM_PROVIDER, LLM_MODEL)."
+    );
     process.exit(1);
   }
 
@@ -34,7 +37,7 @@ async function main() {
           "A specialized agent for gathering and analyzing information.",
         objective:
           "Find accurate and relevant information on requested topics.",
-        model: model,
+        model: model, // Use the model from .env or default
         temperature: 0.4,
       },
       [],
@@ -49,7 +52,7 @@ async function main() {
         description:
           "An agent that specializes in distilling information into clear summaries.",
         objective: "Create concise, accurate summaries of complex information.",
-        model: model,
+        model: model, // Use the model from .env or default
         temperature: 0.4,
       },
       [],
@@ -102,7 +105,7 @@ async function main() {
           "An agent that coordinates other agents to complete complex tasks.",
         objective:
           "Effectively delegate tasks and synthesize results from specialized agents.",
-        model: model,
+        model: model, // Use the model from .env or default
         temperature: 0.7,
       },
       [],

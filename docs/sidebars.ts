@@ -39,6 +39,15 @@ const sidebars: SidebarsConfig = {
         "learn/advanced/debugging-features",
         "learn/advanced/streaming-support",
         "learn/advanced/model-context-protocol",
+        {
+          type: "category",
+          label: "A2A Communication Tutorial",
+          items: [
+            "learn/a2a-tutorial/index",
+            "learn/a2a-tutorial/setting-up-a2a-server",
+            "learn/a2a-tutorial/creating-a2a-client-and-team",
+          ],
+        },
       ],
     },
     // Add more categories and docs for the "Learn" section here
@@ -60,6 +69,12 @@ const sidebars: SidebarsConfig = {
         "reference/core/team",
         "reference/core/workflow",
       ],
+    },
+    {
+      type: "category",
+      label: "A2A Communication",
+      link: { type: "doc", id: "a2a/index" },
+      items: ["a2a/server", "a2a/client"],
     },
     {
       type: "category",
