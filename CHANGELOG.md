@@ -1,4 +1,12 @@
 ## What's Changed
+* Add A2A support through SSE and JSON RPC by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/26
+
+
+**Full Changelog**: https://github.com/frostlogic-ab/agent-forge/compare/v1.4.1...v1.5.0-alpha.1
+
+# [1.5.0-alpha.1](https://github.com/frostlogic-ab/agent-forge/compare/v1.4.1...v1.5.0-alpha.1) (2025-05-16)
+
+## What's Changed
 * fix error in diagram by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/25
 
 
