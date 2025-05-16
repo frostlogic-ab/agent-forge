@@ -28,6 +28,17 @@ const config: Config = {
     locales: ["en"],
   },
 
+  headTags: [
+    {
+      tagName: "script",
+      attributes: {
+        defer: "true",
+        src: "https://data.frostlogic.se/script.js",
+        "data-website-id": "05311cfd-53ca-4094-8cf2-6e6e8712e9b9",
+      },
+    },
+  ],
+
   presets: [
     [
       "classic",
