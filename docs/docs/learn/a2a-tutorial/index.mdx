@@ -1,0 +1,60 @@
+---
+title: A2A Communication Tutorial
+sidebar_label: Introduction
+---
+
+# Tutorial: Agent-to-Agent (A2A) Communication
+
+Welcome to the Agent-to-Agent (A2A) communication tutorial for Agent Forge!
+
+This tutorial will guide you through setting up and running a practical example of A2A communication using Agent Forge in your own project. You'll learn how to:
+
+1.  **Host an Agent using `A2AServer`**: Make an Agent Forge agent from your project available over a network.
+2.  **Interact with a Hosted Agent using `RemoteA2AAgent`**: Create a client-side proxy in your project to communicate with the hosted agent.
+3.  **Integrate a Remote Agent into a `Team`**: See how a local "manager" agent in your project can delegate tasks to a remote agent as part of a collaborative team.
+
+A2A communication allows you to build distributed multi-agent systems where agents can reside on different processes or even different machines, opening up possibilities for more complex and scalable applications.
+
+## What You'll Build
+
+You will create two TypeScript files in your own project:
+
+*   `my-a2a-server.ts`: This script will set up an A2A Server to host a `HelpfulAssistantAgent`.
+*   `my-a2a-team.ts`: This script will create a `RemoteA2AAgent` to connect to your server and then use this remote agent within a `Team`, where a local `OrchestrationManagerAgent` delegates a task to it.
+
+## Prerequisites
+
+Before you begin, please ensure you have the following set up in your development environment:
+
+*   **Node.js and NPM/Yarn**: Ensure Node.js (preferably a recent LTS version) and a package manager (npm or yarn) are installed.
+*   **TypeScript Project**: It's recommended to work within a TypeScript project. If you don't have one, you can quickly set one up:
+    ```bash
+    mkdir my-agent-forge-project
+    cd my-agent-forge-project
+    npm init -y
+    npm install typescript @types/node ts-node --save-dev
+    # or
+    # yarn add typescript @types/node ts-node --dev
+    npx tsc --init # Creates a tsconfig.json
+    ```
+*   **Agent Forge Installed**: Install Agent Forge into your project:
+    ```bash
+    npm install agent-forge
+    # or
+    # yarn add agent-forge
+    ```
+*   **LLM API Key**: The examples rely on an LLM. Ensure your `OPENAI_API_KEY` (or equivalent for your chosen LLM provider) is set as an environment variable. The scripts will prompt you if it's missing.
+    ```bash
+    # Example for Bash/Zsh - add to your .bashrc, .zshrc, or run in your terminal session
+    export OPENAI_API_KEY="your_api_key_here"
+    ```
+    For Windows, you might use `set OPENAI_API_KEY=your_api_key_here` in Command Prompt or `$env:OPENAI_API_KEY="your_api_key_here"` in PowerShell.
+
+## Tutorial Steps
+
+This tutorial is divided into the following parts. You'll be creating the files and running them from your project directory (e.g., `my-agent-forge-project`).
+
+1.  [**Setting up the A2A Server**](./setting-up-a2a-server.mdx): Create and run `my-a2a-server.ts` to host an agent.
+2.  [**Creating the A2A Client and Team**](./creating-a2a-client-and-team.mdx): Create and run `my-a2a-team.ts` to connect to the server and see agents collaborate.
+
+Let's get started! 

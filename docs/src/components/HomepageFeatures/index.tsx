@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import type * as React from "react";
+import type React from "react";
 import styles from "./styles.module.css";
 
 type FeatureItem = {
@@ -72,6 +72,17 @@ const FeatureList: FeatureItem[] = [
         Enable real-time streaming of LLM responses and agent interactions for a
         more dynamic and responsive user experience. Monitor progress and get
         results as they happen.
+      </>
+    ),
+  },
+  {
+    title: "Agent-to-Agent (A2A) Communication",
+    Svg: require("@site/static/img/undraw_feature_a2a.svg").default,
+    description: (
+      <>
+        Enable seamless communication between different AI agents, locally or
+        across networks, using a robust JSON-RPC and Server-Sent Events (SSE)
+        protocol for real-time updates.
       </>
     ),
   },

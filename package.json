@@ -4,11 +4,7 @@
   "description": "A TypeScript framework for creating and orchestrating AI agents with LLM integration",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
-  "files": [
-    "dist",
-    "README.md",
-    "LICENSE"
-  ],
+  "files": ["dist", "README.md", "LICENSE"],
   "scripts": {
     "build": "tsc",
     "build:watch": "tsc --watch",
@@ -32,25 +28,22 @@
     "example:stock-analysis": "ts-node src/examples/stock-analysis/index.ts",
     "example:streaming-example-workflow": "ts-node src/examples/streaming-example-workflow.ts",
     "example:streaming-example-team": "ts-node src/examples/streaming-example-team.ts",
-    "example:web-page-content-example": "ts-node src/examples/web-page-content-example.ts"
+    "example:web-page-content-example": "ts-node src/examples/web-page-content-example.ts",
+    "example:a2a-server": "ts-node src/examples/a2a-server-example.ts",
+    "example:a2a-team": "ts-node src/examples/a2a-team-example.ts"
   },
-  "keywords": [
-    "ai",
-    "agents",
-    "llm",
-    "framework",
-    "typescript",
-    "yaml"
-  ],
+  "keywords": ["ai", "agents", "llm", "framework", "typescript", "yaml"],
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@microsoft/fetch-event-source": "^2.0.1",
     "@modelcontextprotocol/sdk": "^1.11.0",
     "@types/node": "^22.15.14",
     "axios": "^1.9.0",
     "cheerio": "^1.0.0",
     "dotenv": "^16.5.0",
     "event-source-polyfill": "^1.0.31",
+    "eventsource": "^4.0.0",
     "token.js": "^0.7.1",
     "typescript": "^5.8.3",
     "yaml": "^2.7.1",
@@ -63,6 +56,7 @@
     "@docusaurus/preset-classic": "^3.7.0",
     "@semantic-release/changelog": "^6.0.3",
     "@semantic-release/git": "^10.0.1",
+    "@types/eventsource": "^3.0.0",
     "@types/jest": "^29.5.14",
     "@types/react": "^19",
     "@types/react-dom": "^19",

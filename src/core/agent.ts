@@ -103,6 +103,13 @@ export class Agent {
   }
 
   /**
+   * Gets the model the agent is configured to use
+   */
+  get model(): string {
+    return this.config.model;
+  }
+
+  /**
    * Gets the agent's configuration
    */
   getConfig(): AgentConfig {
