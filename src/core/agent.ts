@@ -1,6 +1,6 @@
-import type { ChatCompletionMessageParam } from "token.js";
 import type { LLM } from "../llm/llm";
 import type { LLMResponse } from "../llm/llm";
+import type { ChatCompletionMessageParam } from "../llm/types";
 import type { Tool } from "../tools/tool";
 import { ToolRegistry } from "../tools/tool-registry";
 import {

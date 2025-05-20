@@ -1,18 +1,18 @@
-import {
-  type ChatCompletionMessageParam,
-  type CompletionResponse,
-  type CompletionResponseChunk,
-  type ConfigOptions,
-  TokenJS,
-} from "token.js";
-import type {
-  CompletionNonStreaming,
-  CompletionStreaming,
-  LLMProvider,
-  ProviderCompletionParams,
-} from "token.js/dist/chat";
 import { AgentForgeEvents } from "../types";
 import { EventEmitter } from "../utils/event-emitter";
+import {
+  LLMClient,
+  type LLMClientCompletionInput,
+  type LLMClientConfig,
+  type SupportedLLMProvider,
+} from "./client";
+import type {
+  ChatCompletionMessageParam,
+  CompletionResponse,
+  CompletionResponseChunk,
+  // ConfigOptions as OldConfigOptions, // Replaced by LLMClientConfig
+  // LLMProvider as OldLLMProvider, // Replaced by SupportedLLMProvider
+} from "./types"; // Assuming these are now sourced from our own types.ts
 
 export interface LLMResponseToolCall {
   id: string;
@@ -31,15 +31,47 @@ export interface LLMResponse {
   toolCalls?: LLMResponseToolCall[];
 }
 
+// Define a type for the parameters of complete/chat methods,
+// excluding stream, as that's handled by the method choice.
+// It will be based on LLMClientCompletionInput.
+type LLMBaseMethodParams = Omit<
+  LLMClientCompletionInput,
+  "stream" | "stream_options"
+>;
+
 export class LLM {
-  protected readonly token: TokenJS;
+  protected readonly llmClient: LLMClient;
   protected eventEmitter: EventEmitter;
+  // Store the provider for potential direct use if needed, though LLMClient handles it.
+  protected readonly provider: SupportedLLMProvider;
 
   constructor(
-    protected readonly provider: LLMProvider,
-    protected readonly config: ConfigOptions
+    provider: SupportedLLMProvider,
+    // The config here needs to be mapped to LLMClientConfig
+    // Assuming oldConfig contained apiKey, baseURL, and potentially bedrock specific parts
+    oldConfig: {
+      apiKey?: string;
+      baseURL?: string;
+      bedrock?: {
+        region?: string;
+        accessKeyId?: string;
+        secretAccessKey?: string;
+      };
+    }
   ) {
-    this.token = new TokenJS(this.config);
+    this.provider = provider; // Store the provider
+
+    // Construct LLMClientConfig from oldConfig
+    const clientConfig: LLMClientConfig = {
+      provider: provider,
+      apiKey: oldConfig.apiKey,
+      baseURL: oldConfig.baseURL,
+      awsRegion: oldConfig.bedrock?.region,
+      awsAccessKeyId: oldConfig.bedrock?.accessKeyId,
+      awsSecretAccessKey: oldConfig.bedrock?.secretAccessKey,
+    };
+
+    this.llmClient = new LLMClient(clientConfig);
     this.eventEmitter = new EventEmitter();
   }
 
@@ -48,7 +80,7 @@ export class LLM {
   }
 
   transformCompletionToLLMResponse(
-    completion: CompletionResponse
+    completion: CompletionResponse // This type should come from ./types
   ): LLMResponse {
     if (!completion?.choices?.length) {
       throw new Error("Invalid LLM response");
@@ -79,7 +111,7 @@ export class LLM {
   }
 
   transformCompletionChunksToLLMResponse(
-    chunks: CompletionResponseChunk[]
+    chunks: CompletionResponseChunk[] // This type should come from ./types
   ): LLMResponse {
     const toolCalls: {
       [key: string]: {
@@ -100,21 +132,20 @@ export class LLM {
 
       if (delta.tool_calls) {
         for (const toolCall of delta.tool_calls) {
+          // Ensure toolCall.index is used if available, otherwise manage via id if index isn't in delta
+          const callIndex = (toolCall as any).index ?? toolCall.id; // Adapt if index is not always present
           if (toolCall.id && toolCall.function?.name) {
-            if (!toolCalls[toolCall.index]) {
-              toolCalls[toolCall.index] = {
+            if (!toolCalls[callIndex]) {
+              toolCalls[callIndex] = {
                 id: toolCall.id,
                 toolName: toolCall.function.name,
                 parameters: toolCall.function.arguments,
               };
             } else if (toolCall.function.arguments) {
-              if (toolCalls[toolCall.index].parameters) {
-                toolCalls[toolCall.index].parameters =
-                  toolCalls[toolCall.index].parameters +
-                  toolCall.function.arguments;
+              if (toolCalls[callIndex].parameters) {
+                toolCalls[callIndex].parameters += toolCall.function.arguments;
               } else {
-                toolCalls[toolCall.index].parameters =
-                  toolCall.function.arguments;
+                toolCalls[callIndex].parameters = toolCall.function.arguments;
               }
             }
           }
@@ -146,91 +177,90 @@ export class LLM {
   }
 
   protected validateMessages(
-    messages: ChatCompletionMessageParam[] | undefined
+    messages: ChatCompletionMessageParam[] | undefined // This type from ./types
   ): ChatCompletionMessageParam[] {
     if (!messages) return [];
 
     return messages.map((message) => {
-      // If content is empty or undefined, provide a placeholder
-      if (!message.content) {
+      if (message.content === null || message.content === undefined) {
         return {
           ...message,
-          content:
-            message.content === ""
-              ? "Empty message"
-              : message.content || "No content provided",
+          content: "No content provided", // Or handle as an error, depending on policy
         };
       }
       return message;
     });
   }
 
-  async complete(
-    params: Omit<ProviderCompletionParams<any>, "provider" | "stream">
-  ): Promise<LLMResponse> {
-    const completion = await this.token.chat.completions.create({
+  async complete(params: LLMBaseMethodParams): Promise<LLMResponse> {
+    const completion = (await this.llmClient.create({
       ...params,
-      provider: this.provider,
       stream: false,
-    });
+    })) as CompletionResponse; // Cast because we set stream: false
 
     return this.transformCompletionToLLMResponse(completion);
   }
 
-  async chat(
-    params: Omit<CompletionNonStreaming<any>, "provider" | "stream">
-  ): Promise<LLMResponse> {
+  async chat(params: LLMBaseMethodParams): Promise<LLMResponse> {
     params.messages = this.validateMessages(params.messages);
 
-    const completion = await this.token.chat.completions.create({
+    const completion = (await this.llmClient.create({
       ...params,
-      provider: this.provider,
       stream: false,
-    });
+    })) as CompletionResponse; // Cast because we set stream: false
 
     return this.transformCompletionToLLMResponse(completion);
   }
 
   async chatStream(
-    params: Omit<CompletionStreaming<any>, "provider" | "stream"> & {
+    params: LLMBaseMethodParams & {
       onChunk: (chunk: CompletionResponseChunk) => void;
+      stream_options?: { include_usage?: boolean }; // Keep stream_options specific to chatStream
     }
   ): Promise<LLMResponse> {
     params.messages = this.validateMessages(params.messages);
 
-    const completion = await this.token.chat.completions.create({
-      ...params,
-      provider: this.provider,
+    const { onChunk, stream_options, ...llmClientParams } = params;
+
+    const stream = (await this.llmClient.create({
+      ...llmClientParams,
       stream: true,
-      stream_options: {
-        include_usage: true,
-      },
-    } as CompletionStreaming<any>);
+      stream_options: stream_options,
+    })) as AsyncGenerator<CompletionResponseChunk>; // Cast because stream: true
 
     const chunks: CompletionResponseChunk[] = [];
+    let modelFromStream: string | undefined = undefined;
+    let usageFromStream: CompletionResponseChunk["usage"] = undefined;
 
-    for await (const chunk of completion) {
+    for await (const chunk of stream) {
       this.eventEmitter.emit(AgentForgeEvents.LLM_STREAM_CHUNK, {
-        model: params.model,
-        agentName: "Unknown",
+        model: params.model, // model is part of LLMBaseMethodParams
+        agentName: "Unknown", // This could be passed in or configured
         chunk: chunk.choices?.[0]?.delta?.content,
       });
-      params.onChunk(chunk);
+      onChunk(chunk);
       chunks.push(chunk);
+      if (chunk.model) modelFromStream = chunk.model;
+      if (chunk.usage) usageFromStream = chunk.usage; // Capture last known usage
     }
 
     if (chunks.length === 0) {
-      throw new Error("Invalid response from LLM");
+      // If the stream was truly empty (no chunks at all)
+      // Return a minimal response, possibly indicating an issue or an empty generation.
+      // Fallback to the requested model if not found in any chunk.
+      return {
+        content: "",
+        model: modelFromStream ?? params.model,
+        tokenUsage: usageFromStream
+          ? {
+              completion: usageFromStream.completion_tokens,
+              prompt: usageFromStream.prompt_tokens,
+              total: usageFromStream.total_tokens,
+            }
+          : undefined,
+        toolCalls: [],
+      };
     }
-
-    const response = this.transformCompletionChunksToLLMResponse(chunks);
-
-    this.eventEmitter.emit(AgentForgeEvents.LLM_STREAM_COMPLETE, {
-      content: response.content,
-      isComplete: true,
-      agentName: "Unknown",
-    });
-
-    return response;
+    return this.transformCompletionChunksToLLMResponse(chunks);
   }
 }

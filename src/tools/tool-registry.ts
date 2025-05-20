@@ -1,4 +1,4 @@
-import type { ChatCompletionTool } from "token.js";
+import type { ChatCompletionTool } from "../llm/types";
 import type { ToolConfig } from "../types";
 import type { Tool } from "./tool";
 

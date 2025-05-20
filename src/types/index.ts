@@ -1,5 +1,8 @@
-import type { ChatCompletionMessageParam } from "token.js";
-import type { LLMProvider } from "token.js/dist/chat";
+import type {
+  ChatCompletionMessageParam,
+  ChatCompletionTool,
+  LLMProvider,
+} from "../llm/types";
 
 /**
  * Core type definitions for Agent Forge
@@ -105,11 +108,11 @@ export interface Message {
  */
 export interface LLMRequestOptions {
   model: string;
-  messages: Message[];
+  messages: ChatCompletionMessageParam[];
   temperature?: number;
   maxTokens?: number;
   stopSequences?: string[];
-  toolDefinitions?: ChatCompletionMessageParam;
+  tools?: ChatCompletionTool[];
 }
 
 /**
