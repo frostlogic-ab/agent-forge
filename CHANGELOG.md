@@ -1,4 +1,16 @@
 ## What's Changed
+* add anonymous visitor tracking on documentation pages by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/27
+* remove documentation from triggering a release by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/28
+* fix tool call function arguments parsing by @mciocan-bd in https://github.com/frostlogic-ab/agent-forge/pull/29
+
+## New Contributors
+* @mciocan-bd made their first contribution in https://github.com/frostlogic-ab/agent-forge/pull/29
+
+**Full Changelog**: https://github.com/frostlogic-ab/agent-forge/compare/v1.4.1...v1.4.2
+
+## [1.4.2](https://github.com/frostlogic-ab/agent-forge/compare/v1.4.1...v1.4.2) (2025-05-21)
+
+## What's Changed
 * fix error in diagram by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/25
 
 
