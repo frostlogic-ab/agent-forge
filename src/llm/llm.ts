@@ -107,15 +107,15 @@ export class LLM {
                 toolName: toolCall.function.name,
                 parameters: toolCall.function.arguments,
               };
-            } else if (toolCall.function.arguments) {
-              if (toolCalls[toolCall.index].parameters) {
-                toolCalls[toolCall.index].parameters =
-                  toolCalls[toolCall.index].parameters +
-                  toolCall.function.arguments;
-              } else {
-                toolCalls[toolCall.index].parameters =
-                  toolCall.function.arguments;
-              }
+            }
+          } else if (toolCall.function?.arguments) {
+            if (toolCalls[toolCall.index].parameters) {
+              toolCalls[toolCall.index].parameters =
+                toolCalls[toolCall.index].parameters +
+                toolCall.function.arguments;
+            } else {
+              toolCalls[toolCall.index].parameters =
+                toolCall.function.arguments;
             }
           }
         }
