@@ -1,7 +1,5 @@
-import type { JSONSchema7 } from "json-schema";
 import type { ChatCompletionTool } from "../llm/types";
 import type { ToolConfig, ToolParameter } from "../types";
-import type { Logger } from "../utils/logger";
 
 /**
  * Base class for all tools that can be used by agents

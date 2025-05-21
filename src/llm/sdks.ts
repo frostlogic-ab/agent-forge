@@ -7,4 +7,4 @@ export { AI21 } from "ai21";
 export { BedrockRuntimeClient } from "@aws-sdk/client-bedrock-runtime";
 export { CohereClient } from "cohere-ai";
 export { GoogleGenerativeAI } from "@google/generative-ai";
-export { default as MistralClient } from "@mistralai/mistralai";
+export { Mistral as MistralClient } from "@mistralai/mistralai";

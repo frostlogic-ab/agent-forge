@@ -126,7 +126,10 @@ export class LLMClient {
       case "mistral":
         if (!config.apiKey)
           throw new Error("API key is required for Mistral provider.");
-        this.sdkClient = new MistralClient(config.apiKey, config.baseURL);
+        this.sdkClient = new MistralClient({
+          apiKey: config.apiKey,
+          serverURL: config.baseURL,
+        });
         break;
       case "perplexity":
         if (!config.apiKey) {
