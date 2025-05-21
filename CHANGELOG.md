@@ -1,4 +1,12 @@
 ## What's Changed
+* redo stock analysis example and remove sectool by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/30
+
+
+**Full Changelog**: https://github.com/frostlogic-ab/agent-forge/compare/v1.5.0-alpha.1...v1.5.0-alpha.2
+
+# [1.5.0-alpha.2](https://github.com/frostlogic-ab/agent-forge/compare/v1.5.0-alpha.1...v1.5.0-alpha.2) (2025-05-21)
+
+## What's Changed
 * Add A2A support through SSE and JSON RPC by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/26
 
 
