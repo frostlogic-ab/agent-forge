@@ -1,4 +1,12 @@
 ## What's Changed
+* update mcp sdk to latest 1.11.5 by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/31
+
+
+**Full Changelog**: https://github.com/frostlogic-ab/agent-forge/compare/v1.5.0-alpha.2...v1.5.0-alpha.3
+
+# [1.5.0-alpha.3](https://github.com/frostlogic-ab/agent-forge/compare/v1.5.0-alpha.2...v1.5.0-alpha.3) (2025-05-21)
+
+## What's Changed
 * redo stock analysis example and remove sectool by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/30
 
 
