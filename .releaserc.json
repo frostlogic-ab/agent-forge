@@ -15,7 +15,7 @@
         "labels": {
           "feature": "minor",
           "enhancement": "minor",
-          "documentation": "patch",
+
           "bug": "patch",
           "fix": "patch",
           "dependencies": "patch",
