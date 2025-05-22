@@ -1,4 +1,12 @@
 ## What's Changed
+* add rate limiting support for MCP tools by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/32
+
+
+**Full Changelog**: https://github.com/frostlogic-ab/agent-forge/compare/v1.5.0-alpha.3...v1.5.0-alpha.4
+
+# [1.5.0-alpha.4](https://github.com/frostlogic-ab/agent-forge/compare/v1.5.0-alpha.3...v1.5.0-alpha.4) (2025-05-22)
+
+## What's Changed
 * update mcp sdk to latest 1.11.5 by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/31
 
 
