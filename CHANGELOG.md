@@ -1,4 +1,12 @@
 ## What's Changed
+* fix an issue where a rate limited request will not restart after timer by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/33
+
+
+**Full Changelog**: https://github.com/frostlogic-ab/agent-forge/compare/v1.5.0-alpha.4...v1.5.0-alpha.5
+
+# [1.5.0-alpha.5](https://github.com/frostlogic-ab/agent-forge/compare/v1.5.0-alpha.4...v1.5.0-alpha.5) (2025-05-22)
+
+## What's Changed
 * add rate limiting support for MCP tools by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/32
 
 
