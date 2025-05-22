@@ -1,25 +1,142 @@
 /**
- * Any custom CSS here will be applied to the Docusaurus site.
+ * Any CSS included here will be global. The classic template
+ * bundles Infima by default. Infima is a CSS framework designed to
+ * work well for content-centric websites.
  */
 
-/* You can override the default Infima variables here. */
 :root {
-  --ifm-color-primary: #2e8555;
-  --ifm-color-primary-dark: #29784c;
-  --ifm-color-primary-darker: #277148;
-  --ifm-color-primary-darkest: #205d3b;
-  --ifm-color-primary-light: #33925d;
-  --ifm-color-primary-lighter: #359962;
-  --ifm-color-primary-lightest: #3cad6e;
+  /* Agent Forge primary colors */
+  --ifm-color-primary: #00897b;
+  --ifm-color-primary-dark: #007c6f;
+  --ifm-color-primary-darker: #007469;
+  --ifm-color-primary-darkest: #006056;
+  --ifm-color-primary-light: #009687;
+  --ifm-color-primary-lighter: #009e8e;
+  --ifm-color-primary-lightest: #00b2a1;
+
+  /* Other standard infima variables */
+  --ifm-code-font-size: 95%;
+  --ifm-font-family-base: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+  --ifm-heading-font-weight: 600;
+  --ifm-card-background-color: #ffffff;
+
+  /* Enhanced box shadows */
+  --ifm-global-shadow-md: 0 4px 16px rgba(0, 0, 0, 0.08);
+  --ifm-global-shadow-lw: 0 2px 8px rgba(0, 0, 0, 0.05);
+
+  /* Animation timing */
+  --ifm-transition-fast: 200ms;
+  --ifm-transition-slow: 400ms;
+
+  /* Custom button styles */
+  --ifm-button-border-radius: 8px;
+  --ifm-button-font-weight: 500;
+
+  /* Custom code block styles */
+  --ifm-code-border-radius: 6px;
+  --ifm-code-background: rgba(0, 137, 123, 0.06);
+
+  /* Navbar and Footer customization */
+  --ifm-navbar-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --ifm-footer-background-color: #f8f9fa;
+
+  /* Hero banner colors */
+  --ifm-hero-bg-color: linear-gradient(135deg, #e6f7f1 0%, #c4e8dc 100%);
+  --ifm-hero-text-color: #00251a;
 }
 
-/* For readability concerns, you should choose a lighter palette in dark mode. */
 [data-theme="dark"] {
-  --ifm-color-primary: #25c2a0;
-  --ifm-color-primary-dark: #21af90;
-  --ifm-color-primary-darker: #1fa588;
-  --ifm-color-primary-darkest: #1a8870;
-  --ifm-color-primary-light: #29d5b0;
-  --ifm-color-primary-lighter: #32d8b4;
-  --ifm-color-primary-lightest: #4fddbf;
+  --ifm-color-primary: #26a69a;
+  --ifm-color-primary-dark: #00897b;
+  --ifm-color-primary-darker: #007c6f;
+  --ifm-color-primary-darkest: #005a52;
+  --ifm-color-primary-light: #4db6ac;
+  --ifm-color-primary-lighter: #80cbc4;
+  --ifm-color-primary-lightest: #b2dfdb;
+
+  --ifm-background-color: #121212;
+  --ifm-background-surface-color: #1e1e1e;
+  --ifm-card-background-color: #1e1e1e;
+  --ifm-footer-background-color: #1e1e1e;
+  --ifm-code-background: rgba(255, 255, 255, 0.05);
+  --ifm-toc-border-color: rgba(255, 255, 255, 0.1);
+
+  /* Hero banner colors for dark mode */
+  --ifm-hero-bg-color: linear-gradient(135deg, #00251a 0%, #003d2b 100%);
+  --ifm-hero-text-color: #ffffff;
+}
+
+/* Enhance scrollbars */
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--ifm-color-primary-lightest);
+  border-radius: 5px;
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
+  background: var(--ifm-color-primary-darkest);
+}
+
+/* Navbar customizations */
+.navbar {
+  box-shadow: var(--ifm-navbar-shadow);
+}
+
+.navbar__logo {
+  height: 2rem;
+}
+
+/* Code blocks */
+.theme-code-block {
+  border-radius: var(--ifm-code-border-radius);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="dark"] .theme-code-block {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+/* Improve tables */
+table {
+  border-collapse: separate;
+  border-spacing: 0;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+}
+
+[data-theme="dark"] table {
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+}
+
+/* Card-like appearance for admonitions */
+.admonition {
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  border-left-width: 6px;
+}
+
+[data-theme="dark"] .admonition {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* Improve footer */
+.footer {
+  padding: 3rem 0;
+}
+
+/* Custom animations */
+.navbar__items,
+.menu__link {
+  transition: background-color var(--ifm-transition-fast) ease, color
+    var(--ifm-transition-fast) ease;
 }
