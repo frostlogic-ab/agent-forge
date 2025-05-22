@@ -1,6 +1,7 @@
 import dotenv from "dotenv";
-import { AgentForge, Agent, LLM, MCPManager, createMCPClient, MCPProtocolType, Team } from "../../index";
+import { AgentForge, Agent, LLM, MCPManager, createMCPClient, MCPProtocolType, Team, MCPClientWrapper } from "../../index";
 import { LLMProvider } from "../../types";
+import { ensureDockerContainers } from "./setup-docker";
 
 // Load environment variables from .env file at the project root
 dotenv.config();
@@ -20,8 +21,14 @@ async function main() {
     process.exit(1);
   }
 
+  let mcpManager: MCPManager | null = null;
+  let mcpBraveSearch: MCPClientWrapper | null = null;
+
   try {
-    // Create an LLM provider
+    // Ensure Docker is running and containers are available
+    await ensureDockerContainers();
+    
+    // Create LLM provider
     const llmProvider = new LLM(provider, {
       apiKey,
     });
@@ -29,55 +36,66 @@ async function main() {
     // Create the Agent Forge instance
     const forge = new AgentForge(llmProvider);
 
-    // Create the MCP manager 
-    const mcpManager = new MCPManager();
-    // Create the MCP client for Alpha Vantage
-    const mcpFetch = createMCPClient(MCPProtocolType.STDIO, {
-      command: "docker",
-      args: ["run", "-i", "mcp/fetch"],
-      verbose:true
-    })
+    // Create and verify MCP clients
+    mcpManager = new MCPManager({
+      // Global defaults
+      rateLimitPerSecond: 1, // conservative global limit
+      // Tool-specific limits
+      toolSpecificLimits: {
+        'brave': {
+          rateLimitPerSecond: 1  // Brave API allows 1 query per second
+        }
+      },
+      verbose: true
+    });
+    
     // Create the MCP client for Brave Search
-    const mcpBraveSearch = createMCPClient(MCPProtocolType.STDIO, {
+    mcpBraveSearch = createMCPClient(MCPProtocolType.STDIO, {
       command: "docker",
       args: ["run", "-i", "--rm", "-e", "BRAVE_API_KEY", "mcp/brave-search"],
       env: {
         BRAVE_API_KEY: process.env.BRAVE_API_KEY || "",
       },
       verbose: true
-    })
-
-    mcpManager.addClient(mcpFetch);
+    });
+  
+    // Add clients to manager
     mcpManager.addClient(mcpBraveSearch);
-
-    // Get the tools from the Alpha Vantage MCP manager
+  
+    // Wait for tools to be registered - needed to give enough time for the docker containers to start
+    await new Promise(resolve => setTimeout(resolve, 5000));
+    
     const mcpTools = mcpManager.getTools();
-
+    
     // Create a research agent
     const researchAgent = new Agent(
         {
             name: "Financial researcher",
-            role: "Financial Researcher",
+            role: "You are a world class research analyst.",
             description:
-            `You are a world class research analyst.`,
+            `Uses tools to find information about a company.`,
             objective: `Use Brave Search and Fetch tools to find information about the company.
 
             Todays date is ${new Date().toISOString().split('T')[0]}. Make sure to use this date in your search queries and in the report, don't include news or financial data that are too old. 
             Don't simulate or make up data for illustration purposes, nor create hypothetical data/analysis.
-            Use the fetch tool to read the web pages that Brave Search returns.
 
+            ## How to use your tools
+          
+            ### Brave Search tool
             Execute these exact search queries:
             1. "{COMPANY_NAME} stock price today"
             2. "{COMPANY_NAME} latest quarterly earnings"
             3. "{COMPANY_NAME} financial news"
             4. "{COMPANY_NAME} earnings expectations"
             
+            ### Data extraction
             Extract the most relevant information about:
             - Current stock price and recent movement
             - Latest earnings report data
             - Any significant recent news with correct citations
             
-            Be smart and concise. Keep responses short and focused on facts.`,
+            ### Guidelines
+            Be smart and concise. Keep responses as detailed as possible and focused on facts.`,
             model: model,
             temperature: 0.1,
         },
@@ -85,39 +103,11 @@ async function main() {
         llmProvider
     );
 
-    const researchEvaluator = new Agent(
-      {
-        name: "Research evaluator",
-        role: "Research evaluator",
-        description: "You are an expert research evaluator specializing in financial data quality.",
-        objective: `
-          Evaluate the research data on the company based on these criteria:
-            
-            1. Accuracy: Are facts properly cited with source URLs? Are numbers precise?
-            2. Completeness: Is all required information present? (stock price, earnings data, recent news)
-            3. Specificity: Are exact figures provided rather than generalizations?
-            4. Clarity: Is the information organized and easy to understand?
-            
-            For each criterion, provide a rating:
-            - EXCELLENT: Exceeds requirements, highly reliable
-            - GOOD: Meets all requirements, reliable
-            - FAIR: Missing some elements but usable
-            - POOR: Missing critical information, not usable
-            
-            Provide an overall quality rating and specific feedback on what needs improvement.
-            If any critical financial data is missing (stock price, earnings figures), the overall
-            rating should not exceed FAIR.
-        `,
-        model: model,
-        temperature: 0.4
-      }
-    )
-
     const analystAgent = new Agent(
       {
         name: "Financial analyst",
-        role: "Financial analyst",
-        description: "You are a world class financial analyst.",
+        role: "You are a world class financial analyst.",
+        description: "Analyzes financial data on a company and returns a report of the analysis.",
         objective:
         `
           Analyze the key financial data for the company:
@@ -136,8 +126,8 @@ async function main() {
     const writerAgent = new Agent(
       {
         name: "Report writer",
-        role: "Report writer",
-        description: "You are a world class financial report writer.",
+        role: "You are a world class financial report writer.",
+        description: "Writes a professional stock report for the researched company.",
         objective: 
         `
         Create a professional stock report for the company:
@@ -173,25 +163,24 @@ async function main() {
         description: "You are a world class financial project manager",
         objective: 
         `
-          Use your team of agents to complete the research report for the requested company. 
+        Use your team of agents to complete the research report for the requested company. 
 
-          ## Workflow
+        ## Workflow
           1. Plan and assign tasks to the agents.
           2. If you need to, you can ask the agents to do a job multiple times.
           3. Don't let the agents work on the same job at the same time.
           4. Always check with the research evaluator agent the work of the Financial Researcher agent.
-          5. If the research evaluator agent returns a rating of POOR, ask the research agent to improve the report.
-          6. If the research evaluator agent returns a rating of GOOD or EXCELLENT, ask the financial analyst agent to analyze the report.
-          7. If the financial analyst agent returns a report, ask the report writer agent to write the report.
-          8. If the report writer agent returns a report, return the final report to the user.
-          
+          5. If the financial analyst agent returns a report, ask the report writer agent to write the report.
+          6. If the report writer agent returns a report, return the final report to the user.
+
+        ## Important
+        - Return final response as-is from Report Writer agent.
         `,
         model: model
       }
     )
 
     forge.registerAgent(researchAgent);
-    forge.registerAgent(researchEvaluator);
     forge.registerAgent(analystAgent);
     forge.registerAgent(writerAgent);
     forge.registerAgent(orchestratorAgent);
@@ -201,28 +190,41 @@ async function main() {
     )
 
     team.addAgent(researchAgent);
-    team.addAgent(researchEvaluator);
     team.addAgent(analystAgent);
     team.addAgent(writerAgent);
     
-    console.log("Running stock analysis workflow with tools enabled...");
-
     const result = await team.run(
-      "TSLA",
+      "Do a stock analysis for TSLA",
       {
         verbose: true,
-        // enableConsoleStream: true,
-        stream: true
+        enableConsoleStream: true,
+        stream: true,
+        // Add rate limiting to avoid API rate limit errors
+        rate_limit: 10
       }
     )
 
     console.log(result);
-    mcpBraveSearch.close();
-    process.exit(0);
-
+    
   } catch (error) {
+    console.error("Fatal error in main():", error);
+    if (error instanceof Error) {
+      console.error("Error stack:", error.stack);
+    }
     console.error("Error:", error);
-    process.exit(1);
+  } finally {
+    // Ensure all resources are properly cleaned up
+    try {
+      if (mcpBraveSearch) {
+        mcpBraveSearch.close();
+      }
+      if (mcpManager) {
+        await mcpManager.close();
+      }
+    } catch (cleanupError) {
+      console.error("Error during cleanup:", cleanupError);
+    }
+    process.exit(0);
   }
 }
 
