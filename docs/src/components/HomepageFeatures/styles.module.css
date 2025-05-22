@@ -1,64 +1,93 @@
 /* Overall features section */
 .features {
-  padding: 4rem 0;
+  padding: 2rem 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 4rem 2rem;
   /* Ensures the section itself has a very dark background in dark mode, and light in light mode */
   background-color: var(--ifm-background-color);
 }
 
-/* Each feature item will be a full-width row-like container */
+/* Each feature item will be a card */
 .featureItemContainer {
-  padding: 3rem 0; /* More vertical padding for each feature section */
-  border-bottom: 1px solid var(--ifm-hr-border-color); /* Separator line */
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+  transition: all 0.3s ease;
+  height: 100%;
+  background-color: var(--ifm-card-background-color);
+  display: flex;
+  flex-direction: column;
 }
 
-.featureItemContainer:last-child {
-  border-bottom: none;
+.featureItemContainer:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
 }
 
-/* Inner container for the 2-column layout (SVG + Text) */
+/* Inner container for the content layout (SVG + Text) */
 .featureContentWrapper {
   display: flex;
-  flex-direction: column; /* Stack on small screens */
-  align-items: center;
-  gap: 2rem;
+  flex-direction: column;
+  height: 100%;
+  padding: 0;
 }
 
 /* SVG pane */
 .featureSvgPane {
-  flex: 1 1 40%; /* Takes up about 40% of width, allows shrinking/growing */
+  flex: 0 0 auto;
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 1rem;
+  padding: 2rem 2rem 1rem;
+  background: linear-gradient(
+    135deg,
+    rgba(0, 105, 92, 0.05) 0%,
+    rgba(0, 121, 107, 0.15) 100%
+  );
+}
+
+[data-theme="dark"] .featureSvgPane {
+  background: linear-gradient(
+    135deg,
+    rgba(0, 77, 64, 0.4) 0%,
+    rgba(0, 121, 107, 0.2) 100%
+  );
 }
 
 .featureSvg {
-  max-width: 100%; /* Ensure SVG is responsive */
-  height: auto; /* Maintain aspect ratio */
-  max-height: 250px; /* Limit max height to keep things balanced */
+  max-width: 100%;
+  height: auto;
+  max-height: 150px;
 }
 
 /* Text pane */
 .featureTextPane {
-  flex: 1 1 60%; /* Takes up about 60% of width */
-  padding: 1rem;
+  flex: 1 1 auto;
+  padding: 1.5rem 2rem 2rem;
   display: flex;
   flex-direction: column;
-  justify-content: center; /* Vertically center text content */
 }
 
 .featureTextPane h3 {
   margin-top: 0;
   margin-bottom: 1rem;
-  font-size: 1.75rem; /* Larger heading for features */
-  color: var(--ifm-color-primary);
+  font-size: 1.5rem;
+  color: var(--ifm-color-primary-dark);
+  font-weight: 600;
+  line-height: 1.3;
 }
 
 .featureTextPane p {
   font-size: 1rem;
-  line-height: 1.7;
-  color: var(--ifm-font-color-secondary);
+  line-height: 1.6;
+  color: var(--ifm-font-color-base);
+  opacity: 0.85;
   margin-bottom: 0;
+  flex: 1;
 }
 
 /* Dark theme overrides */
@@ -66,25 +95,48 @@
   color: var(--ifm-color-primary-lightest);
 }
 
-/* Responsive adjustments for side-by-side layout */
-@media (min-width: 997px) {
-  /* Docusaurus md breakpoint */
-  .featureContentWrapper {
-    flex-direction: row; /* Side-by-side on medium screens and up */
-    align-items: center; /* Vertically align items in the row */
-  }
+[data-theme="dark"] .featureItemContainer {
+  background-color: var(--ifm-card-background-color);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
 
-  /* Alternate SVG and Text panes */
-  .featureItemContainer:nth-child(even) .featureContentWrapper {
-    flex-direction: row-reverse; /* Reverse order for even items */
+/* Feature tag */
+.featureTag {
+  display: inline-block;
+  background-color: var(--ifm-color-primary-lightest);
+  color: var(--ifm-color-primary-darkest);
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.25rem 0.75rem;
+  border-radius: 1rem;
+  margin-bottom: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+[data-theme="dark"] .featureTag {
+  background-color: var(--ifm-color-primary-dark);
+  color: white;
+}
+
+/* Responsive adjustments */
+@media (max-width: 996px) {
+  .features {
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    padding: 3rem 1.5rem;
+    gap: 1.5rem;
   }
 
   .featureSvgPane {
-    padding: 2rem;
+    padding: 1.5rem 1.5rem 0.75rem;
   }
 
   .featureTextPane {
-    padding: 2rem;
+    padding: 1.25rem 1.5rem 1.5rem;
+  }
+
+  .featureTextPane h3 {
+    font-size: 1.35rem;
   }
 }
 

@@ -9,94 +9,142 @@
   text-align: center;
   position: relative;
   overflow: hidden;
-  color: var(--ifm-hero-text-color, var(--ifm-font-color-base)); /* Default to base font color */
-  background-color: var(
-    --ifm-hero-background-color,
-    var(--ifm-background-color)
-  ); /* Default light mode background */
+  background: var(--ifm-hero-bg-color);
+  color: var(--ifm-hero-text-color);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
 }
 
 /* Dark Theme Specific Hero Banner */
 [data-theme="dark"] .heroBanner {
-  /* From a deep, slightly desaturated teal to a more vibrant one */
-  background: linear-gradient(135deg, #004d40 0%, #00796b 100%);
-  color: white;
+  background: linear-gradient(135deg, #00251a 0%, #003d2b 100%);
+  color: #ffffff;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
 }
 
 /* Light Theme Specific Hero Banner - a very subtle gradient or solid color */
 [data-theme="light"] .heroBanner {
-  /* Example: very light gray to a hint of pale teal */
-  /* background: linear-gradient(135deg, #f5f7fa 0%, #e0f2f1 100%); */
-  /* Or just a clean, slightly off-white */
-  background-color: #f7f7f7; /* A common light theme background */
-  color: var(--ifm-font-color-base); /* Standard text color for light theme */
+  background: linear-gradient(135deg, #e6f7f1 0%, #c4e8dc 100%);
+  color: #00251a;
 }
 
 .heroIntro {
-  max-width: 700px; /* Limit width of the intro paragraph for readability */
-  margin: 1.5rem auto 0; /* Center it and add some top margin */
-  font-size: 1.1rem;
+  max-width: 800px;
+  margin: 0 auto;
+  font-size: 1.2rem;
   line-height: 1.6;
-  /* Color will be inherited from .heroBanner based on theme */
+  margin-top: 1rem;
+  margin-bottom: 2rem;
+}
+
+.heroContainer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+.heroLeft {
+  flex: 1;
+  text-align: left;
+  padding-right: 2rem;
+}
+
+.heroRight {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.heroImage {
+  max-width: 90%;
+  height: auto;
+  border-radius: 8px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
 }
 
 .buttons {
   display: flex;
-  align-items: center;
-  justify-content: center;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  gap: 1rem;
   margin-top: 2rem;
 }
 
-/* --- Button Styling for Dark Theme --- */
+/* Button styling */
 [data-theme="dark"] .buttons .button--secondary {
-  background-color: rgba(255, 255, 255, 0.9);
-  color: var(--ifm-color-primary-darkest); /* Dark text for light button */
+  background-color: #fcfcfc;
+  color: var(--ifm-color-primary-dark);
   border: none;
+  transition: all 0.3s ease;
+  font-weight: 600;
 }
 
 [data-theme="dark"] .buttons .button--secondary:hover {
-  background-color: white;
+  background-color: #ffffff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 [data-theme="dark"] .buttons .button--info {
   background-color: transparent;
-  color: white;
-  border: 1px solid white;
+  color: #ffffff;
+  border: 2px solid #ffffff;
+  transition: all 0.3s ease;
+  font-weight: 600;
 }
 
 [data-theme="dark"] .buttons .button--info:hover {
   background-color: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.8);
+  transform: translateY(-2px);
 }
 
-/* --- Button Styling for Light Theme --- */
 [data-theme="light"] .buttons .button--secondary {
-  /* Docusaurus default secondary button usually works well in light mode */
-  /* We might not need to override it unless specific styling is desired */
-  /* Example: Ensure primary color text */
-  background-color: var(--ifm-color-primary);
-  color: var(--ifm-button-color, white); /* Text color for primary button */
+  background-color: var(--ifm-color-primary-dark);
+  color: white;
   border: none;
+  transition: all 0.3s ease;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 [data-theme="light"] .buttons .button--secondary:hover {
-  background-color: var(--ifm-color-primary-dark);
+  background-color: var(--ifm-color-primary-darker);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
 }
 
 [data-theme="light"] .buttons .button--info {
   background-color: transparent;
-  color: var(--ifm-color-primary);
-  border: 1px solid var(--ifm-color-primary);
+  color: var(--ifm-color-primary-dark);
+  border: 2px solid var(--ifm-color-primary-dark);
+  transition: all 0.3s ease;
+  font-weight: 600;
 }
 
 [data-theme="light"] .buttons .button--info:hover {
-  background-color: var(--ifm-color-primary-t10); /* 10% tint of primary or similar */
-  color: var(--ifm-color-primary-dark);
-  border-color: var(--ifm-color-primary-dark);
+  background-color: rgba(0, 35, 25, 0.05);
+  transform: translateY(-2px);
 }
 
 @media screen and (max-width: 996px) {
   .heroBanner {
     padding: 2rem;
+  }
+
+  .heroContainer {
+    flex-direction: column;
+  }
+
+  .heroLeft {
+    padding-right: 0;
+    text-align: center;
+    margin-bottom: 2rem;
+  }
+
+  .buttons {
+    justify-content: center;
   }
 }
