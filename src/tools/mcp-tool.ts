@@ -748,6 +748,16 @@ export class MCPManager {
    * Closes all MCP connections
    */
   async close(): Promise<void> {
+    // Clean up rate limiters
+    if (this.globalRateLimiter) {
+      this.globalRateLimiter.cleanup();
+    }
+
+    for (const rateLimiter of this.rateLimiters.values()) {
+      rateLimiter.cleanup();
+    }
+
+    // Close all clients
     for (const client of this.clients) {
       await client.close();
     }
