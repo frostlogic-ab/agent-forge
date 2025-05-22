@@ -18,6 +18,7 @@
           "documentation": "patch",
           "bug": "patch",
           "fix": "patch",
+          "dependencies": "patch",
           "breaking": "major"
         }
       }

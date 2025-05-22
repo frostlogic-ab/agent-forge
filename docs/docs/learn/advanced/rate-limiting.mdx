@@ -5,15 +5,15 @@ sidebar_label: "Rate Limiting"
 
 # Rate Limiting LLM API Calls
 
-When working with Large Language Models (LLMs), especially in complex multi-agent scenarios or long-running tasks, it's crucial to manage your API usage to avoid hitting rate limits imposed by providers and to control costs. Agent Forge provides built-in rate limiting capabilities for `Team` and `Workflow` executions.
+When working with Large Language Models (LLMs), especially in complex multi-agent scenarios or long-running tasks, it's crucial to manage your API usage to avoid hitting rate limits imposed by providers and to control costs. Agent Forge provides built-in rate limiting capabilities for `Team` and `Workflow` executions, as well as for MCP tools.
 
 ## Why is Rate Limiting Important?
 
-*   **Prevent Quota Issues:** LLM providers (like OpenAI, Anthropic, etc.) enforce rate limits on how many requests you can make in a given time period (e.g., requests per minute, tokens per minute).
+*   **Prevent Quota Issues:** LLM providers (like OpenAI, Anthropic, etc.) and other APIs (like search providers) enforce rate limits on how many requests you can make in a given time period (e.g., requests per minute, tokens per minute).
 *   **Cost Control:** Uncontrolled API calls can lead to unexpectedly high bills.
-*   **Service Stability:** Adhering to rate limits ensures fair usage and stability of the LLM provider's services for all users.
+*   **Service Stability:** Adhering to rate limits ensures fair usage and stability of the services for all users.
 
-## How Agent Forge Handles Rate Limiting
+## Rate Limiting for Teams and Workflows
 
 You can specify the maximum number of LLM calls per minute when running a `Team` or a `Workflow`.
 
@@ -93,16 +93,75 @@ async function runWorkflowWithRateLimit() {
 *   The value (e.g., `20` or `10`) specifies the maximum number of LLM API calls that Agent Forge will attempt to make per minute *for that particular execution run*.
 *   Agent Forge internally manages the timing of LLM calls to stay within this specified limit.
 
+## Rate Limiting for MCP Tools
+
+Model Context Protocol (MCP) tools often interact with external APIs that have their own rate limits. Agent Forge provides a robust rate limiting system for MCP tools with these features:
+
+- **Per-second or per-minute limits**: Set limits that match your API's requirements
+- **Global and tool-specific limits**: Apply different limits to different tools
+- **Pattern-based tool matching**: Target specific tools by name pattern
+- **Request queuing**: Automatically queue requests that exceed the rate limit
+- **Exponential backoff**: Implement retries with exponential backoff for rate-limited requests
+- **Request caching**: Avoid redundant API calls by caching identical requests
+
+**Example: Setting up MCP with Rate Limiting**
+
+```typescript
+import { MCPManager, createMCPClient, MCPProtocolType } from "agent-forge";
+
+// Create MCP manager with rate limiting
+const mcpManager = new MCPManager({
+  // Global rate limits (applies to all tools)
+  rateLimitPerMinute: 60,     // Optional: Limit all tools to 60 requests per minute
+  rateLimitPerSecond: 1,      // Optional: Limit all tools to 1 request per second
+  
+  // Tool-specific rate limits (higher priority than global limits)
+  toolSpecificLimits: {
+    'brave': {                // Will match any tool with 'brave' in its name
+      rateLimitPerSecond: 1   // Limit to 1 request per second (e.g., for Brave Search API)
+    },
+    'fetch': {
+      rateLimitPerMinute: 30  // Limit to 30 requests per minute
+    }
+  },
+  
+  // Debugging
+  verbose: true               // Optional: Log rate limiting details
+});
+
+// Create and add MCP clients
+const braveSearchClient = createMCPClient(MCPProtocolType.STDIO, {
+  command: "docker",
+  args: ["run", "-i", "mcp/brave-search"],
+  env: { BRAVE_API_KEY: process.env.BRAVE_API_KEY || "" },
+  verbose: true
+});
+
+// Add client to manager
+await mcpManager.addClient(braveSearchClient);
+```
+
+**Key Points:**
+
+- Set `rateLimitPerSecond` or `rateLimitPerMinute` as global defaults for all MCP tools
+- Use `toolSpecificLimits` to set different limits for different tools based on their name patterns
+- The `verbose` option provides detailed logging of rate limiting activity
+- Rate limiting is applied automatically when MCP tools are used by agents
+
+For more details on MCP integration, see the [Model Context Protocol (MCP)](./model-context-protocol.mdx) documentation.
+
 ## Best Practices
 
 *   **Monitor Usage:** Keep an eye on your API usage through your LLM provider's dashboard.
 *   **Start Conservatively:** If you're unsure, start with a lower rate limit and increase it if necessary and if your provider's limits allow.
 *   **Consider Task Complexity:** More complex tasks or teams with many agents interacting frequently might require more LLM calls.
+*   **Match API Provider Limits:** Set your MCP tool rate limits to match the documented limits of the services you're using (e.g., 1 request/second for Brave Search API).
 *   **Provider-Specific Limits:** Always be aware of the actual rate limits of your chosen LLM provider, as Agent Forge's rate limiting helps you stay *within* those, but doesn't change them.
 
-By utilizing Agent Forge's rate limiting feature, you can develop more robust and cost-effective AI agent applications.
+By utilizing Agent Forge's rate limiting features, you can develop more robust and cost-effective AI agent applications.
 
 ## Next Steps
 
 *   Explore [Debugging Features](./debugging-features.mdx) for insights into agent execution.
-*   Learn about [Streaming Support](./streaming-support.mdx) for real-time feedback during agent operations. 
+*   Learn about [Streaming Support](./streaming-support.mdx) for real-time feedback during agent operations.
+*   See the [Model Context Protocol (MCP)](./model-context-protocol.mdx) documentation for more details on MCP rate limiting. 

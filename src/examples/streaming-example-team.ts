@@ -1,4 +1,5 @@
 import * as dotenv from "dotenv";
+// Load environment variables from .env file at the project root
 dotenv.config();
 
 import { AgentForge } from "../core/agent-forge";
@@ -10,10 +11,18 @@ import { WebPageContentTool } from "../tools/web-page-content-tool";
 import { LLM } from "../llm/llm";
 import { LLMProvider } from "../types";
 
-// Create an LLM provider with your API key
-const provider = process.env.LLM_PROVIDER as LLMProvider  || "openai";
+const provider = (process.env.LLM_PROVIDER as LLMProvider) || "openai";
 const apiKey = process.env.LLM_API_KEY;
-const model = process.env.LLM_MODEL || "gpt-4o-mini";
+const model = process.env.LLM_API_MODEL!;
+
+if (!apiKey) {
+  console.error(
+      `Error: LLM_API_KEY environment variable not set. ` +
+      "Please create a .env file in the project root (from .env.sample) " +
+      "and add your LLM_API_KEY (and optionally LLM_PROVIDER, LLM_MODEL)."
+  );
+  process.exit(1);
+}
 
 const llm = new LLM(provider, {
   apiKey,
@@ -52,7 +61,7 @@ const researcherAgent = new Agent(
     model: model,
     temperature: 0.2,
   },
-  [webSearchTool, webPageContentTool], // Pass tools as second argument
+  [webSearchTool, webPageContentTool],
   llm
 );
 
@@ -67,7 +76,7 @@ const writerAgent = new Agent(
     model: model,
     temperature: 0.7,
   },
-  [], // No tools
+  [],
   llm
 );
 
@@ -82,7 +91,7 @@ const factCheckerAgent = new Agent(
     model: model,
     temperature: 0.3,
   },
-  [webSearchTool], // Pass tools as second argument
+  [webSearchTool],
   llm
 );
 

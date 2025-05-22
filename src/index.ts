@@ -9,10 +9,12 @@ export { Team } from "./core/team";
 export { loadAgentFromYaml } from "./config/yaml-loader";
 export { AgentForge } from "./core/agent-forge";
 
+// A2A Protocol exports (New Addition)
+export * as A2A from "./a2a";
+
 // Tool system exports
 export { Tool } from "./tools/tool";
 export { ToolRegistry } from "./tools/tool-registry";
-export { SECApiTool } from "./tools/sec-api-tool";
 export { WebSearchTool } from "./tools/web-search-tool";
 export { WebPageContentTool } from "./tools/web-page-content-tool";
 export {

@@ -37,7 +37,12 @@ To integrate MCP clients, follow these steps:
         // and it's executable and in the correct path.
 
         async function connectToStdioMCP() {
-          const mcpManagerStdio = new MCPManager();
+          const mcpManagerStdio = new MCPManager({
+            // Global rate limit (applies to all tools)
+            rateLimitPerSecond: 2, // Optional: Limit to 2 requests per second
+            verbose: true, // For debugging the client-server communication
+          });
+          
           const stdioClient = createMCPClient(MCPProtocolType.STDIO, {
             command: "python", // Or python3, etc.
             args: ["./path/to/your/mcp_server.py"], // Adjust path to your server script
@@ -59,7 +64,16 @@ To integrate MCP clients, follow these steps:
         import { createMCPClient, MCPProtocolType, MCPManager } from "agent-forge";
 
         async function connectToStreamableHttpMCP() {
-          const mcpManagerHttp = new MCPManager();
+          const mcpManagerHttp = new MCPManager({
+            rateLimitPerMinute: 30, // Optional: Limit to 30 requests per minute
+            // Tool-specific rate limits
+            toolSpecificLimits: {
+              'search': { rateLimitPerMinute: 10 }, // Limit search tools to 10 calls per minute
+              'fetch': { rateLimitPerSecond: 2 }    // Limit fetch tools to 2 calls per second
+            },
+            verbose: true, // For debugging rate limiting and MCP calls
+          });
+          
           const streamableHttpClient = createMCPClient(MCPProtocolType.STREAMABLE_HTTP, {
             baseUrl: "https://your-mcp-server.example.com/mcp", // Replace with actual server URL
             // headers: { Authorization: "Bearer your-token" }, // Optional: if your server requires auth
@@ -176,9 +190,85 @@ To integrate MCP clients, follow these steps:
     // Example: closeMCPConnections(mcpManager); // Call with your MCPManager instance
     ```
 
+## MCP Rate Limiting Options
+
+Agent Forge provides built-in rate limiting for MCP tools to prevent hitting API rate limits and control costs when using external services.
+
+### Available Rate Limiting Options
+
+When creating an `MCPManager`, you can specify these rate limiting options:
+
+```typescript
+const mcpManager = new MCPManager({
+  // Global rate limits (applies to all tools)
+  rateLimitPerMinute: 60,     // Optional: Limit all tools to 60 requests per minute
+  rateLimitPerSecond: 1,      // Optional: Limit all tools to 1 request per second
+  
+  // Tool-specific rate limits (higher priority than global limits)
+  toolSpecificLimits: {
+    'brave': {                // Will match any tool with 'brave' in its name
+      rateLimitPerSecond: 1   // Limit to 1 request per second (e.g., for Brave Search API)
+    },
+    'fetch': {
+      rateLimitPerMinute: 30  // Limit to 30 requests per minute
+    }
+  },
+  
+  // Debugging
+  verbose: true               // Optional: Log rate limiting details
+});
+```
+
+### Features of MCP Rate Limiting
+
+- **Per-second or per-minute limits**: Choose the appropriate timing for your API's requirements
+- **Pattern-based tool matching**: Apply different limits to different tools based on name patterns
+- **Request queuing**: Automatically queues requests that exceed the rate limit
+- **Exponential backoff**: Implements retry with exponential backoff for rate-limited requests
+- **Request caching**: Caches identical requests to avoid redundant API calls (with a configurable TTL)
+
+### Example: Using Rate Limiting with Brave Search API
+
+Here's an example that properly configures rate limiting for the Brave Search API, which has a limit of 1 query per second:
+
+```typescript
+import { MCPManager, createMCPClient, MCPProtocolType } from "agent-forge";
+
+async function createRateLimitedBraveSearch() {
+  // Create MCP manager with appropriate rate limiting
+  const mcpManager = new MCPManager({
+    // Global conservative default
+    rateLimitPerSecond: 1,
+    // Tool-specific limits
+    toolSpecificLimits: {
+      'brave': {
+        rateLimitPerSecond: 1  // Brave API allows 1 query per second
+      }
+    },
+    verbose: true  // Show rate limiting logs
+  });
+  
+  // Create the MCP client for Brave Search
+  const mcpBraveSearch = createMCPClient(MCPProtocolType.STDIO, {
+    command: "docker",
+    args: ["run", "-i", "--rm", "-e", "BRAVE_API_KEY", "mcp/brave-search"],
+    env: {
+      BRAVE_API_KEY: process.env.BRAVE_API_KEY || "",
+    },
+    verbose: true
+  });
+
+  // Add client to manager
+  await mcpManager.addClient(mcpBraveSearch);
+  const mcpTools = mcpManager.getTools();
+  
+  return { mcpManager, mcpTools };
+}
+```
+
 ## Example Code Structure
 
-Here's a conceptual example of how to integrate and use MCP tools:
+Here's a conceptual example of how to integrate and use MCP tools with rate limiting:
 
 ```typescript
 import {
@@ -197,7 +287,14 @@ async function runMCPExample() {
 
   const llmProvider = new LLM("openai", { apiKey });
 
-  const mcpManagerInstance = new MCPManager();
+  const mcpManagerInstance = new MCPManager({
+    rateLimitPerSecond: 2,
+    toolSpecificLimits: {
+      'search': { rateLimitPerMinute: 10 },
+      'fetch': { rateLimitPerSecond: 2 }
+    },
+    verbose: true
+  });
 
   // Example: Connect to a Streamable HTTP MCP server
   // Replace with your actual MCP server details or choose a different protocol (STDIO, SSE)
@@ -248,9 +345,10 @@ async function runMCPExample() {
 runMCPExample().catch(console.error);
 ```
 
-Integrating with MCP tool servers via Agent Forge allows for a highly scalable and versatile agent architecture.
+Integrating with MCP tool servers via Agent Forge allows for a highly scalable and versatile agent architecture, and the built-in rate limiting ensures reliable and cost-effective operation.
 
 ## Next Steps
 
 *   Explore the [Tools Ecosystem overview](../core-concepts/tools-ecosystem.mdx) to understand how local and MCP tools fit together.
+*   Learn more about [Rate Limiting](./rate-limiting.mdx) for controlling API usage across your application.
 *   If you are developing MCP tool servers, consult the Model Context Protocol specification for details on server-side implementation. 

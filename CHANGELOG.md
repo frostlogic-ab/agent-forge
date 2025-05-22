@@ -1,4 +1,44 @@
 ## What's Changed
+* fix an issue where a rate limited request will not restart after timer by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/33
+
+
+**Full Changelog**: https://github.com/frostlogic-ab/agent-forge/compare/v1.5.0-alpha.4...v1.5.0-alpha.5
+
+# [1.5.0-alpha.5](https://github.com/frostlogic-ab/agent-forge/compare/v1.5.0-alpha.4...v1.5.0-alpha.5) (2025-05-22)
+
+## What's Changed
+* add rate limiting support for MCP tools by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/32
+
+
+**Full Changelog**: https://github.com/frostlogic-ab/agent-forge/compare/v1.5.0-alpha.3...v1.5.0-alpha.4
+
+# [1.5.0-alpha.4](https://github.com/frostlogic-ab/agent-forge/compare/v1.5.0-alpha.3...v1.5.0-alpha.4) (2025-05-22)
+
+## What's Changed
+* update mcp sdk to latest 1.11.5 by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/31
+
+
+**Full Changelog**: https://github.com/frostlogic-ab/agent-forge/compare/v1.5.0-alpha.2...v1.5.0-alpha.3
+
+# [1.5.0-alpha.3](https://github.com/frostlogic-ab/agent-forge/compare/v1.5.0-alpha.2...v1.5.0-alpha.3) (2025-05-21)
+
+## What's Changed
+* redo stock analysis example and remove sectool by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/30
+
+
+**Full Changelog**: https://github.com/frostlogic-ab/agent-forge/compare/v1.5.0-alpha.1...v1.5.0-alpha.2
+
+# [1.5.0-alpha.2](https://github.com/frostlogic-ab/agent-forge/compare/v1.5.0-alpha.1...v1.5.0-alpha.2) (2025-05-21)
+
+## What's Changed
+* Add A2A support through SSE and JSON RPC by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/26
+
+
+**Full Changelog**: https://github.com/frostlogic-ab/agent-forge/compare/v1.4.1...v1.5.0-alpha.1
+
+# [1.5.0-alpha.1](https://github.com/frostlogic-ab/agent-forge/compare/v1.4.1...v1.5.0-alpha.1) (2025-05-16)
+
+## What's Changed
 * fix error in diagram by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/25
 
 
