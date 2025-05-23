@@ -1,4 +1,13 @@
 ## What's Changed
+* update design for documentation homepage by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/37
+* Refactor Team workflow code as it became big and hard to maintain by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/38
+
+
+**Full Changelog**: https://github.com/frostlogic-ab/agent-forge/compare/v1.5.0-beta.2...v1.5.0-beta.3
+
+# [1.5.0-beta.3](https://github.com/frostlogic-ab/agent-forge/compare/v1.5.0-beta.2...v1.5.0-beta.3) (2025-05-23)
+
+## What's Changed
 * add anonymous visitor tracking on documentation pages by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/27
 * remove documentation from triggering a release by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/28
 * fix tool call function arguments parsing by @mciocan-bd in https://github.com/frostlogic-ab/agent-forge/pull/29
