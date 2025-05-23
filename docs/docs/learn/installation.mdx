@@ -39,6 +39,8 @@ This will add `agent-forge` to your project's dependencies.
 
 Many AI agents require API keys for Large Language Models (LLMs) or other services. Agent Forge often uses environment variables to configure these.
 
+**⚠️ Security Note:** Never hardcode API keys directly in your source code. Always use environment variables to keep your keys secure and prevent them from being accidentally committed to version control.
+
 It's a good practice to use a `.env` file to manage your API keys and other sensitive information. Install the `dotenv` package if you haven't already:
 
 ### Using Yarn

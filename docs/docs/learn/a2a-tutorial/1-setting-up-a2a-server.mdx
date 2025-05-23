@@ -32,11 +32,11 @@ async function runMyA2AServer() {
 
     // Configure your LLM provider
     const llmConfig = {
-      apiKey: process.env.OPENAI_API_KEY || "YOUR_OPENAI_API_KEY_HERE",
+      apiKey: process.env.OPENAI_API_KEY,
     };
 
-    if (!llmConfig.apiKey || llmConfig.apiKey === "YOUR_OPENAI_API_KEY_HERE") {
-      console.error("OpenAI API key is not configured. Please set the OPENAI_API_KEY environment variable or update the script.");
+    if (!llmConfig.apiKey) {
+      console.error("OpenAI API key is not configured. Please set the OPENAI_API_KEY environment variable.");
       process.exit(1);
     }
     
@@ -97,7 +97,7 @@ runMyA2AServer();
 
 *   **Imports**: It imports necessary classes (`Agent`, `LLM`, `A2AServer`, `defaultAgentToTaskHandlerAdapter`) and types from the `agent-forge` package.
 *   **Agent Definition**: A standard `HelpfulAssistantAgent` is defined and instantiated.
-*   **LLM Configuration**: It sets up an LLM provider. **Remember to replace `"YOUR_OPENAI_API_KEY_HERE"` or set the `OPENAI_API_KEY` environment variable.**
+*   **LLM Configuration**: It sets up an LLM provider. **Remember to set the `OPENAI_API_KEY` environment variable.**
 *   **`A2AServer` Initialization**: An `A2AServer` instance is created, taking your agent, server options (port, host, endpoint, verbose logging, and custom logger), and the `defaultAgentToTaskHandlerAdapter`.
 *   **Server Start**: The `a2aServer.start()` method initiates the HTTP server.
 *   **Agent Card**: The server automatically makes an Agent Card available at the `/.well-known/agent.json` path (e.g., `http://localhost:41241/.well-known/agent.json`). This card provides metadata about your hosted agent.
