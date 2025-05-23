@@ -1,17 +1,27 @@
 import { Agent } from "../core/agent";
 import type { AgentConfig, LLMProvider } from "../types";
-import { A2AServer } from "../a2a"; // Import A2AServer from the main A2A export
-import { defaultAgentToTaskHandlerAdapter } from "../a2a/server/agentAdapter"; 
-import { LLM } from "../llm/llm"; 
+import { a2aServer } from "../a2a/decorators";
+import { LLM } from "../llm/llm";
 import * as dotenv from 'dotenv';
 
 // Load environment variables from .env file at the project root
 dotenv.config();
 
+/**
+ * Example of using the @a2aServer decorator to expose an agent via A2A protocol.
+ * The server will start automatically when the agent is instantiated.
+ *
+ * @example
+ * @a2aServer({ port: 41241, host: "localhost", endpoint: "/a2a", verbose: true })
+ * class HelpfulAssistantAgent extends Agent { ... }
+ */
+@a2aServer({ port: 41241, host: "localhost", endpoint: "/a2a", verbose: true })
+class HelpfulAssistantAgent extends Agent {}
+
 async function runA2AServer() {
     const configuredProvider = (process.env.LLM_PROVIDER as LLMProvider) || "openai";
     const configuredApiKey = process.env.LLM_API_KEY;
-    const configuredModel = process.env.LLM_API_MODEL!; // Default model adjustment
+    const configuredModel = process.env.LLM_API_MODEL!;
 
     if (!configuredApiKey) {
       console.error(
@@ -22,7 +32,6 @@ async function runA2AServer() {
       process.exit(1);
     }
 
-    // 1. Define an agent-forge agent
     const agentConfig: AgentConfig = {
         name: "HelpfulAssistantAgent",
         role: "Helpful Assistant",
@@ -34,38 +43,20 @@ async function runA2AServer() {
     const llmConfig = { apiKey: configuredApiKey };
     const llmProvider = new LLM(configuredProvider, llmConfig);
 
-    const helpfulAgent = new Agent(agentConfig, [], llmProvider);
+    // Instantiating the agent will start the A2A server automatically
+    // (The decorator handles server startup)
+    const helpfulAgent = new HelpfulAssistantAgent(agentConfig, [], llmProvider);
 
-    // 2. Configure and instantiate A2AServer
-    const serverOptions = {
-        port: 41241,
-        host: "localhost",
-        endpoint: "/a2a",
-        verbose: true,
-    };
-
-    const a2aServer = new A2AServer(
-        helpfulAgent, 
-        serverOptions, 
-        defaultAgentToTaskHandlerAdapter
-    );
-
-    // 3. Start the server
-    try {
-        await a2aServer.start();
-        console.log("Press Ctrl+C to stop the server.");
-
-        process.on('SIGINT', async () => {
-            console.log("\nShutting down A2A server...");
-            await a2aServer.stop();
+    console.log("A2A server started. Press Ctrl+C to stop the server.");
+    process.on('SIGINT', async () => {
+        console.log("\nShutting down A2A server...");
+        const agentWithServer = helpfulAgent as any;
+        if (agentWithServer.a2aServer) {
+            await agentWithServer.a2aServer.stop();
             console.log("Server stopped.");
-            process.exit(0);
-        });
-
-    } catch (error) {
-        console.error("Failed to start A2A server:", error);
-        process.exit(1);
-    }
+        }
+        process.exit(0);
+    });
 }
 
 runA2AServer(); 

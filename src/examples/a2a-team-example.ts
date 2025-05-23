@@ -1,10 +1,20 @@
 import { Agent, AgentForge, LLM, Team } from "../index";
 import { type AgentConfig, type LLMProvider } from "../types";
-import { type A2AClientOptions, RemoteA2AAgent } from "../a2a";
+import { a2aClient } from "../a2a/decorators";
 import * as dotenv from 'dotenv';
 
 // Load environment variables from .env file at the project root
 dotenv.config();
+
+/**
+ * Example of using the @a2aClient decorator to connect an agent to a remote A2A server.
+ *
+ * @example
+ * @a2aClient({ serverUrl: "http://localhost:41241/a2a" })
+ * class RemoteHelpfulAssistant extends Agent { ... }
+ */
+@a2aClient({ serverUrl: "http://localhost:41241/a2a" })
+class RemoteHelpfulAssistant extends Agent {}
 
 // This example demonstrates a "manager" agent that uses a remote agent 
 // (hosted by the a2a-server-example.ts) to accomplish a task.
@@ -43,29 +53,14 @@ async function runA2ATeamRealWorldExample() {
     const managerAgent = new Agent(managerAgentConfig, [], llmProvider); // No tools for manager, it delegates
     forge.registerAgent(managerAgent); // Register with forge if you were loading it through forge methods elsewhere
 
-    // 4. Instantiate RemoteA2AAgent (connects to the server agent)
-    let helpfulAssistantRemoteAgent: RemoteA2AAgent;
-
+    // 4. Use the decorated class to create the remote agent (returns a Promise)
+    let helpfulAssistantRemoteAgent: RemoteHelpfulAssistant;
     try {
-        const clientOptions: A2AClientOptions = {
-            serverUrl: "http://localhost:41241/a2a",
-        };
-        // Create the remote agent client.
-        // The agent's name, description, and other core properties will be fetched from the remote agent's card.
-        // An optional second argument to RemoteA2AAgent.create() can be used as a localAlias to override the fetched name.
-        // Here, we are omitting it, so the name defined on the server will be used.
-        helpfulAssistantRemoteAgent = await RemoteA2AAgent.create(
-            clientOptions
-            // No localAlias provided; name will be fetched from the server.
-            // Example of providing an alias:
-            // helpfulAssistantRemoteAgent = await RemoteA2AAgent.create(
-            // clientOptions,
-            // "MyLocallyNamedAssistant"
-            // );
-        );
+        // Type assertion to 'any' to allow zero-argument construction; safe because decorator intercepts
+        helpfulAssistantRemoteAgent = await new RemoteHelpfulAssistant();
         console.log(`INFO: Remote agent '${helpfulAssistantRemoteAgent.name}' initialized. Description: ${helpfulAssistantRemoteAgent.description}`);
     } catch (error) {
-        console.error("ERROR: Failed to create RemoteA2AAgent.");
+        console.error("ERROR: Failed to create RemoteHelpfulAssistant via @a2aClient.");
         if (error instanceof Error) {
             console.error(`Error: ${error.message}`);
         } else {
