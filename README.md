@@ -2,6 +2,7 @@
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
+[![Documentation](https://img.shields.io/badge/Documentation-blue?style=for-the-badge&logo=read-the-docs&logoColor=white)](https://frostlogic-ab.github.io/agent-forge/)
 
 Agent Forge is a TypeScript framework for creating, configuring, and orchestrating AI agents that connect to LLMs (Large Language Models). It allows developers to define agents through YAML configuration files and enables both sequential and hierarchical execution patterns. Its core goal is to simplify the development of sophisticated agent-based applications by providing a structured approach to agent definition, tool integration, and multi-agent collaboration.
 
@@ -20,6 +21,7 @@ Agent Forge is a TypeScript framework for creating, configuring, and orchestrati
   - [Debug Interactions](#7-debug-team-interactions-with-verbose-logging)
   - [Stream Communications](#8-stream-agent-communications-in-real-time)
   - [Use Model Context Protocol](#9-use-model-context-protocol-mcp-to-extend-agent-capabilities)
+  - [Agent-to-Agent (A2A) Communication](#10-agent-to-agent-a2a-communication)
 - [Development](#development)
 - [Documentation](#documentation)
 - [Contributing](#contributing)
@@ -581,6 +583,57 @@ You can run the MCP example with:
 ```bash
 yarn example:mcp
 ```
+
+---
+
+## 10. Agent-to-Agent (A2A) Communication
+
+Agent Forge now supports an Agent-to-Agent (A2A) communication protocol, enabling agents to interact with each other, even if they are running in separate processes or on different machines. This allows for the creation of more complex and distributed multi-agent systems.
+
+The A2A protocol is built on JSON-RPC and can operate over HTTP/HTTPS. It allows one agent (a "client" or "manager" agent) to send tasks to another agent (a "server" agent) and receive results, including streaming updates.
+
+### Key A2A Components:
+
+-   **`A2AServer`**: Hosts an Agent Forge agent, making it available for remote task execution via the A2A protocol. It exposes an endpoint where client agents can send tasks.
+-   **`A2AClient`**: Used by an agent to communicate with an `A2AServer`. It handles the underlying JSON-RPC communication.
+-   **`RemoteA2AAgent`**: A specialized Agent Forge `Agent` that acts as a local proxy for a remote agent. When `RemoteA2AAgent.run()` is called, it uses an `A2AClient` to delegate the task to the actual agent running on an `A2AServer`. This allows a manager agent to use a remote agent almost as if it were a local tool or a directly instantiated agent.
+
+### Running the A2A Examples:
+
+Two example files are provided in the `src/examples/` directory to demonstrate A2A communication:
+
+1.  **`a2a-server-example.ts`**: This script starts an `A2AServer` that hosts a simple "HelpfulAssistantAgent".
+2.  **`a2a-team-example.ts`**: This script demonstrates a "manager" agent that uses a `RemoteA2AAgent` to connect to the server agent started by `a2a-server-example.ts` and delegate a task to it.
+
+**Prerequisites:**
+*   Ensure you have an OpenAI API key set up either as an environment variable (`OPENAI_API_KEY`) or directly in the example files (not recommended for production).
+
+**Steps to run the examples:**
+
+1.  **Compile the TypeScript code:**
+    ```bash
+    npm run build
+    # or
+    yarn build
+    # or
+    pnpm build
+    ```
+
+2.  **Start the A2A Server:**
+    Open a terminal and run:
+    ```bash
+    node dist/examples/a2a-server-example.js
+    ```
+    You should see output indicating the server has started, typically on `http://localhost:41241/a2a`.
+
+3.  **Run the A2A Team Example (Client):**
+    Open another terminal and run:
+    ```bash
+    node dist/examples/a2a-team-example.js
+    ```
+    This script will connect to the running A2A server, send a task, and print the response from the remote "HelpfulAssistantAgent".
+
+This setup demonstrates how a local agent can seamlessly delegate tasks to a remote agent, opening up possibilities for building distributed agent teams. The communication handles task lifecycle, status updates, and artifact (output) retrieval. While the current client supports polling and a basic structure for SSE streaming (for `tasks/sendSubscribe`), the full SSE client implementation for JSON-RPC initiated over POST is a complex area and may be further developed.
 
 ---
 

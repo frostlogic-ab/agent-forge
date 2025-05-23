@@ -4529,6 +4529,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@microsoft/fetch-event-source@npm:^2.0.1":
+  version: 2.0.1
+  resolution: "@microsoft/fetch-event-source@npm:2.0.1"
+  checksum: 10c0/38c69e9b9990e6cee715c7bbfa2752f943b42575acadb36facf19bb831f1520c469f854277439154258e0e1dc8650cc85038230d1f451e3f6b62e8faeaa1126c
+  languageName: node
+  linkType: hard
+
 "@mistralai/mistralai@npm:0.5.0":
   version: 0.5.0
   resolution: "@mistralai/mistralai@npm:0.5.0"
@@ -4538,13 +4545,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@modelcontextprotocol/sdk@npm:^1.11.0":
-  version: 1.11.0
-  resolution: "@modelcontextprotocol/sdk@npm:1.11.0"
+"@modelcontextprotocol/sdk@npm:^1.11.5":
+  version: 1.11.5
+  resolution: "@modelcontextprotocol/sdk@npm:1.11.5"
   dependencies:
+    ajv: "npm:^8.17.1"
     content-type: "npm:^1.0.5"
     cors: "npm:^2.8.5"
-    cross-spawn: "npm:^7.0.3"
+    cross-spawn: "npm:^7.0.5"
     eventsource: "npm:^3.0.2"
     express: "npm:^5.0.1"
     express-rate-limit: "npm:^7.5.0"
@@ -4552,7 +4560,7 @@ __metadata:
     raw-body: "npm:^3.0.0"
     zod: "npm:^3.23.8"
     zod-to-json-schema: "npm:^3.24.1"
-  checksum: 10c0/10ce5ebe54b238df614051e0f2ef8f037fee6ceda7a870f5892c84efe21cbdcdb7e932d9be25e91982e0eb40e4c8ed33da9b0b2ca01df6baa76eb0cd5cb89ce6
+  checksum: 10c0/dc0108769afd40cff29cf1f035fbfbd11693fb71c75fe5bd090a33b6cb5fc0e8618442ba28369cd08d2b64f6e7ee2921582fe8c81e1414ef2383a1c0cedcf918
   languageName: node
   linkType: hard
 
@@ -6693,6 +6701,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@types/eventsource@npm:^3.0.0":
+  version: 3.0.0
+  resolution: "@types/eventsource@npm:3.0.0"
+  dependencies:
+    eventsource: "npm:*"
+  checksum: 10c0/a6f41505cb6a5869c86f8959fd841db573d2b14e9183ffb03221d89bbc955c656b411a59873b953bad829d75dccd3033032ccd3791c27febe5b15da6a899c334
+  languageName: node
+  linkType: hard
+
 "@types/express-serve-static-core@npm:*, @types/express-serve-static-core@npm:^5.0.0":
   version: 5.0.6
   resolution: "@types/express-serve-static-core@npm:5.0.6"
@@ -6918,12 +6935,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/node@npm:^22.15.14":
-  version: 22.15.14
-  resolution: "@types/node@npm:22.15.14"
+"@types/node@npm:^22.15.21":
+  version: 22.15.21
+  resolution: "@types/node@npm:22.15.21"
   dependencies:
     undici-types: "npm:~6.21.0"
-  checksum: 10c0/a977c1518d53e3b85e8c56fe619d6eca4bc79224d24e7068f55589b3b4a60b8390c859290068b9a00d8a07bee809535afaa952fc31544dff8f8de8975d94c531
+  checksum: 10c0/f092bbccda2131c2b2c8f720338080aa0ef1d928f5f1062c03954a4f7dafa7ee3ed29bc3e51bd4e2584473b3d943c637a2b39ad7174898970818270187cf10c1
   languageName: node
   linkType: hard
 
@@ -7391,17 +7408,20 @@ __metadata:
     "@bobvanderlinden/semantic-release-pull-request-analyzer": "npm:^1.0.4"
     "@docusaurus/core": "npm:^3.7.0"
     "@docusaurus/preset-classic": "npm:^3.7.0"
-    "@modelcontextprotocol/sdk": "npm:^1.11.0"
+    "@microsoft/fetch-event-source": "npm:^2.0.1"
+    "@modelcontextprotocol/sdk": "npm:^1.11.5"
     "@semantic-release/changelog": "npm:^6.0.3"
     "@semantic-release/git": "npm:^10.0.1"
+    "@types/eventsource": "npm:^3.0.0"
     "@types/jest": "npm:^29.5.14"
-    "@types/node": "npm:^22.15.14"
+    "@types/node": "npm:^22.15.21"
     "@types/react": "npm:^19"
     "@types/react-dom": "npm:^19"
     axios: "npm:^1.9.0"
     cheerio: "npm:^1.0.0"
     dotenv: "npm:^16.5.0"
     event-source-polyfill: "npm:^1.0.31"
+    eventsource: "npm:^4.0.0"
     jest: "npm:^29.7.0"
     react: "npm:^19.1.0"
     react-dom: "npm:^19.1.0"
@@ -7411,8 +7431,8 @@ __metadata:
     ts-node: "npm:^10.9.2"
     ts-node-dev: "npm:^2.0.0"
     typescript: "npm:^5.8.3"
-    yaml: "npm:^2.7.1"
-    zod: "npm:^3.24.4"
+    yaml: "npm:^2.8.0"
+    zod: "npm:^3.25.20"
   languageName: unknown
   linkType: soft
 
@@ -7491,7 +7511,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ajv@npm:^8.0.0, ajv@npm:^8.9.0":
+"ajv@npm:^8.0.0, ajv@npm:^8.17.1, ajv@npm:^8.9.0":
   version: 8.17.1
   resolution: "ajv@npm:8.17.1"
   dependencies:
@@ -9099,7 +9119,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"cross-spawn@npm:^7.0.3, cross-spawn@npm:^7.0.6":
+"cross-spawn@npm:^7.0.3, cross-spawn@npm:^7.0.5, cross-spawn@npm:^7.0.6":
   version: 7.0.6
   resolution: "cross-spawn@npm:7.0.6"
   dependencies:
@@ -10258,6 +10278,15 @@ __metadata:
   version: 3.0.1
   resolution: "eventsource-parser@npm:3.0.1"
   checksum: 10c0/146ce5ae8325d07645a49bbc54d7ac3aef42f5138bfbbe83d5cf96293b50eab2219926d6cf41eed0a0f90132578089652ba9286a19297662900133a9da6c2fd0
+  languageName: node
+  linkType: hard
+
+"eventsource@npm:*, eventsource@npm:^4.0.0":
+  version: 4.0.0
+  resolution: "eventsource@npm:4.0.0"
+  dependencies:
+    eventsource-parser: "npm:^3.0.1"
+  checksum: 10c0/908a3f64b60aadd053b9fd8ea8b6a896a4faf32dbbaf0150e91abbec179a9e2a3da261fb577ae296df8b744de91962d69a60b10e8d7092d7802e6e3e7a8b0f0e
   languageName: node
   linkType: hard
 
@@ -20256,12 +20285,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"yaml@npm:^2.7.1":
-  version: 2.7.1
-  resolution: "yaml@npm:2.7.1"
+"yaml@npm:^2.8.0":
+  version: 2.8.0
+  resolution: "yaml@npm:2.8.0"
   bin:
     yaml: bin.mjs
-  checksum: 10c0/ee2126398ab7d1fdde566b4013b68e36930b9e6d8e68b6db356875c99614c10d678b6f45597a145ff6d63814961221fc305bf9242af8bf7450177f8a68537590
+  checksum: 10c0/f6f7310cf7264a8107e72c1376f4de37389945d2fb4656f8060eca83f01d2d703f9d1b925dd8f39852a57034fafefde6225409ddd9f22aebfda16c6141b71858
   languageName: node
   linkType: hard
 
@@ -20346,10 +20375,17 @@ __metadata:
   languageName: node
   linkType: hard
 
-"zod@npm:^3.23.8, zod@npm:^3.24.4":
+"zod@npm:^3.23.8":
   version: 3.24.4
   resolution: "zod@npm:3.24.4"
   checksum: 10c0/ab3112f017562180a41a0f83d870b333677f7d6b77f106696c56894567051b91154714a088149d8387a4f50806a2520efcb666f108cd384a35c236a191186d91
+  languageName: node
+  linkType: hard
+
+"zod@npm:^3.25.20":
+  version: 3.25.20
+  resolution: "zod@npm:3.25.20"
+  checksum: 10c0/f3b3e8875e1e02ca25bbfd45332aa1010f1b252b60a619c94c15bd6de637f841d344a3975d6950b2fbee68db4160ddb534cb9571c517fac17983871739085278
   languageName: node
   linkType: hard
 

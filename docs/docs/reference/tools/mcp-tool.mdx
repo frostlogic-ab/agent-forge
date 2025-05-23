@@ -106,10 +106,26 @@ The `MCPManager` class is used to manage connections to one or more MCP servers 
 ### Constructor
 
 ```typescript
-constructor()
+constructor(options?: { 
+  rateLimitPerMinute?: number;
+  rateLimitPerSecond?: number;
+  toolSpecificLimits?: {
+    [toolNamePattern: string]: {
+      rateLimitPerSecond?: number;
+      rateLimitPerMinute?: number;
+    }
+  };
+  verbose?: boolean; 
+})
 ```
 
-Creates a new `MCPManager` instance.
+#### Parameters
+
+- `options` - (Optional) Configuration for the MCP manager
+  - `rateLimitPerMinute` - (Optional) Maximum number of calls per minute for all MCP tools
+  - `rateLimitPerSecond` - (Optional) Maximum number of calls per second for all MCP tools
+  - `toolSpecificLimits` - (Optional) Tool-specific rate limits, where keys are name patterns that will match any tool containing that pattern, and values are rate limit configurations
+  - `verbose` - (Optional) If true, enables verbose logging of MCP operations and rate limiting
 
 ### Methods
 
@@ -173,7 +189,10 @@ async function setupMCPTools() {
   const mcpSseClient = createMCPClient(MCPProtocolType.SSE, sseConfig);
 
   // 3. Initialize Manager
-  const mcpManager = new MCPManager();
+  const mcpManager = new MCPManager({
+    rateLimitPerSecond: 1,
+    verbose: true
+  });
 
   try {
     // 4. Add Client to Manager (this will also connect and fetch tool definitions)
@@ -203,3 +222,183 @@ async function setupMCPTools() {
 ```
 
 When an agent uses a tool retrieved via `MCPManager`, the `MCPToolWrapper` handles calling the remote tool on the MCP server and returning the result. 
+
+## Rate Limiting for MCP Tools
+
+The MCP tools system includes sophisticated rate limiting to prevent hitting API rate limits and control costs.
+
+### Rate Limiting Options
+
+When creating an `MCPManager`, you can specify these rate limiting options:
+
+```typescript
+// Global rate limits (applies to all tools)
+const mcpManager = new MCPManager({
+  rateLimitPerMinute: 60,     // Limit all tools to 60 requests per minute
+  rateLimitPerSecond: 1,      // Limit all tools to 1 request per second
+  
+  // Tool-specific rate limits (higher priority than global limits)
+  toolSpecificLimits: {
+    'brave': {                // Will match any tool with 'brave' in its name
+      rateLimitPerSecond: 1   // Limit to 1 request per second
+    },
+    'fetch': {
+      rateLimitPerMinute: 30  // Limit to 30 requests per minute
+    }
+  },
+  verbose: true               // Log rate limiting details
+});
+```
+
+### Features
+
+- **Per-second or per-minute limits**: Choose the appropriate timing for your API requirements
+- **Pattern-based tool matching**: Apply different limits to different tools based on their names
+- **Request queuing**: Requests exceeding the rate limit are automatically queued
+- **Exponential backoff**: Failed requests due to rate limits are retried with exponential backoff
+- **Request caching**: Identical requests are cached to avoid redundant API calls
+
+### Example Implementation
+
+```typescript
+import { MCPManager, createMCPClient, MCPProtocolType } from "agent-forge";
+
+// Create MCP manager with rate limiting for the Brave Search API
+const mcpManager = new MCPManager({
+  rateLimitPerSecond: 1, // Brave API allows 1 query per second
+  verbose: true
+});
+
+// Create the MCP client for Brave Search
+const mcpBraveSearch = createMCPClient(MCPProtocolType.STDIO, {
+  command: "docker",
+  args: ["run", "-i", "--rm", "-e", "BRAVE_API_KEY", "mcp/brave-search"],
+  env: {
+    BRAVE_API_KEY: process.env.BRAVE_API_KEY || "",
+  },
+  verbose: true
+});
+
+// Add client to manager
+await mcpManager.addClient(mcpBraveSearch);
+const tools = mcpManager.getTools();
+
+// Create an agent with these rate-limited tools
+const agent = new Agent(
+  {
+    name: "Research Agent",
+    role: "Researcher",
+    objective: "Find information using web search",
+    model: "gpt-4"
+  },
+  tools,
+  llmProvider
+);
+```
+
+## Example Usage
+
+Here's an example of creating and using MCP tools:
+
+```typescript
+import { Agent, LLM, MCPManager, createMCPClient, MCPProtocolType } from "agent-forge";
+import dotenv from "dotenv";
+
+dotenv.config();
+
+async function main() {
+  // Get API key from environment variables
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    console.error("OPENAI_API_KEY not set");
+    process.exit(1);
+  }
+  
+  // Create LLM provider
+  const llmProvider = new LLM("openai", { apiKey });
+  
+  // Create MCP manager with rate limiting
+  const mcpManager = new MCPManager({
+    rateLimitPerSecond: 1,
+    verbose: true
+  });
+  
+  // Create MCP client for Fetch
+  const mcpFetch = createMCPClient(MCPProtocolType.STDIO, {
+    command: "docker",
+    args: ["run", "-i", "mcp/fetch"],
+    verbose: true
+  });
+  
+  // Create MCP client for Brave Search
+  const mcpBraveSearch = createMCPClient(MCPProtocolType.STDIO, {
+    command: "docker",
+    args: ["run", "-i", "--rm", "-e", "BRAVE_API_KEY", "mcp/brave-search"],
+    env: {
+      BRAVE_API_KEY: process.env.BRAVE_API_KEY || "",
+    },
+    verbose: true
+  });
+  
+  // Add clients to manager
+  mcpManager.addClient(mcpFetch);
+  mcpManager.addClient(mcpBraveSearch);
+  
+  // Wait for tools to be registered
+  await new Promise(resolve => setTimeout(resolve, 1000));
+  
+  // Get tools from manager
+  const mcpTools = mcpManager.getTools();
+  console.log(`Found ${mcpTools.length} MCP tools`);
+  
+  // Create agent with MCP tools
+  const agent = new Agent(
+    {
+      name: "ResearchAgent",
+      role: "Researcher",
+      description: "A research agent that can search for information.",
+      objective: "Search for information and fetch web pages.",
+      model: "gpt-4",
+    },
+    mcpTools,
+    llmProvider
+  );
+  
+  // Run the agent
+  const result = await agent.run("What is the capital of France?");
+  console.log(result.output);
+  
+  // Close MCP connections
+  await mcpManager.close();
+}
+
+main().catch(console.error);
+```
+
+## Tool Design
+
+MCP tools use a wrapper design to make remote tools work like local tools:
+
+- `MCPClientWrapper` - Base class for MCP client wrappers
+- `MCPSdkClientWrapper` - Implementation using the MCP SDK
+- `MCPToolWrapper` - Extends the `Tool` class to wrap an MCP tool
+
+## Technical Details
+
+The MCP tools system works by:
+
+1. Creating client connections to MCP servers
+2. Discovering available tools on those servers
+3. Creating `Tool` wrappers for each discovered tool
+4. Providing these wrapped tools to agents
+
+When an agent calls an MCP tool, the request is:
+1. Rate limited if necessary
+2. Checked against the cache for identical recent requests
+3. Sent to the appropriate MCP server
+4. Retried with exponential backoff if rate limits are encountered
+5. Results are cached and returned to the agent
+
+For more details, see the source code:
+- `src/tools/mcp-tool.ts` - MCP tool implementation
+- `src/utils/rate-limiter.ts` - Rate limiter implementation 

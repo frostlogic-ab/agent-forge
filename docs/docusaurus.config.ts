@@ -112,10 +112,10 @@ const config: Config = {
           title: "Community",
           items: [
             // Add community links here if you have them (e.g., Discord, Twitter)
-            // {
-            //   label: 'Stack Overflow',
-            //   href: 'https://stackoverflow.com/questions/tagged/docusaurus',
-            // },
+            {
+              label: "Forum",
+              href: "https://github.com/frostlogic-ab/agent-forge/discussions",
+            },
             // {
             //   label: 'Discord',
             //   href: 'https://discordapp.com/invite/docusaurus',

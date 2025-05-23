@@ -1,0 +1,198 @@
+---
+title: A2A Client & RemoteAgent
+sidebar_label: Client & RemoteAgent
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+# Interacting with Remote Agents: `A2AClient` and `RemoteA2AAgent`
+
+To interact with an A2A-enabled agent (hosted by an `A2AServer`), Agent Forge provides two primary components on the client side: `A2AClient` for direct protocol communication and `RemoteA2AAgent` for a more integrated agent-like experience.
+
+## `A2AClient`
+
+The `A2AClient` class (`src/a2a/client/A2AClient.ts`) is a low-level client that handles the JSON-RPC 2.0 communication with an A2A server. It allows you to directly call the A2A protocol methods.
+
+### `A2AClientOptions`
+
+When creating an `A2AClient`, you provide `A2AClientOptions` (`src/a2a/client/types.ts`):
+
+```typescript
+export interface A2AClientOptions {
+  serverUrl: string;      // Base URL of the A2A agent server (e.g., "http://localhost:41241/a2a")
+  fetch?: typeof fetch;  // Optional: Custom fetch implementation (useful in Node.js or specific environments)
+}
+```
+
+### Key Methods of `A2AClient`
+
+-   `async getAgentCard(): Promise<A2AAgentCard | null>`
+    -   Fetches the Agent Card from the server (typically from `/.well-known/agent.json` via an internal RPC call to `agent/getCard`).
+    -   The `A2AAgentCard` (`src/a2a/common/types.ts`) contains metadata about the remote agent, including its `name`, `description`, `role`, `objective`, `model`, and capabilities.
+
+-   `async sendTask(params: A2ATaskSendParams): Promise<A2ATaskSendResult>`
+    -   Sends a task to the remote agent using the `tasks/send` method.
+    -   Returns the initial `A2ATask` object or `null`.
+
+-   `async getTask(params: A2ATaskGetParams): Promise<A2ATaskGetResult>`
+    -   Retrieves the status and results of a task using `tasks/get`.
+    -   Returns the `A2ATask` object or `null`.
+
+-   `async cancelTask(params: A2ATaskCancelParams): Promise<A2ATaskCancelResult>`
+    -   Requests cancellation of a task using `tasks/cancel`.
+
+-   `sendTaskSubscribe(params: A2ATaskSendParams): AsyncIterable<A2AStreamEvent>`
+    -   Sends a task and subscribes to real-time updates using `tasks/sendSubscribe` via Server-Sent Events (SSE).
+    -   **Note**: This method currently indicates that full SSE client support for JSON-RPC initiated over POST requires a more robust SSE client solution (e.g., using libraries like `fetch-event-source`) and will throw an error. The basic structure is present for future enhancement.
+
+### Basic Usage of `A2AClient`
+
+```typescript
+import { A2AClient, type A2AClientOptions } from "agent-forge/a2a"; // Adjust import path
+import { randomUUID } from "node:crypto";
+
+async function interactWithRemoteAgent() {
+  const clientOptions: A2AClientOptions = {
+    serverUrl: "http://localhost:41241/a2a", // URL of your A2AServer endpoint
+  };
+  const client = new A2AClient(clientOptions);
+
+  try {
+    // 1. Get Agent Card
+    const card = await client.getAgentCard();
+    if (card) {
+      console.log("Connected to Agent:", card.name);
+      console.log("Description:", card.description);
+    } else {
+      console.error("Could not retrieve agent card.");
+      return;
+    }
+
+    // 2. Send a task (polling example)
+    const taskId = randomUUID();
+    const taskParams = {
+      id: taskId,
+      message: { role: "user" as const, content: "What is the capital of Agent Forge?" },
+    };
+    
+    let task = await client.sendTask(taskParams);
+    if (!task) {
+      console.error("Failed to send task.");
+      return;
+    }
+    console.log(`Task ${task.id} submitted. Status: ${task.status.state}`);
+
+    // 3. Poll for task completion
+    while (task && (task.status.state === "submitted" || task.status.state === "working")) {
+      await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds
+      task = await client.getTask({ id: taskId });
+      if (task) {
+        console.log(`Task ${task.id} status: ${task.status.state} - ${task.status.message?.content}`);
+      }
+    }
+
+    if (task?.status.state === "completed") {
+      console.log("Task completed!");
+      task.artifacts?.forEach(artifact => {
+        console.log(`Artifact ${artifact.name}: ${artifact.parts.map(p => p.text).join("")}`);
+      });
+    } else if (task) {
+      console.log(`Task finished with state: ${task.status.state}`);
+    }
+
+  } catch (error) {
+    console.error("A2A Client Error:", error);
+  }
+}
+
+// interactWithRemoteAgent();
+```
+
+## `RemoteA2AAgent`
+
+The `RemoteA2AAgent` class (`src/a2a/client/RemoteA2AAgent.ts`) provides a higher-level abstraction. It extends Agent Forge's base `Agent` class, allowing you to interact with a remote A2A-enabled agent as if it were a local agent instance.
+
+### Key Features:
+
+-   **Agent-like Interface**: Implements the standard `Agent.run()` method.
+-   **Automatic Configuration**: Fetches the remote agent's configuration (name, description, role, objective, model) from its Agent Card during instantiation.
+-   **Handles A2A Communication**: Internally uses an `A2AClient` to manage task delegation, status polling, and result retrieval.
+-   **Simplifies Usage**: Abstracts away the direct A2A protocol interactions for common use cases.
+
+### Instantiating `RemoteA2AAgent`
+
+`RemoteA2AAgent` is instantiated using a static factory method `create()`:
+
+```typescript
+import { RemoteA2AAgent, type A2AClientOptions } from "agent-forge/a2a"; // Adjust import path
+
+async function setupRemoteAgent() {
+  const clientOptions: A2AClientOptions = {
+    serverUrl: "http://localhost:41241/a2a", // URL of the A2AServer
+  };
+
+  try {
+    const remoteAgent = await RemoteA2AAgent.create(
+      clientOptions,
+      "MyLocalAliasForRemoteAgent" // Optional: A local name for this instance
+    );
+    console.log(`Remote agent initialized: ${remoteAgent.name} (${remoteAgent.description})`);
+    return remoteAgent;
+  } catch (error) {
+    console.error("Failed to create remote agent:", error);
+    return null;
+  }
+}
+```
+
+When `RemoteA2AAgent.create()` is called:
+1. It creates a temporary `A2AClient`.
+2. It calls `client.getAgentCard()` to fetch the remote agent's details.
+3. It uses these details (name, description, role, objective, model) to configure the `AgentConfig` for the `RemoteA2AAgent` instance (which is passed to `super()` constructor of the base `Agent` class).
+   - If `localAlias` is provided, it will be used as the `name` for the local `RemoteA2AAgent` instance; otherwise, the name from the agent card is used.
+   - Default values are used if any properties are missing from the agent card.
+
+This means you don't need to manually define an `AgentConfig` on the client-side that mirrors the remote agent's properties. The server-side agent is the source of truth for its definition.
+
+### Using `RemoteA2AAgent`
+
+Once instantiated, you can use `remoteAgent.run()` much like any other Agent Forge agent:
+
+```typescript
+// Assuming remoteAgent was successfully created as shown above
+// const remoteAgent = await setupRemoteAgent();
+
+async function delegateTaskToRemote(agent: RemoteA2AAgent | null) {
+  if (!agent) return;
+
+  const taskInput = "Explain the A2A protocol in simple terms.";
+  console.log(`Sending task to ${agent.name}: "${taskInput}"`);
+
+  try {
+    const result = await agent.run(taskInput, { /* stream: false */ });
+    console.log(`Response from ${agent.name}:`);
+    console.log(result.output);
+
+    if (result.metadata.toolCalls && result.metadata.toolCalls.length > 0) {
+      console.log("Remote agent made tool calls:");
+      result.metadata.toolCalls.forEach(tc => {
+        console.log(`- Tool: ${tc.toolName}, Params: ${JSON.stringify(tc.parameters)}, Result: ${JSON.stringify(tc.result)}`);
+      });
+    }
+  } catch (error) {
+    console.error(`Error running task on ${agent.name}:`, error);
+  }
+}
+
+// Example usage:
+// setupRemoteAgent().then(delegateTaskToRemote);
+```
+
+The `RemoteA2AAgent.run()` method handles:
+- Sending the task via `A2AClient`.
+- Polling for completion (if not streaming).
+- Reconstructing the `AgentResult` from the A2A task data, including output and any reported tool calls (artifacts named like `tool_call_*`).
+- If streaming is enabled in `run()` options (and the SSE client is fully implemented), it would process the `A2AStreamEvent`s to provide real-time updates.
+
+Using `RemoteA2AAgent` is the recommended way to integrate remote agents into a manager agent or a team, as it provides a consistent API with local agents. 

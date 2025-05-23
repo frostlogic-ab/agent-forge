@@ -1,0 +1,59 @@
+---
+title: Agent-to-Agent (A2A) Communication
+sidebar_label: Overview
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+# Agent-to-Agent (A2A) Communication Protocol
+
+Agent Forge incorporates an Agent-to-Agent (A2A) communication protocol designed to facilitate interactions between distinct Agent Forge agents. These agents might be running in separate projects, on different machines, or simply as independent services within a larger application. The primary goal is to allow a "manager" or "client" agent to seamlessly delegate tasks to "server" or "worker" agents without exposing the underlying A2A communication specifics to the end-user of the Agent Forge framework.
+
+## Core Concepts
+
+The A2A protocol in Agent Forge is built upon **JSON-RPC 2.0** and typically operates over HTTP/HTTPS. It defines a standard way for agents to:
+
+-   **Discover** remote agents and their capabilities (via an Agent Card).
+-   **Send tasks** to remote agents.
+-   **Receive status updates** about ongoing tasks.
+-   **Retrieve results** (outputs and artifacts) from completed tasks.
+-   Optionally, **stream** updates and partial results using Server-Sent Events (SSE).
+
+### Key Benefits:
+
+-   **Modularity**: Develop specialized agents that can be independently deployed and managed.
+-   **Scalability**: Distribute workloads across multiple agents and potentially multiple servers.
+-   **Interoperability**: While designed for Agent Forge agents, the use of JSON-RPC offers a base for potential future interoperability with other systems that can understand the defined methods.
+-   **Abstraction**: The `RemoteA2AAgent` class in Agent Forge allows developers to interact with a remote agent as if it were a local object, hiding the complexity of network communication.
+
+## When to Use A2A?
+
+Consider using the A2A protocol when:
+
+-   You need to build a team of agents where different agents have distinct specializations and may run in different environments.
+-   You want to expose an agent's capabilities as a service to other applications or agents.
+-   You need to orchestrate tasks across multiple, potentially distributed, agents.
+-   You have an existing Agent Forge agent that you want to make accessible to other agents without tightly coupling their codebases.
+
+## Protocol Details
+
+The A2A protocol defines a set of JSON-RPC methods for agent interaction. These include:
+
+-   `agent/getCard`: Retrieves metadata about the agent (name, description, capabilities).
+-   `tasks/send`: Sends a new task to the agent.
+-   `tasks/get`: Retrieves the status and results of a specific task.
+-   `tasks/cancel`: Requests cancellation of an ongoing task.
+-   `tasks/sendSubscribe`: Sends a task and subscribes to real-time updates via Server-Sent Events (SSE).
+
+These methods, along with their expected parameters and response formats, are defined in `src/a2a/common/A2AProtocol.ts` and related type definitions.
+
+## Components in Agent Forge
+
+Agent Forge provides the following key components to work with the A2A protocol:
+
+-   **`A2AServer`**: ([See A2A Server](./server.mdx)) A class to easily host any Agent Forge `Agent` and expose it via the A2A protocol.
+-   **`A2AClient`**: ([See A2A Client](./client.mdx)) A client class used to communicate with an `A2AServer` by making JSON-RPC requests.
+-   **`RemoteA2AAgent`**: ([See A2A Client](./client.mdx#remotea2aagent)) An implementation of the Agent Forge `Agent` class that acts as a proxy to a remote agent. It uses `A2AClient` internally.
+
+These components work together to enable seamless local and remote agent interactions. The following sections will delve deeper into setting up an A2A server and using the A2A client and remote agent. 

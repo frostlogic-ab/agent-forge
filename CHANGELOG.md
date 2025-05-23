@@ -1,4 +1,78 @@
 ## What's Changed
+* update design for documentation homepage by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/37
+* Refactor Team workflow code as it became big and hard to maintain by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/38
+
+
+**Full Changelog**: https://github.com/frostlogic-ab/agent-forge/compare/v1.5.0-beta.2...v1.5.0-beta.3
+
+# [1.5.0-beta.3](https://github.com/frostlogic-ab/agent-forge/compare/v1.5.0-beta.2...v1.5.0-beta.3) (2025-05-23)
+
+## What's Changed
+* add anonymous visitor tracking on documentation pages by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/27
+* remove documentation from triggering a release by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/28
+* fix tool call function arguments parsing by @mciocan-bd in https://github.com/frostlogic-ab/agent-forge/pull/29
+
+## New Contributors
+* @mciocan-bd made their first contribution in https://github.com/frostlogic-ab/agent-forge/pull/29
+
+**Full Changelog**: https://github.com/frostlogic-ab/agent-forge/compare/v1.5.0-beta.1...v1.5.0-beta.2
+
+# [1.5.0-beta.2](https://github.com/frostlogic-ab/agent-forge/compare/v1.5.0-beta.1...v1.5.0-beta.2) (2025-05-22)
+
+## What's Changed
+* Add A2A support through SSE and JSON RPC by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/26
+* redo stock analysis example and remove sectool by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/30
+* update mcp sdk to latest 1.11.5 by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/31
+* add rate limiting support for MCP tools by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/32
+* fix an issue where a rate limited request will not restart after timer by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/33
+* cleanup code and make use of helpers by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/34
+* New sample stock-analysis that shows how to use MCP through docker by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/35
+* A2A, MCP rate limits, team workflow fixes and new example by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/36
+
+
+**Full Changelog**: https://github.com/frostlogic-ab/agent-forge/compare/v1.4.1...v1.5.0-beta.1
+
+# [1.5.0-beta.1](https://github.com/frostlogic-ab/agent-forge/compare/v1.4.1...v1.5.0-beta.1) (2025-05-22)
+
+## What's Changed
+* fix an issue where a rate limited request will not restart after timer by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/33
+
+
+**Full Changelog**: https://github.com/frostlogic-ab/agent-forge/compare/v1.5.0-alpha.4...v1.5.0-alpha.5
+
+# [1.5.0-alpha.5](https://github.com/frostlogic-ab/agent-forge/compare/v1.5.0-alpha.4...v1.5.0-alpha.5) (2025-05-22)
+
+## What's Changed
+* add rate limiting support for MCP tools by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/32
+
+
+**Full Changelog**: https://github.com/frostlogic-ab/agent-forge/compare/v1.5.0-alpha.3...v1.5.0-alpha.4
+
+# [1.5.0-alpha.4](https://github.com/frostlogic-ab/agent-forge/compare/v1.5.0-alpha.3...v1.5.0-alpha.4) (2025-05-22)
+
+## What's Changed
+* update mcp sdk to latest 1.11.5 by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/31
+
+
+**Full Changelog**: https://github.com/frostlogic-ab/agent-forge/compare/v1.5.0-alpha.2...v1.5.0-alpha.3
+
+# [1.5.0-alpha.3](https://github.com/frostlogic-ab/agent-forge/compare/v1.5.0-alpha.2...v1.5.0-alpha.3) (2025-05-21)
+
+## What's Changed
+* redo stock analysis example and remove sectool by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/30
+
+
+**Full Changelog**: https://github.com/frostlogic-ab/agent-forge/compare/v1.5.0-alpha.1...v1.5.0-alpha.2
+
+# [1.5.0-alpha.2](https://github.com/frostlogic-ab/agent-forge/compare/v1.5.0-alpha.1...v1.5.0-alpha.2) (2025-05-21)
+
+## What's Changed
+* Add A2A support through SSE and JSON RPC by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/26
+
+
+**Full Changelog**: https://github.com/frostlogic-ab/agent-forge/compare/v1.4.1...v1.5.0-alpha.1
+
+# [1.5.0-alpha.1](https://github.com/frostlogic-ab/agent-forge/compare/v1.4.1...v1.5.0-alpha.1) (2025-05-16)
 * add anonymous visitor tracking on documentation pages by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/27
 * remove documentation from triggering a release by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/28
 * fix tool call function arguments parsing by @mciocan-bd in https://github.com/frostlogic-ab/agent-forge/pull/29

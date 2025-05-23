@@ -215,3 +215,17 @@ export interface TeamRunOptions {
    */
   enableConsoleStream?: boolean;
 }
+
+/**
+ * Defines the structure of a task managed by the Team.
+ */
+export interface Task {
+  id: string;
+  agentName: string;
+  description: string;
+  status: "pending" | "in_progress" | "completed" | "failed" | "canceled";
+  dependencies: string[]; // IDs of tasks that must be completed first
+  result?: string;
+  startTime?: number;
+  endTime?: number;
+}
