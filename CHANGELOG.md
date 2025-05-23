@@ -1,4 +1,12 @@
 ## What's Changed
+* fix bad links in documentation and update dependencies by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/40
+
+
+**Full Changelog**: https://github.com/frostlogic-ab/agent-forge/compare/v1.5.0...v1.5.1
+
+## [1.5.1](https://github.com/frostlogic-ab/agent-forge/compare/v1.5.0...v1.5.1) (2025-05-23)
+
+## What's Changed
 * Add A2A support through SSE and JSON RPC by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/26
 * redo stock analysis example and remove sectool by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/30
 * update mcp sdk to latest 1.11.5 by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/31
