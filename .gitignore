@@ -1,6 +1,11 @@
 # Dependency directories
 node_modules/
 
+# Package manager
+.yarn/*
+!.yarn/releases
+!.yarn/plugins
+
 # Build output
 dist/
 build/
