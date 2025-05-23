@@ -1,4 +1,12 @@
 ## What's Changed
+* fix exports of a2a types and classes by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/41
+
+
+**Full Changelog**: https://github.com/frostlogic-ab/agent-forge/compare/v1.5.1...v1.5.2
+
+## [1.5.2](https://github.com/frostlogic-ab/agent-forge/compare/v1.5.1...v1.5.2) (2025-05-23)
+
+## What's Changed
 * fix bad links in documentation and update dependencies by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/40
 
 
