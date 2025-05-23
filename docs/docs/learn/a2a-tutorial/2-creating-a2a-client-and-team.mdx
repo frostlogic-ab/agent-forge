@@ -26,10 +26,10 @@ async function runMyA2ATeamExample() {
 
     // 1. LLM Configuration (for the local Manager Agent)
     const llmConfig = {
-      apiKey: process.env.OPENAI_API_KEY || "YOUR_OPENAI_API_KEY_HERE",
+      apiKey: process.env.OPENAI_API_KEY,
     };
-    if (!llmConfig.apiKey || llmConfig.apiKey === "YOUR_OPENAI_API_KEY_HERE") {
-      console.error("ERROR: OpenAI API key is not configured. Please set OPENAI_API_KEY or update the script.");
+    if (!llmConfig.apiKey) {
+      console.error("ERROR: OpenAI API key is not configured. Please set OPENAI_API_KEY environment variable.");
       process.exit(1);
     }
     const llmProvider = new LLM("openai", llmConfig);

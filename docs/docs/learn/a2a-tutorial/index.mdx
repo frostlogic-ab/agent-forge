@@ -46,9 +46,11 @@ Before you begin, please ensure you have the following set up in your developmen
 *   **LLM API Key**: The examples rely on an LLM. Ensure your `OPENAI_API_KEY` (or equivalent for your chosen LLM provider) is set as an environment variable. The scripts will prompt you if it's missing.
     ```bash
     # Example for Bash/Zsh - add to your .bashrc, .zshrc, or run in your terminal session
-    export OPENAI_API_KEY="your_api_key_here"
+    export OPENAI_API_KEY="sk-..."
     ```
-    For Windows, you might use `set OPENAI_API_KEY=your_api_key_here` in Command Prompt or `$env:OPENAI_API_KEY="your_api_key_here"` in PowerShell.
+    For Windows, you might use `set OPENAI_API_KEY=sk-...` in Command Prompt or `$env:OPENAI_API_KEY="sk-..."` in PowerShell.
+    
+    **⚠️ Security Note:** Never put API keys directly in your code. Always use environment variables or `.env` files to keep your credentials secure.
 
 ## Tutorial Steps
 

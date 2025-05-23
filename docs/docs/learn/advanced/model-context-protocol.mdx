@@ -76,7 +76,9 @@ To integrate MCP clients, follow these steps:
           
           const streamableHttpClient = createMCPClient(MCPProtocolType.STREAMABLE_HTTP, {
             baseUrl: "https://your-mcp-server.example.com/mcp", // Replace with actual server URL
-            // headers: { Authorization: "Bearer your-token" }, // Optional: if your server requires auth
+            headers: { 
+              Authorization: `Bearer ${process.env.MCP_SERVER_TOKEN}` // Use environment variable for security
+            }, 
           });
           try {
             await mcpManagerHttp.addClient(streamableHttpClient);
@@ -96,7 +98,9 @@ To integrate MCP clients, follow these steps:
           const mcpManagerSse = new MCPManager();
           const sseClient = createMCPClient(MCPProtocolType.SSE, {
             url: "https://your-legacy-mcp-server.example.com/sse", // Replace with actual server URL
-            // headers: { Authorization: "Bearer your-token" }, // Optional: if server requires auth
+            headers: { 
+              Authorization: `Bearer ${process.env.MCP_SERVER_TOKEN}` // Use environment variable for security
+            }, 
           });
           try {
             await mcpManagerSse.addClient(sseClient);
@@ -300,7 +304,9 @@ async function runMCPExample() {
   // Replace with your actual MCP server details or choose a different protocol (STDIO, SSE)
   const streamableHttpClient = createMCPClient(MCPProtocolType.STREAMABLE_HTTP, {
     baseUrl: "https://your-mcp-server.example.com/mcp", // Replace with actual server URL
-    headers: { Authorization: "Bearer your-token" }, // Replace with actual token if server requires auth
+    headers: { 
+      Authorization: `Bearer ${process.env.MCP_SERVER_TOKEN}` // Use environment variable for security
+    }, 
   });
 
   try {
