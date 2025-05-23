@@ -21,7 +21,7 @@ Agent Forge is a TypeScript framework for creating, configuring, and orchestrati
   - [Debug Interactions](#7-debug-team-interactions-with-verbose-logging)
   - [Stream Communications](#8-stream-agent-communications-in-real-time)
   - [Use Model Context Protocol](#9-use-model-context-protocol-mcp-to-extend-agent-capabilities)
-  - [Agent-to-Agent (A2A) Communication](#10-agent-to-agent-(A2A)-communication)
+  - [Agent-to-Agent (A2A) Communication](#10-agent-to-agent-a2a-communication)
 - [Development](#development)
 - [Documentation](#documentation)
 - [Contributing](#contributing)
