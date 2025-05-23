@@ -2,6 +2,7 @@
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
+[![Documentation](https://img.shields.io/badge/Documentation-blue?style=for-the-badge&logo=read-the-docs&logoColor=white)](https://frostlogic-ab.github.io/agent-forge/)
 
 Agent Forge is a TypeScript framework for creating, configuring, and orchestrating AI agents that connect to LLMs (Large Language Models). It allows developers to define agents through YAML configuration files and enables both sequential and hierarchical execution patterns. Its core goal is to simplify the development of sophisticated agent-based applications by providing a structured approach to agent definition, tool integration, and multi-agent collaboration.
 
@@ -20,6 +21,7 @@ Agent Forge is a TypeScript framework for creating, configuring, and orchestrati
   - [Debug Interactions](#7-debug-team-interactions-with-verbose-logging)
   - [Stream Communications](#8-stream-agent-communications-in-real-time)
   - [Use Model Context Protocol](#9-use-model-context-protocol-mcp-to-extend-agent-capabilities)
+  - [Agent-to-Agent (A2A) Communication](#10-agent-to-agent-(A2A)-communication)
 - [Development](#development)
 - [Documentation](#documentation)
 - [Contributing](#contributing)
@@ -584,7 +586,7 @@ yarn example:mcp
 
 ---
 
-## 🤖 Agent-to-Agent (A2A) Communication
+## 10. Agent-to-Agent (A2A) Communication
 
 Agent Forge now supports an Agent-to-Agent (A2A) communication protocol, enabling agents to interact with each other, even if they are running in separate processes or on different machines. This allows for the creation of more complex and distributed multi-agent systems.
 
