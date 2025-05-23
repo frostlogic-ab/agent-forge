@@ -9,8 +9,26 @@ export { Team } from "./core/team";
 export { loadAgentFromYaml } from "./config/yaml-loader";
 export { AgentForge } from "./core/agent-forge";
 
-// A2A Protocol exports (New Addition)
-export * as A2A from "./a2a";
+// A2A Protocol exports
+export {
+  A2AServer,
+  defaultAgentToTaskHandlerAdapter,
+  A2AClient,
+  RemoteA2AAgent,
+} from "./a2a";
+export type {
+  A2AClientOptions,
+  A2AServerOptions,
+  A2ATaskHandler,
+  AgentToTaskHandlerAdapter,
+  A2AAgentCard,
+  A2ATask,
+  A2AMessage,
+  A2AStreamEvent,
+  A2ATaskSendParams,
+  A2ATaskGetParams,
+  A2ATaskCancelParams,
+} from "./a2a";
 
 // Tool system exports
 export { Tool } from "./tools/tool";
