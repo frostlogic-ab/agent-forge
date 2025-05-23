@@ -28,13 +28,13 @@ function HomepageHeader() {
           <div className={styles.buttons}>
             <Link
               className="button button--secondary button--lg"
-              to="/docs/learn/a2a-tutorial"
+              to="/docs/learn/intro"
             >
               Get Started - 5min Tutorial 🚀
             </Link>
             <Link
               className="button button--info button--lg"
-              to="/docs/learn/core-concepts/yaml-defined-agents"
+              to="/docs/reference/intro"
             >
               Explore Core Concepts 🔍
             </Link>
