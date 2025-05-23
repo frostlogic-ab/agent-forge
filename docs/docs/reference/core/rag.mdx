@@ -1,0 +1,71 @@
+---
+title: 'RAG (Retrieval-Augmented Generation)'
+sidebar_label: 'RAG'
+---
+
+# RAG API Reference
+
+## `RAGWithChroma` Decorator
+
+The `RAGWithChroma` decorator adds Retrieval-Augmented Generation (RAG) capabilities to any Agent. It attaches a ChromaDB-backed retrieval tool and provides a method for real-time document indexing, using embeddings from OpenAI or Gemini.
+
+### Usage (with Production Embeddings)
+
+```typescript
+import { Agent, RAGWithChroma } from "agent-forge";
+import { OpenAIEmbeddingProvider } from "agent-forge/rag/openai-embedding-provider";
+import { GeminiEmbeddingProvider } from "agent-forge/rag/gemini-embedding-provider";
+
+// Choose embedding provider
+const embeddingProvider = process.env.EMBEDDING_PROVIDER === "gemini"
+  ? new GeminiEmbeddingProvider(process.env.GEMINI_API_KEY!)
+  : new OpenAIEmbeddingProvider(process.env.OPENAI_API_KEY!);
+
+@RAGWithChroma(
+  process.env.CHROMA_URL || "http://localhost:8000",
+  [
+    { id: "1", text: "Agent Forge is a TypeScript framework for AI agents." },
+    { id: "2", text: "ChromaDB is a local vector database for document retrieval." },
+  ],
+  { embeddingProvider }
+)
+class RAGAgent extends Agent {
+  constructor() {
+    super({
+      name: "RAGAgent",
+      role: "Knowledge Assistant",
+      description: "Answers questions using a local document index.",
+      objective: "Provide accurate answers using retrieved documents.",
+      model: process.env.OPENAI_MODEL || "gpt-4",
+      temperature: 0.7,
+    });
+  }
+}
+
+const agent = new RAGAgent();
+
+// Add more documents at runtime
+await (agent as any).addDocuments([
+  { id: "3", text: "You can add documents in real time!" },
+]);
+```
+
+### Parameters
+- `chromaUrl: string` — The URL of the ChromaDB instance (e.g., `"http://localhost:8000"`).
+- `docs: Array<{ id: string; text: string }>` — Initial documents to index.
+- `options.embeddingProvider: EmbeddingProvider` — Required. Use `OpenAIEmbeddingProvider` or `GeminiEmbeddingProvider`.
+- `options.collection: string` — Optional. ChromaDB collection name (default: `default`).
+
+### Adds to Agent
+- A `retrieval` tool (for document search)
+- An `addDocuments(newDocs)` method for real-time indexing
+
+### Required environment variables
+- `OPENAI_API_KEY` (for OpenAI embeddings)
+- `GEMINI_API_KEY` (for Gemini embeddings, if used)
+- `CHROMA_URL` (optional, defaults to `http://localhost:8000`)
+- `EMBEDDING_PROVIDER` (set to `gemini` to use Gemini, otherwise OpenAI is used)
+
+---
+
+See the [RAG tutorial](../../learn/core-concepts/rag) for a step-by-step guide. 

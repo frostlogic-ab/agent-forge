@@ -54,3 +54,6 @@ export { enableConsoleStreaming } from "./utils/streaming";
 
 // Types
 export * from "./types";
+
+// RAG exports
+export { RAGWithChroma } from "./rag/decorators";

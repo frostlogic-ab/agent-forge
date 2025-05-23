@@ -34,7 +34,8 @@
     "example:streaming-example-team": "ts-node src/examples/streaming-example-team.ts",
     "example:web-page-content-example": "ts-node src/examples/web-page-content-example.ts",
     "example:a2a-server": "ts-node src/examples/a2a-server-example.ts",
-    "example:a2a-team": "ts-node src/examples/a2a-team-example.ts"
+    "example:a2a-team": "ts-node src/examples/a2a-team-example.ts",
+    "example:rag": "ts-node src/examples/rag-example.ts"
   },
   "keywords": [
     "ai",

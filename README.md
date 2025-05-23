@@ -586,6 +586,76 @@ yarn example:mcp
 
 ---
 
+## 🧠 Retrieval-Augmented Generation (RAG)
+
+Agent Forge supports Retrieval-Augmented Generation (RAG) with a production-ready, decorator-based API. You can add a local or remote ChromaDB vector index to any agent for document retrieval, using embeddings from OpenAI or Gemini.
+
+### Example: RAG Agent with Real-Time Indexing and Production Embeddings
+
+```typescript
+import { Agent, RAGWithChroma } from "agent-forge";
+import { OpenAIEmbeddingProvider } from "agent-forge/rag/openai-embedding-provider";
+import { GeminiEmbeddingProvider } from "agent-forge/rag/gemini-embedding-provider";
+
+// Choose embedding provider
+const embeddingProvider = process.env.EMBEDDING_PROVIDER === "gemini"
+  ? new GeminiEmbeddingProvider(process.env.GEMINI_API_KEY!)
+  : new OpenAIEmbeddingProvider(process.env.OPENAI_API_KEY!);
+
+@RAGWithChroma(
+  process.env.CHROMA_URL || "http://localhost:8000",
+  [
+    { id: "1", text: "Agent Forge is a TypeScript framework for AI agents." },
+    { id: "2", text: "ChromaDB is a local vector database for document retrieval." },
+  ],
+  { embeddingProvider }
+)
+class RAGAgent extends Agent {
+  constructor() {
+    super({
+      name: "RAGAgent",
+      role: "Knowledge Assistant",
+      description: "Answers questions using a local document index.",
+      objective: "Provide accurate answers using retrieved documents.",
+      model: process.env.OPENAI_MODEL || "gpt-4",
+      temperature: 0.7,
+    });
+  }
+}
+
+const agent = new RAGAgent();
+
+// Add more documents at runtime
+await (agent as any).addDocuments([
+  { id: "3", text: "You can add documents in real time!" },
+]);
+
+const result = await agent.run("What is Agent Forge?");
+console.log(result.output);
+```
+
+- **No API Key Required for ChromaDB:** Runs locally or remotely
+- **Embeddings:** Use OpenAI or Gemini for high-quality vector search
+- **Configurable:** Choose provider and ChromaDB URL via environment variables
+
+**Required environment variables:**
+- `OPENAI_API_KEY` (for OpenAI embeddings)
+- `GEMINI_API_KEY` (for Gemini embeddings, if used)
+- `CHROMA_URL` (optional, defaults to `http://localhost:8000`)
+- `EMBEDDING_PROVIDER` (set to `gemini` to use Gemini, otherwise OpenAI is used)
+
+Run the example:
+
+```bash
+yarn example:rag
+# or
+npm run example:rag
+```
+
+See the [RAG tutorial](docs/docs/learn/core-concepts/rag.mdx) and [API reference](docs/docs/reference/core/rag.mdx) for more details.
+
+---
+
 ## 10. Agent-to-Agent (A2A) Communication
 
 Agent Forge now supports an Agent-to-Agent (A2A) communication protocol, enabling agents to interact with each other, even if they are running in separate processes or on different machines. This allows for the creation of more complex and distributed multi-agent systems.

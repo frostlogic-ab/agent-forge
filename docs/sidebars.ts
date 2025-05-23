@@ -29,6 +29,7 @@ const sidebars: SidebarsConfig = {
         "learn/core-concepts/tools-ecosystem",
         "learn/core-concepts/execution-patterns",
         "learn/core-concepts/llm-integration",
+        "learn/core-concepts/rag",
       ],
     },
     {
@@ -68,6 +69,7 @@ const sidebars: SidebarsConfig = {
         "reference/core/agent-forge",
         "reference/core/team",
         "reference/core/workflow",
+        "reference/core/rag",
       ],
     },
     {
@@ -94,7 +96,6 @@ const sidebars: SidebarsConfig = {
         "reference/tools/tool-registry",
         "reference/tools/web-search-tool",
         "reference/tools/web-page-content-tool",
-        "reference/tools/sec-api-tool",
         "reference/tools/mcp-tool",
       ],
     },

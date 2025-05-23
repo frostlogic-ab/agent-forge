@@ -1,0 +1,80 @@
+---
+title: Retrieval-Augmented Generation (RAG)
+sidebar_label: RAG (Retrieval-Augmented Generation)
+---
+
+# Retrieval-Augmented Generation (RAG) in Agent Forge
+
+Agent Forge supports Retrieval-Augmented Generation (RAG) via a production-ready, decorator-based API. You can augment any agent with a local or remote ChromaDB vector index for document retrieval, using embeddings from OpenAI or Gemini.
+
+## What is RAG?
+
+RAG enables agents to retrieve relevant documents from a knowledge base and use them to answer queries, improving factual accuracy and grounding.
+
+## How to Use RAG in Agent Forge
+
+You can add RAG capabilities to any agent using the `@RAGWithChroma` decorator. This decorator attaches a ChromaDB-backed retrieval tool and provides a method to add documents in real time, using embeddings.
+
+### Example: Adding RAG to an Agent (with Production Embeddings)
+
+```typescript
+import { Agent, RAGWithChroma } from "agent-forge";
+import { OpenAIEmbeddingProvider } from "agent-forge/rag/openai-embedding-provider";
+import { GeminiEmbeddingProvider } from "agent-forge/rag/gemini-embedding-provider";
+
+// Choose embedding provider
+const embeddingProvider = process.env.EMBEDDING_PROVIDER === "gemini"
+  ? new GeminiEmbeddingProvider(process.env.GEMINI_API_KEY!)
+  : new OpenAIEmbeddingProvider(process.env.OPENAI_API_KEY!);
+
+@RAGWithChroma(
+  process.env.CHROMA_URL || "http://localhost:8000",
+  [
+    { id: "1", text: "Agent Forge is a TypeScript framework for AI agents." },
+    { id: "2", text: "ChromaDB is a local vector database for document retrieval." },
+  ],
+  { embeddingProvider }
+)
+class RAGAgent extends Agent {
+  constructor() {
+    super({
+      name: "RAGAgent",
+      role: "Knowledge Assistant",
+      description: "Answers questions using a local document index.",
+      objective: "Provide accurate answers using retrieved documents.",
+      model: process.env.OPENAI_MODEL || "gpt-4",
+      temperature: 0.7,
+    });
+  }
+}
+
+const agent = new RAGAgent();
+
+// Add more documents at runtime
+await (agent as any).addDocuments([
+  { id: "3", text: "You can add documents in real time!" },
+]);
+
+const result = await agent.run("What is Agent Forge?");
+console.log(result.output);
+```
+
+### Key Features
+- **No API Key Required for ChromaDB:** Runs locally or remotely
+- **Embeddings:** Use OpenAI or Gemini for high-quality vector search
+- **Configurable:** Choose provider and ChromaDB URL via environment variables
+
+**Required environment variables:**
+- `OPENAI_API_KEY` (for OpenAI embeddings)
+- `GEMINI_API_KEY` (for Gemini embeddings, if used)
+- `CHROMA_URL` (optional, defaults to `http://localhost:8000`)
+- `EMBEDDING_PROVIDER` (set to `gemini` to use Gemini, otherwise OpenAI is used)
+
+### How It Works
+- The decorator attaches a retrieval tool to the agent.
+- When the agent needs to answer a question, it can use the retrieval tool to fetch relevant documents.
+- The agent can be updated with new documents at any time, even after creation.
+
+---
+
+For advanced usage, see the [API Reference for RAG](../../reference/core/rag). 
