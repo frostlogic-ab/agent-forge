@@ -1,4 +1,22 @@
 ## What's Changed
+* Add A2A support through SSE and JSON RPC by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/26
+* redo stock analysis example and remove sectool by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/30
+* update mcp sdk to latest 1.11.5 by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/31
+* add rate limiting support for MCP tools by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/32
+* fix an issue where a rate limited request will not restart after timer by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/33
+* cleanup code and make use of helpers by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/34
+* New sample stock-analysis that shows how to use MCP through docker by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/35
+* A2A, MCP rate limits, team workflow fixes and new example by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/36
+* update design for documentation homepage by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/37
+* Refactor Team workflow code as it became big and hard to maintain by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/38
+* A2A, Team workflow robustness, MCP fixes, new example by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/39
+
+
+**Full Changelog**: https://github.com/frostlogic-ab/agent-forge/compare/v1.4.2...v1.5.0
+
+# [1.5.0](https://github.com/frostlogic-ab/agent-forge/compare/v1.4.2...v1.5.0) (2025-05-23)
+
+## What's Changed
 * update design for documentation homepage by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/37
 * Refactor Team workflow code as it became big and hard to maintain by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/38
 
