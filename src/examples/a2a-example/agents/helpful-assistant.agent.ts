@@ -1,6 +1,6 @@
-import { a2aServer, llmProvider } from "../../../a2a/decorators";
+import { a2aServer,  } from "../../../a2a/decorators";
 import { Agent } from "../../../core/agent";
-import { agent } from "../../../core/decorators";
+import { agent, llmProvider } from "../../../core/decorators";
 import { configuredProvider, configuredModel, configuredApiKey } from "../provider";
 
 /**
