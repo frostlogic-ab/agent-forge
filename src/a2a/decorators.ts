@@ -34,27 +34,6 @@ export function a2aClient(
 }
 
 /**
- * LLM Provider decorator. Sets static properties for provider and config on the class.
- *
- * @param provider LLM provider name
- * @param config LLM provider config
- *
- * Usage:
- *   @llmProvider("openai", { apiKey: "..." })
- *   class MyClass {}
- */
-export function llmProvider(
-  provider: LLMProvider,
-  config: ConfigOptions
-): ClassDecorator {
-  return (target: any) => {
-    target.llmProvider = provider;
-    target.llmConfig = config;
-    return target;
-  };
-}
-
-/**
  * Class decorator to expose an Agent as an A2A server.
  * Usage: @a2aServer({ port: 41241 })
  *

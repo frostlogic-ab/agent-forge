@@ -1,6 +1,16 @@
 import type { ConfigOptions } from "token.js";
 import { LLM } from "../llm/llm";
+import {
+  type MCPClientWrapper,
+  type MCPProtocolType,
+  type MCPSseConfig,
+  type MCPStdioConfig,
+  type MCPStreamableHttpConfig,
+  MCPToolWrapper,
+  createMCPClient,
+} from "../tools/mcp-tool";
 import type { AgentConfig, LLMProvider } from "../types";
+import { Agent } from "./agent";
 import { AgentForge } from "./agent-forge";
 
 /**
@@ -14,6 +24,13 @@ import { AgentForge } from "./agent-forge";
  */
 export function agent(config: AgentConfig): ClassDecorator {
   return (target: any) => {
+    // Runtime check: ensure target is an Agent constructor
+    if (typeof target !== "function" || !(target.prototype instanceof Agent)) {
+      throw new Error(
+        "@MCP decorator can only be applied to classes extending Agent"
+      );
+    }
+
     target.agentConfig = config;
     return target;
   };
