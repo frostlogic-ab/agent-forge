@@ -1,8 +1,4 @@
-import * as dotenv from 'dotenv';
 import { HelpfulAssistantAgent } from "./agents/helpful-assistant.agent";
-
-// Load environment variables from .env file at the project root
-dotenv.config();
 
 async function runA2AServer() {
      

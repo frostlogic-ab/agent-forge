@@ -3,11 +3,9 @@ import { ManagerAgent } from "./agents/manager.agent";
 import { ResearcherAgent } from "./agents/researcher.agent";
 import { SummarizerAgent } from "./agents/summarizer.agent";
 import { RemoteHelpfulAssistant } from "./agents/remote.agent";
-import * as dotenv from 'dotenv';
 import { AgentForge } from "../../core/agent-forge";
 import { configuredProvider, configuredApiKey } from "./provider";
-// Load environment variables from .env file at the project root
-dotenv.config();
+
 
 @llmProvider(configuredProvider, { apiKey: configuredApiKey })
 @forge()
