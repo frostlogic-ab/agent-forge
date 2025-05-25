@@ -155,6 +155,8 @@ export class AgentForge {
    * Loads agents from YAML files in a directory
    * @param directoryPath Path to directory containing agent YAML files
    * @returns The AgentForge instance for method chaining
+   *
+   * @deprecated Use the @agent decorator instead
    */
   async loadAgentsFromDirectory(directoryPath: string): Promise<AgentForge> {
     const agents = await loadAgentsFromDirectory(directoryPath);
