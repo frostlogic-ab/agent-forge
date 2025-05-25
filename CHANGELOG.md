@@ -1,4 +1,14 @@
 ## What's Changed
+* Update documentation to explicitly promote use of environment variables by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/42
+* remove yarn state from repository by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/43
+* A2a, Agent, LLMProvider and forge decorators by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/44
+
+
+**Full Changelog**: https://github.com/frostlogic-ab/agent-forge/compare/v1.5.2...v2.0.0-alpha.1
+
+# [2.0.0-alpha.1](https://github.com/frostlogic-ab/agent-forge/compare/v1.5.2...v2.0.0-alpha.1) (2025-05-25)
+
+## What's Changed
 * fix exports of a2a types and classes by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/41
 
 
