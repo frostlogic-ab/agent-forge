@@ -4,9 +4,7 @@ import { ResearcherAgent } from "./agents/researcher.agent";
 import { SummarizerAgent } from "./agents/summarizer.agent";
 import { RemoteHelpfulAssistant } from "./agents/remote.agent";
 import * as dotenv from 'dotenv';
-import { LLMProvider } from "../../types";
 import { AgentForge } from "../../core/agent-forge";
-import { Agent } from "../../core/agent";
 import { configuredProvider, configuredApiKey } from "./provider";
 // Load environment variables from .env file at the project root
 dotenv.config();
