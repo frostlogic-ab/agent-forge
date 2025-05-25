@@ -1,4 +1,12 @@
 ## What's Changed
+* Add decorators for MCP and RateLimiter by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/45
+
+
+**Full Changelog**: https://github.com/frostlogic-ab/agent-forge/compare/v2.0.0-alpha.1...v2.0.0-alpha.2
+
+# [2.0.0-alpha.2](https://github.com/frostlogic-ab/agent-forge/compare/v2.0.0-alpha.1...v2.0.0-alpha.2) (2025-05-25)
+
+## What's Changed
 * Update documentation to explicitly promote use of environment variables by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/42
 * remove yarn state from repository by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/43
 * A2a, Agent, LLMProvider and forge decorators by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/44
