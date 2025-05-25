@@ -46,8 +46,20 @@ export class Agent {
    * @param tools Optional additional tools to provide to the agent
    * @param llmProvider Optional LLM provider for the agent
    */
-  constructor(config: AgentConfig, tools: Tool[] = [], llmProvider?: LLM) {
-    this.config = config;
+  constructor(config?: AgentConfig, tools: Tool[] = [], llmProvider?: LLM) {
+    // If config is not provided, try to get it from a static property (for decorator use)
+    if (config) {
+      this.config = config;
+    } else {
+      // @ts-ignore
+      const staticConfig = (this.constructor as any).agentConfig;
+      if (!staticConfig) {
+        throw new Error(
+          "AgentConfig must be provided either via constructor or @agent decorator."
+        );
+      }
+      this.config = staticConfig;
+    }
 
     // Initialize the tool registry with provided tools
     this.tools = new ToolRegistry(tools);
