@@ -9,7 +9,7 @@ import {
   MCPToolWrapper,
   createMCPClient,
 } from "../tools/mcp-tool";
-import type { AgentConfig, LLMProvider } from "../types";
+import type { AgentConfig, LLMProvider, RateLimiterConfig } from "../types";
 import { Agent } from "./agent";
 import { AgentForge } from "./agent-forge";
 
@@ -87,6 +87,103 @@ export function forge() {
             new LLM(provider, providerConfig)
           );
         }
+      }
+    };
+  };
+}
+
+export function RateLimiter(config: RateLimiterConfig): ClassDecorator {
+  return (target: any) => {
+    target.rateLimiterConfig = config;
+    return target;
+  };
+}
+
+// Update MCP decorator to use rateLimiterConfig if present
+export function MCP(
+  protocol: MCPProtocolType,
+  config: MCPStdioConfig | MCPSseConfig | MCPStreamableHttpConfig
+): ClassDecorator {
+  return (target: any): any => {
+    if (typeof target !== "function" || !(target.prototype instanceof Agent)) {
+      throw new Error(
+        "@MCP decorator can only be applied to classes extending Agent"
+      );
+    }
+    if (!(target as any).mcpConfigs) {
+      (target as any).mcpConfigs = [];
+    }
+    (target as any).mcpConfigs.push({ protocol, config });
+
+    return class extends target {
+      private __mcpClients: MCPClientWrapper[] = [];
+      constructor(...args: any[]) {
+        super(...args);
+        if (
+          (this as any).tools &&
+          ((target as any).mcpConfigs?.length ?? 0) > 0
+        ) {
+          (async () => {
+            for (const { protocol, config } of (target as any).mcpConfigs) {
+              const client = createMCPClient(protocol, config);
+              await client.initialize();
+              const mcpTools = await client.listTools();
+              // Get rate limiter config from the class
+              const rateLimiterConfig: RateLimiterConfig | undefined = (
+                target as any
+              ).rateLimiterConfig;
+              for (const mcpTool of mcpTools) {
+                let rateLimiter: any;
+                // Tool-specific limits
+                for (const [pattern, limit] of Object.entries(
+                  rateLimiterConfig?.toolSpecificLimits || {}
+                ) as [string, any][]) {
+                  if (
+                    mcpTool.name.includes(pattern) &&
+                    typeof limit === "object" &&
+                    limit !== null
+                  ) {
+                    rateLimiter =
+                      new (require("../utils/rate-limiter").RateLimiter)({
+                        ...(limit as object),
+                        verbose: rateLimiterConfig?.verbose,
+                        toolName: mcpTool.name,
+                      });
+                    break;
+                  }
+                }
+                // Global limits if no tool-specific
+                if (
+                  !rateLimiter &&
+                  (rateLimiterConfig?.rateLimitPerSecond ||
+                    rateLimiterConfig?.rateLimitPerMinute)
+                ) {
+                  rateLimiter =
+                    new (require("../utils/rate-limiter").RateLimiter)({
+                      callsPerSecond: rateLimiterConfig.rateLimitPerSecond,
+                      callsPerMinute: rateLimiterConfig.rateLimitPerMinute,
+                      verbose: rateLimiterConfig.verbose,
+                      toolName: mcpTool.name,
+                    });
+                }
+                const wrapper = new MCPToolWrapper(
+                  mcpTool,
+                  client,
+                  rateLimiter,
+                  { cacheTTL: rateLimiterConfig?.cacheTTL }
+                );
+                this.addTool(wrapper);
+              }
+              this.__mcpClients.push(client);
+            }
+          })();
+        }
+      }
+      async closeMCPClients() {
+        for (const client of this.__mcpClients) {
+          await client.close();
+        }
+        this.__mcpClients = [];
       }
     };
   };

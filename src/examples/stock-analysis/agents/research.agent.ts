@@ -4,13 +4,24 @@ import { llmProvider } from "../../../core/decorators";
 import { MCP } from "../../../tools/decorators";
 import { configuredProvider, configuredApiKey, configuredModel } from "../provider";
 import { MCPProtocolType } from "../../../tools/mcp-tool";
+import { RateLimiter } from "../../../core/decorators";
 
+@RateLimiter({
+  rateLimitPerSecond: 1,
+  toolSpecificLimits: {
+    'brave': {
+      rateLimitPerSecond: 1
+    }
+  },
+  verbose: true,
+})
 @MCP(MCPProtocolType.STDIO, {
     command: "docker",
     args: ["run", "-i", "--rm", "-e", "BRAVE_API_KEY", "mcp/brave-search"],
     env: {
         BRAVE_API_KEY: process.env.BRAVE_API_KEY || "",
     },
+    verbose: true,
 })
 @llmProvider(configuredProvider, {apiKey: configuredApiKey})
 @agent({
