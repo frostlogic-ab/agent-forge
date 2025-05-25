@@ -1,4 +1,7 @@
+import type { ConfigOptions } from "token.js";
 import type { Agent } from "../core/agent";
+import { LLM } from "../llm/llm";
+import type { LLMProvider } from "../types";
 import { RemoteA2AAgent } from "./client/RemoteA2AAgent";
 import type { A2AClientOptions } from "./client/types";
 import { A2AServer } from "./server/A2AServer";
@@ -31,28 +34,58 @@ export function a2aClient(
 }
 
 /**
+ * LLM Provider decorator. Sets static properties for provider and config on the class.
+ *
+ * @param provider LLM provider name
+ * @param config LLM provider config
+ *
+ * Usage:
+ *   @llmProvider("openai", { apiKey: "..." })
+ *   class MyClass {}
+ */
+export function llmProvider(
+  provider: LLMProvider,
+  config: ConfigOptions
+): ClassDecorator {
+  return (target: any) => {
+    target.llmProvider = provider;
+    target.llmConfig = config;
+    return target;
+  };
+}
+
+/**
  * Class decorator to expose an Agent as an A2A server.
  * Usage: @a2aServer({ port: 41241 })
  *
- * This will automatically start the server when the class is instantiated.
+ * Always uses static llmProvider/llmConfig from the class (set by @llmProvider).
  */
 export function a2aServer(
   options: A2AServerOptions = {},
   adapter?: any
 ): ClassDecorator {
-  return (target: any): any =>
-    class extends target {
+  return (target: any): any => {
+    return class extends target {
       private __a2aServerInstance?: A2AServer;
       constructor(...args: any[]) {
         super(...args);
-        // 'this' is the Agent instance
+        // Lazy read of static properties at runtime
+        const provider = (this.constructor as any).llmProvider;
+        const providerConfig = (this.constructor as any).llmConfig;
+        if (!provider || !providerConfig) {
+          throw new Error(
+            "LLM provider and config must be set via @llmProvider on the class before using @a2aServer"
+          );
+        }
+        if (provider && typeof this.setLLMProvider === "function") {
+          this.setLLMProvider(new LLM(provider, providerConfig));
+        }
         this.__a2aServerInstance = new A2AServer(
           this as unknown as Agent,
           options,
           adapter
         );
         this.__a2aServerInstance.start().then(() => {
-          // Optionally log server start
           if (options.verbose) {
             // eslint-disable-next-line no-console
             console.log(
@@ -65,4 +98,5 @@ export function a2aServer(
         return this.__a2aServerInstance;
       }
     };
+  };
 }

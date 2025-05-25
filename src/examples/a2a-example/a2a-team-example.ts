@@ -1,43 +1,48 @@
-import { AgentForge, LLM, Team } from "../../index";
-import { type LLMProvider } from "../../types";
-import * as dotenv from 'dotenv';
-import { RemoteHelpfulAssistant } from "./agents/remote.agent";
+import { forge, llmProvider } from "../../core/decorators";
 import { ManagerAgent } from "./agents/manager.agent";
-import { llmProvider } from "./provider";
-
+import { ResearcherAgent } from "./agents/researcher.agent";
+import { SummarizerAgent } from "./agents/summarizer.agent";
+import { RemoteHelpfulAssistant } from "./agents/remote.agent";
+import * as dotenv from 'dotenv';
+import { LLMProvider } from "../../types";
+import { AgentForge } from "../../core/agent-forge";
+import { Agent } from "../../core/agent";
+import { configuredProvider, configuredApiKey } from "./provider";
 // Load environment variables from .env file at the project root
 dotenv.config();
 
-async function runA2ATeamRealWorldExample() {
-    console.log("INFO: Make sure the A2A Server (a2a-server-example.ts) is running on http://localhost:41241/a2a");
+@llmProvider(configuredProvider, { apiKey: configuredApiKey })
+@forge()
+class TeamExample {
+  // Static property to store the AgentForge instance
+  static forge: AgentForge;
 
-    const forge = new AgentForge(llmProvider);
-
-    const managerAgent = new ManagerAgent(); 
-    forge.registerAgent(managerAgent); // Register with forge if you were loading it through forge methods elsewhere
-
-    // 4. Use the decorated class to create the remote agent (returns a Promise)
+  static async run() {
+    new TeamExample();
+  
     let helpfulAssistantRemoteAgent: RemoteHelpfulAssistant;
     try {
-        // Type assertion to 'any' to allow zero-argument construction; safe because decorator intercepts
-        helpfulAssistantRemoteAgent = await new RemoteHelpfulAssistant();
-        console.log(`INFO: Remote agent '${helpfulAssistantRemoteAgent.name}' initialized. Description: ${helpfulAssistantRemoteAgent.description}`);
+      helpfulAssistantRemoteAgent = await new RemoteHelpfulAssistant();
+      console.log(`INFO: Remote agent '${helpfulAssistantRemoteAgent.name}' initialized. Description: ${helpfulAssistantRemoteAgent.description}`);
     } catch (error) {
-        console.error(`ERROR: Failed to create RemoteHelpfulAssistant via @a2aClient: ${error}`);
-        process.exit(1);
+      console.error(`ERROR: Failed to create RemoteHelpfulAssistant via @a2aClient: ${error}`);
+      process.exit(1);
     }
+    const agents = [new ManagerAgent(), new ResearcherAgent(), new SummarizerAgent()];
 
-    const team = new Team(managerAgent).addAgent(helpfulAssistantRemoteAgent);
+    TeamExample.forge.registerAgents(agents);
 
+    const team = TeamExample.forge.createTeam("ManagerAgent", "Team", "A team of agents that can help with a variety of tasks.")
+      .addAgents(agents)
+      .addAgent(helpfulAssistantRemoteAgent);
     try {
-        // Running the team. The manager agent will get the task and details of team members.
-        // Its LLM should decide to delegate to "RemoteHelpfulAssistant".
-        const result = await team.run("What is the capital of France?", { verbose: true}); // verbose true to see manager's reasoning
-        console.log(result.output);
+      const result = await team.run("What is the status of AI in 2025? Make a full report and summarzied", { verbose: true });
+      console.log(result);
     } catch (error) {
-        console.error("An unknown error occurred:", error);
-        process.exit(1);
+      console.error("An unknown error occurred:", error);
+      process.exit(1);
     }
+  }
 }
 
-runA2ATeamRealWorldExample(); 
+TeamExample.run(); 

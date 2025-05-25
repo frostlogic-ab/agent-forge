@@ -100,6 +100,18 @@ export class Team {
   }
 
   /**
+   * Adds multiple agents to the team
+   * @param agents The agents to add
+   * @returns The team instance for method chaining
+   */
+  addAgents(agents: Agent[]): Team {
+    for (const agent of agents) {
+      this.addAgent(agent);
+    }
+    return this;
+  }
+
+  /**
    * Gets an agent by name
    * @param name Name of the agent to get
    * @returns The agent instance
