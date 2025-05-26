@@ -11,6 +11,7 @@ import type {
   LLMProvider,
   ProviderCompletionParams,
 } from "token.js/dist/chat";
+import { getExtendedModelList } from "../config/json-config-loader";
 import { AgentForgeEvents } from "../types";
 import { EventEmitter } from "../utils/event-emitter";
 
@@ -35,12 +36,29 @@ export class LLM {
   protected readonly token: TokenJS;
   protected eventEmitter: EventEmitter;
 
-  constructor(
+  private constructor(
     protected readonly provider: LLMProvider,
     protected readonly config: ConfigOptions
   ) {
-    this.token = new TokenJS(this.config);
     this.eventEmitter = new EventEmitter();
+    this.token = new TokenJS(this.config);
+  }
+
+  static async create(
+    provider: LLMProvider,
+    config: ConfigOptions
+  ): Promise<LLM> {
+    const models = await getExtendedModelList();
+    const tempToken = new TokenJS(config);
+    for (const entry of models) {
+      // @ts-ignore: instance method, and provider type cast for compatibility
+      tempToken.extendModelList(
+        entry.provider as any,
+        entry.name,
+        entry.featureSupport
+      );
+    }
+    return new LLM(provider, config);
   }
 
   getEventEmitter(): EventEmitter {

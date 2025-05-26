@@ -1,0 +1,14 @@
+{
+  "extendModelList": [
+    {
+      "provider": "gemini",
+      "name": "gemini-2.5-flash-preview-05-20",
+      "featureSupport": {
+        "streaming": true,
+        "json": true,
+        "toolCalls": true,
+        "images": true
+      }
+    }
+  ]
+}

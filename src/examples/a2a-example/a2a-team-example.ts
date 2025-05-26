@@ -3,9 +3,8 @@ import { ManagerAgent } from "./agents/manager.agent";
 import { ResearcherAgent } from "./agents/researcher.agent";
 import { SummarizerAgent } from "./agents/summarizer.agent";
 import { RemoteHelpfulAssistant } from "./agents/remote.agent";
-import { AgentForge } from "../../core/agent-forge";
+import { AgentForge, readyForge } from "../../core/agent-forge";
 import { configuredProvider, configuredApiKey } from "./provider";
-
 
 @llmProvider(configuredProvider, { apiKey: configuredApiKey })
 @forge()
@@ -14,7 +13,7 @@ class TeamExample {
   static forge: AgentForge;
 
   static async run() {
-    new TeamExample();
+    const teamInstance = await readyForge(TeamExample);
   
     let helpfulAssistantRemoteAgent: RemoteHelpfulAssistant;
     try {
