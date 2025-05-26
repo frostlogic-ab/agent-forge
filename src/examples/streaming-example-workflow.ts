@@ -51,7 +51,7 @@ async function main() {
 main();
 
 // Create Agent Forge instance
-const agentForge = new AgentForge(llm);
+const agentForge = new AgentForge();
 
 // Add tools
 const webSearchTool = new WebSearchTool();
@@ -66,11 +66,10 @@ const researcherAgent = new Agent(
     role: "Research Specialist",
     description: "Researches topics and finds relevant information. When you use the web search tool, always get the content of the page.",
     objective: "Provide accurate and relevant research.",
-    model: model,
+    model: "TO BE SET",
     temperature: 0.2,
   },
-  [webSearchTool, webPageContentTool],
-  llm
+  [webSearchTool, webPageContentTool]
 );
 agentForge.registerAgent(researcherAgent);
 
@@ -81,11 +80,10 @@ const writerAgent = new Agent(
     role: "Content Writer",
     description: "Writes engaging content based on research.",
     objective: "Create well-written summaries and articles.",
-    model: model,
+    model: "TO BE SET",
     temperature: 0.2,
   },
   [],
-  llm
 );
 agentForge.registerAgent(writerAgent);
 
@@ -96,11 +94,10 @@ const factCheckerAgent = new Agent(
     role: "Fact Verification Specialist",
     description: "Verifies facts and ensures accuracy.",
     objective: "Ensure all information is factually correct.",
-    model: model,
+    model: "TO BE SET",
     temperature: 0.2,
   },
-  [webSearchTool],
-  llm
+  [webSearchTool]
 );
 agentForge.registerAgent(factCheckerAgent);
 
