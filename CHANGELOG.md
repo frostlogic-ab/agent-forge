@@ -1,4 +1,12 @@
 ## What's Changed
+* Rewrite simple-agent example and document how to use workflows by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/47
+
+
+**Full Changelog**: https://github.com/frostlogic-ab/agent-forge/compare/v2.0.0-alpha.3...v2.0.0-alpha.4
+
+# [2.0.0-alpha.4](https://github.com/frostlogic-ab/agent-forge/compare/v2.0.0-alpha.3...v2.0.0-alpha.4) (2025-05-26)
+
+## What's Changed
 * add support for agentforge.config.json with option to extend model list by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/46
 
 
