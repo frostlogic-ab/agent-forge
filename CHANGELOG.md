@@ -1,4 +1,12 @@
 ## What's Changed
+* Reuse @RateLimiter decorator for llmProvider by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/48
+
+
+**Full Changelog**: https://github.com/frostlogic-ab/agent-forge/compare/v2.0.0-alpha.4...v2.0.0-alpha.5
+
+# [2.0.0-alpha.5](https://github.com/frostlogic-ab/agent-forge/compare/v2.0.0-alpha.4...v2.0.0-alpha.5) (2025-05-26)
+
+## What's Changed
 * Rewrite simple-agent example and document how to use workflows by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/47
 
 
