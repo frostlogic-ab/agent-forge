@@ -69,8 +69,8 @@ async function main() {
   try {
     await createExampleYamlFiles(); // Create/update YAML files with current model
 
-    const llmProviderInstance = new LLM(provider, { apiKey });
-    const forge = new AgentForge(llmProviderInstance);
+    const llm = await LLM.create(provider, { apiKey });
+    const forge = new AgentForge(llm);
 
     // Load agents from YAML files
     const examplesDir = path.join(__dirname, "yaml");
@@ -84,13 +84,13 @@ async function main() {
     // If YAML model is missing, AgentForge/Agent might have a fallback or require it.
     // For consistency with LLM_MODEL env var, we ensure YAMLs are written with it.
     const researchAgent = await loadAgentFromYaml(researcherYamlPath);
-    researchAgent.setLLMProvider(llmProviderInstance);
+    researchAgent.setLLMProvider(llm);
 
     const summaryAgent = await loadAgentFromYaml(summarizerYamlPath);
-    summaryAgent.setLLMProvider(llmProviderInstance);
+    summaryAgent.setLLMProvider(llm);
 
     const managerAgentLoaded = await loadAgentFromYaml(managerYamlPath);
-    managerAgentLoaded.setLLMProvider(llmProviderInstance);
+    managerAgentLoaded.setLLMProvider(llm);
     
     // If an agent is loaded from YAML, its 'model' field from YAML is used.
     // If we want to *override* the YAML model with LLM_MODEL from .env, we'd have to do it post-load:
@@ -141,7 +141,7 @@ async function main() {
     await forge.loadAgentsFromDirectory(examplesDir); // Load agents
     // After loading, iterate and ensure LLM provider is set to the one from .env
     for (const agent of forge.getAgents()) {
-        agent.setLLMProvider(llmProviderInstance); // Unconditionally set to ensure consistency
+        agent.setLLMProvider(llm); // Unconditionally set to ensure consistency
     }
     console.log("All agents from directory loaded/updated successfully. Current models:");
     forge.getAgents().forEach((agent) => {
