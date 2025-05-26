@@ -319,6 +319,32 @@ TeamWithMCPExample.run();
 - `@a2aClient(options)`: Connect an agent to a remote A2A server.
 - `@MCP(protocol, config)`: Attach MCP tools to an agent.
 - `@RateLimiter(config)`: Add rate limiting to an agent's tool usage.
+- `@Visualizer()`: Enable timeline visualization for team runs. When used above `@forge` and `@llmProvider`, it will automatically generate an interactive HTML timeline of all agent, manager, and task events after each run.
+
+**Usage Example:**
+```ts
+import { Visualizer, forge, llmProvider, agent } from "agent-forge";
+import { AgentForge, Agent } from "agent-forge";
+
+@agent({
+  name: "ManagerAgent",
+  role: "Manager",
+  description: "Delegates tasks to team members.",
+  objective: "Coordinate the team to solve complex tasks.",
+  model: process.env.LLM_API_MODEL!,
+})
+class ManagerAgent extends Agent {}
+
+@llmProvider("openai", { apiKey: process.env.LLM_API_KEY })
+@Visualizer()
+@forge()
+class TeamWithTimeline {
+  static forge: AgentForge;
+  // ...
+}
+```
+
+After running a team, an HTML timeline file will be written to the current directory (e.g., `team-run-timeline.html`).
 
 ## Documentation
 

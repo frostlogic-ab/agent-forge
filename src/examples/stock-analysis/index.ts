@@ -7,8 +7,9 @@ import { AnalystAgent } from "./agents/analyst.agent";
 import { ManagerAgent } from "./agents/manager.agent";
 import { WriterAgent } from "./agents/writer.agent";
 import { ResearchAgent } from "./agents/research.agent";
-import { RateLimiter } from "../../core/decorators";
+import { RateLimiter, Visualizer } from "../../utils/decorators";
 
+@Visualizer()
 @RateLimiter({
   rateLimitPerSecond: 1,
   rateLimitPerMinute: 40,
@@ -40,7 +41,7 @@ class StockAnalysisTeam {
 
     const report = await team.run("Write a report on the stock price of Apple", { verbose: true });
     console.log(report);
-    process.exit(0);
+    // process.exit(0);
   }
 }
 

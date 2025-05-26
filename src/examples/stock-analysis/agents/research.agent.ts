@@ -4,7 +4,7 @@ import { llmProvider } from "../../../core/decorators";
 import { MCP } from "../../../tools/decorators";
 import { configuredProvider, configuredApiKey, configuredModel } from "../provider";
 import { MCPProtocolType } from "../../../tools/mcp-tool";
-import { RateLimiter } from "../../../core/decorators";
+import { RateLimiter } from "../../../utils/decorators";
 
 @RateLimiter({
   rateLimitPerSecond: 1,

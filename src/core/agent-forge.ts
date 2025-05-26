@@ -148,7 +148,11 @@ export class AgentForge {
       throw new Error(`Agent with name '${managerName}' is not registered`);
     }
 
-    return new Team(manager, name, description);
+    const team = new Team(manager, name, description);
+    if ((this.constructor as any).__visualizerEnabled) {
+      (team.constructor as any).__visualizerEnabled = true;
+    }
+    return team;
   }
 
   /**

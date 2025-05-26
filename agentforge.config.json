@@ -9,6 +9,16 @@
         "toolCalls": true,
         "images": true
       }
+    },
+    {
+      "provider": "gemini",
+      "name": "gemini-2.0-flash",
+      "featureSupport": {
+        "streaming": true,
+        "json": true,
+        "toolCalls": true,
+        "images": true
+      }
     }
   ]
 }
