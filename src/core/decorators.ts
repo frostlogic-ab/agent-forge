@@ -83,9 +83,11 @@ export function forge() {
         }
         // Only initialize static forge once
         if (!(this.constructor as any).forge) {
-          (this.constructor as any).forge = new AgentForge(
-            new LLM(provider, providerConfig)
-          );
+          (this.constructor as any).forgeReady = (async () => {
+            (this.constructor as any).forge = new AgentForge(
+              await LLM.create(provider, providerConfig)
+            );
+          })();
         }
       }
     };

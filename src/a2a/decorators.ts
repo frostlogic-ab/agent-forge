@@ -57,7 +57,9 @@ export function a2aServer(
           );
         }
         if (provider && typeof this.setLLMProvider === "function") {
-          this.setLLMProvider(new LLM(provider, providerConfig));
+          (async () => {
+            this.setLLMProvider(await LLM.create(provider, providerConfig));
+          })();
         }
         this.__a2aServerInstance = new A2AServer(
           this as unknown as Agent,

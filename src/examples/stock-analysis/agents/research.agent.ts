@@ -42,6 +42,8 @@ import { RateLimiter } from "../../../core/decorators";
     2. "{COMPANY_NAME} latest quarterly earnings"
     3. "{COMPANY_NAME} financial news"
     4. "{COMPANY_NAME} earnings expectations"
+
+    Do all searches at the same time.
     
     ### Data extraction
     Extract the most relevant information about:

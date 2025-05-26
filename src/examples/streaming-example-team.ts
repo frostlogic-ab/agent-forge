@@ -10,128 +10,53 @@ import { exit } from "process";
 import { WebPageContentTool } from "../tools/web-page-content-tool";
 import { LLM } from "../llm/llm";
 import { LLMProvider } from "../types";
+import { Team } from "../core/team";
 
-const provider = (process.env.LLM_PROVIDER as LLMProvider) || "openai";
-const apiKey = process.env.LLM_API_KEY;
-const model = process.env.LLM_API_MODEL!;
+async function main() {
+  const provider = (process.env.LLM_PROVIDER as LLMProvider) || "openai";
+  const apiKey = process.env.LLM_API_KEY;
+  const model = process.env.LLM_API_MODEL!;
 
-if (!apiKey) {
-  console.error(
-      `Error: LLM_API_KEY environment variable not set. ` +
-      "Please create a .env file in the project root (from .env.sample) " +
-      "and add your LLM_API_KEY (and optionally LLM_PROVIDER, LLM_MODEL)."
-  );
-  process.exit(1);
-}
+  if (!apiKey) {
+    throw new Error("LLM_API_KEY environment variable not set.");
+  }
 
-const llm = new LLM(provider, {
-  apiKey,
-});
+  // Use async LLM.create
+  const llm = await LLM.create(provider, { apiKey });
 
-// Create Agent Forge instance
-const agentForge = new AgentForge(llm);
-
-// Add tools
-const webSearchTool = new WebSearchTool();
-const webPageContentTool = new WebPageContentTool();
-agentForge.registerTool(webSearchTool);
-agentForge.registerTool(webPageContentTool);
-
-const managerAgent = new Agent(
-  {
+  const manager = new Agent({
     name: "Manager",
-    role: "Manager",
-    description: "A manager that coordinates the team.",
-    objective: "Ensure the team completes the task.",
-    model: model,
-    temperature: 0.2,
-  },
-  [],
-  llm
-);
+    role: "Team Manager",
+    description: "Coordinates the team.",
+    objective: "Manage the team to solve the task.",
+    model,
+    temperature: 0.5,
+  }, [], llm);
 
-agentForge.registerAgent(managerAgent);
-// Create the researcher agent
-const researcherAgent = new Agent(
-  {
+  const researcher = new Agent({
     name: "Researcher",
     role: "Research Specialist",
-    description: "Researches topics and finds relevant information.",
-    objective: "Provide accurate and relevant research.",
-    model: model,
-    temperature: 0.2,
-  },
-  [webSearchTool, webPageContentTool],
-  llm
-);
+    description: "Finds information.",
+    objective: "Research the topic.",
+    model,
+    temperature: 0.4,
+  }, [], llm);
 
-
-// Create the writer agent
-const writerAgent = new Agent(
-  {
-    name: "Writer",
-    role: "Content Writer",
-    description: "Writes engaging content based on research.",
-    objective: "Create well-written summaries and articles.",
-    model: model,
-    temperature: 0.7,
-  },
-  [],
-  llm
-);
-
-
-// Create the fact checker agent
-const factCheckerAgent = new Agent(
-  {
-    name: "FactChecker",
-    role: "Fact Verification Specialist",
-    description: "Verifies facts and ensures accuracy.",
-    objective: "Ensure all information is factually correct.",
-    model: model,
+  const summarizer = new Agent({
+    name: "Summarizer",
+    role: "Summarizer",
+    description: "Summarizes information.",
+    objective: "Summarize the research.",
+    model,
     temperature: 0.3,
-  },
-  [webSearchTool],
-  llm
-);
+  }, [], llm);
 
+  const team = new Team(manager, "Research Team", "A team to research and summarize");
+  team.addAgent(researcher);
+  team.addAgent(summarizer);
 
-// Streaming with custom visualization
-async function runCustomStreamingExample() {
-  const team = agentForge.createTeam(
-    "Manager",
-    "Research Team",
-    "A team that researches and summarizes topics"
-  );
-
-  team.addAgent(researcherAgent);
-  team.addAgent(factCheckerAgent);
-  team.addAgent(writerAgent);
-
-  const result = await team.run(
-    "Who is Frostlogic AB and what do they do?",
-    {
-      verbose: false,
-      stream: true,
-      enableConsoleStream: true,
-    }
-  );
-
-  console.log("\nFinal result:");
+  const result = await team.run("What are the latest trends in AI research?", { verbose: true });
   console.log(result.output);
-  
-  // Remove listeners to avoid duplicates in future runs
-  globalEventEmitter.removeAllListeners();
-  exit(0);
 }
 
-// Run the example
-async function runExample() {
-  try {
-    await runCustomStreamingExample();
-  } catch (error) {
-    console.error("Error running team streaming example:", error);
-  }
-}
-
-runExample(); 
+main(); 

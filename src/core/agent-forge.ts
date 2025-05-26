@@ -309,3 +309,19 @@ export class AgentForge {
     }
   }
 }
+
+/**
+ * Utility to instantiate a decorated team/forge class and await its async static initialization.
+ * @param TeamClass The class to instantiate (must have static forgeReady)
+ * @returns The instance, after static async initialization is complete
+ */
+export async function readyForge<T extends { new (...args: any[]): any }>(
+  TeamClass: T,
+  ...args: ConstructorParameters<T>
+): Promise<InstanceType<T>> {
+  const instance = new TeamClass(...args);
+  if ((TeamClass as any).forgeReady) {
+    await (TeamClass as any).forgeReady;
+  }
+  return instance as InstanceType<T>;
+}

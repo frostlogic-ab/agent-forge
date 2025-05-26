@@ -3,12 +3,12 @@ import {
   AgentForge,
   Agent,
   ToolCall,
-  LLM,
 } from "../index";
 import { WebSearchTool } from "../tools/web-search-tool";
 import { Tool } from "../tools/tool";
 import { ToolParameter } from "../types";
 import { LLMProvider } from "../types";
+import { LLM } from "../llm/llm";
 
 // Load environment variables from .env file at the project root
 dotenv.config();
@@ -112,115 +112,103 @@ class WeatherTool extends Tool {
   }
 }
 
-// LLM Configuration moved to top level
-const provider = (process.env.LLM_PROVIDER as LLMProvider) || "openai";
-const apiKey = process.env.LLM_API_KEY;
-const model = process.env.LLM_API_MODEL!;
-
-if (!apiKey) {
-  console.error(
-      `Error: LLM_API_KEY environment variable not set. ` +
-      "Please create a .env file in the project root (from .env.sample) " +
-      "and add your LLM_API_KEY (and optionally LLM_PROVIDER, LLM_MODEL)."
-  );
-  process.exit(1);
-}
-
 async function main() {
-  try {
-    // Create an LLM provider
-    const llmProvider = new LLM(provider, {
-      apiKey,
-    });
+  const provider = (process.env.LLM_PROVIDER as LLMProvider) || "openai";
+  const apiKey = process.env.LLM_API_KEY;
+  const model = process.env.LLM_API_MODEL!;
 
-    // Create the tools
-    const webSearchTool = new WebSearchTool();
-    const calculatorTool = new CalculatorTool();
-    const weatherTool = new WeatherTool();
-
-    // Create the Agent Forge instance
-    const forge = new AgentForge(llmProvider);
-
-    // Register the tools
-    forge.registerTools([webSearchTool, calculatorTool, weatherTool]);
-
-    // Create an assistant agent with tools
-    const assistantAgent = new Agent(
-      {
-        name: "Assistant",
-        role: "Helpful Assistant",
-        description:
-          "A helpful assistant that can search the web, do calculations, and check the weather.",
-        objective:
-          "Help the user with their questions using the available tools when appropriate.",
-        model: model,
-        temperature: 0.7,
-      },
-      [webSearchTool, calculatorTool, weatherTool],
-      llmProvider
-    );
-
-    // Register the agent
-    forge.registerAgent(assistantAgent);
-
-    // Run the agent with different queries that would use different tools
-    console.log("Running assistant agent with a calculation query...");
-    const calculationResult = await forge.runAgent(
-      "Assistant",
-      "What is 527 * 192?"
-    );
-    console.log("\nCalculation Result:");
-    console.log(calculationResult.output);
-    console.log(
-      "\nTool calls:",
-      calculationResult.metadata.toolCalls?.map(
-        (tc: ToolCall) => tc.toolName
-      ) || "None"
-    );
-
-    console.log("\n\nRunning assistant agent with a weather query...");
-    const weatherResult = await forge.runAgent(
-      "Assistant",
-      "What's the weather like in Tokyo?"
-    );
-    console.log("\nWeather Result:");
-    console.log(weatherResult.output);
-    console.log(
-      "\nTool calls:",
-      weatherResult.metadata.toolCalls?.map((tc: ToolCall) => tc.toolName) ||
-        "None"
-    );
-
-    console.log("\n\nRunning assistant agent with a search query...");
-    const searchResult = await forge.runAgent(
-      "Assistant",
-      "What are the latest advancements in quantum computing?"
-    );
-    console.log("\nSearch Result:");
-    console.log(searchResult.output);
-    console.log(
-      "\nTool calls:",
-      searchResult.metadata.toolCalls?.map((tc: ToolCall) => tc.toolName) ||
-        "None"
-    );
-
-    console.log(
-      "\n\nRunning assistant agent with a complex query that might use multiple tools..."
-    );
-    const complexResult = await forge.runAgent(
-      "Assistant",
-      "I'm planning a trip to New York. What's the weather like there, and what are the top 3 tourist attractions?"
-    );
-    console.log("\nComplex Result:");
-    console.log(complexResult.output);
-    console.log(
-      "\nTool calls:",
-      complexResult.metadata.toolCalls?.map((tc: ToolCall) => tc.toolName) ||
-        "None"
-    );
-  } catch (error) {
-    console.error("Error:", error);
+  if (!apiKey) {
+    throw new Error("LLM_API_KEY environment variable not set.");
   }
+
+  // Use async LLM.create
+  const llm = await LLM.create(provider, { apiKey });
+
+  // Create the tools
+  const webSearchTool = new WebSearchTool();
+  const calculatorTool = new CalculatorTool();
+  const weatherTool = new WeatherTool();
+
+  // Create the Agent Forge instance
+  const forge = new AgentForge(llm);
+
+  // Register the tools
+  forge.registerTools([webSearchTool, calculatorTool, weatherTool]);
+
+  // Create an assistant agent with tools
+  const assistantAgent = new Agent(
+    {
+      name: "Assistant",
+      role: "Helpful Assistant",
+      description:
+        "A helpful assistant that can search the web, do calculations, and check the weather.",
+      objective:
+        "Help the user with their questions using the available tools when appropriate.",
+      model,
+      temperature: 0.7,
+    },
+    [webSearchTool, calculatorTool, weatherTool],
+    llm
+  );
+
+  // Register the agent
+  forge.registerAgent(assistantAgent);
+
+  // Run the agent with different queries that would use different tools
+  console.log("Running assistant agent with a calculation query...");
+  const calculationResult = await forge.runAgent(
+    "Assistant",
+    "What is 527 * 192?"
+  );
+  console.log("\nCalculation Result:");
+  console.log(calculationResult.output);
+  console.log(
+    "\nTool calls:",
+    calculationResult.metadata.toolCalls?.map(
+      (tc: ToolCall) => tc.toolName
+    ) || "None"
+  );
+
+  console.log("\n\nRunning assistant agent with a weather query...");
+  const weatherResult = await forge.runAgent(
+    "Assistant",
+    "What's the weather like in Tokyo?"
+  );
+  console.log("\nWeather Result:");
+  console.log(weatherResult.output);
+  console.log(
+    "\nTool calls:",
+    weatherResult.metadata.toolCalls?.map((tc: ToolCall) => tc.toolName) ||
+      "None"
+  );
+
+  console.log("\n\nRunning assistant agent with a search query...");
+  const searchResult = await forge.runAgent(
+    "Assistant",
+    "What are the latest advancements in quantum computing?"
+  );
+  console.log("\nSearch Result:");
+  console.log(searchResult.output);
+  console.log(
+    "\nTool calls:",
+    searchResult.metadata.toolCalls?.map((tc: ToolCall) => tc.toolName) ||
+      "None"
+  );
+
+  console.log(
+    "\n\nRunning assistant agent with a complex query that might use multiple tools..."
+  );
+  const complexResult = await forge.runAgent(
+    "Assistant",
+    "I'm planning a trip to New York. What's the weather like there, and what are the top 3 tourist attractions?"
+  );
+  console.log("\nComplex Result:");
+  console.log(complexResult.output);
+  console.log(
+    "\nTool calls:",
+    complexResult.metadata.toolCalls?.map((tc: ToolCall) => tc.toolName) ||
+      "None"
+  );
 }
 
 main().catch(console.error);

@@ -21,7 +21,7 @@ async function main() {
 
   try {
     // Create an LLM provider
-    const llmProvider = new LLM(provider, {
+    const llmProvider = await LLM.create(provider, {
       apiKey,
     });
 
