@@ -83,7 +83,73 @@ class TeamExample {
 TeamExample.run();
 ```
 
-### 2. Expose an Agent as a Remote A2A Server
+### 2. Workflows: Step-by-Step Task Automation
+
+Agent Forge supports workflows, allowing you to define a sequence of agent steps for complex, multi-stage tasks. Workflows are ideal when you want to chain agent outputs, such as research followed by summarization.
+
+```ts
+import { forge, llmProvider, agent, readyForge } from "agent-forge";
+import { AgentForge, Agent, LLMProvider } from "agent-forge";
+import * as dotenv from "dotenv";
+
+dotenv.config();
+
+@agent({
+  name: "Researcher",
+  role: "Research Specialist",
+  description: "A specialized agent for gathering and analyzing information.",
+  objective: "Find accurate and relevant information on requested topics.",
+  model: process.env.LLM_API_MODEL!,
+  temperature: 0.4,
+})
+class ResearcherAgent extends Agent {}
+
+@agent({
+  name: "Summarizer",
+  role: "Concise Summarizer",
+  description: "An agent that specializes in distilling information into clear summaries.",
+  objective: "Create concise, accurate summaries of complex information.",
+  model: process.env.LLM_API_MODEL!,
+  temperature: 0.4,
+})
+class SummarizerAgent extends Agent {}
+
+@llmProvider(process.env.LLM_PROVIDER as LLMProvider, { apiKey: process.env.LLM_API_KEY })
+@forge()
+class WorkflowExample {
+  static forge: AgentForge;
+
+  static async run() {
+    await readyForge(WorkflowExample);
+    const agents = [new ResearcherAgent(), new SummarizerAgent()];
+    WorkflowExample.forge.registerAgents(agents);
+
+    // Create a workflow: research, then summarize
+    const workflow = WorkflowExample.forge.createWorkflow(
+      "Research and Summarize",
+      "Research a topic and then summarize the findings"
+    );
+    workflow.addStep(agents[0]); // Researcher
+    workflow.addStep(agents[1]); // Summarizer
+
+    const result = await workflow.run(
+      "What is quantum computing and how might it affect cybersecurity?",
+      { verbose: true }
+    );
+    console.log("Workflow Result:", result.output);
+  }
+}
+
+WorkflowExample.run();
+```
+
+**What this does:**
+- Defines two agents: a Researcher and a Summarizer.
+- Registers them with the forge instance.
+- Creates a workflow where the Researcher investigates a topic, and the Summarizer condenses the findings.
+- Runs the workflow on a sample question and prints the result.
+
+### 3. Expose an Agent as a Remote A2A Server
 
 ```ts
 import { a2aServer, agent, llmProvider } from "agent-forge";
@@ -104,7 +170,7 @@ new HelpfulAssistantAgent();
 console.log("A2A server started. Press Ctrl+C to stop.");
 ```
 
-### 3. Connect to a Remote Agent (A2A Client)
+### 4. Connect to a Remote Agent (A2A Client)
 
 ```ts
 import { a2aClient } from "agent-forge";
@@ -120,7 +186,7 @@ export class RemoteHelpfulAssistant extends Agent {}
 })();
 ```
 
-### 4. Team with a Remote Agent as a Member
+### 5. Team with a Remote Agent as a Member
 
 ```ts
 import { forge, llmProvider, agent, a2aClient } from "agent-forge";
