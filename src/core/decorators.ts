@@ -10,6 +10,7 @@ import {
   createMCPClient,
 } from "../tools/mcp-tool";
 import type { AgentConfig, LLMProvider, RateLimiterConfig } from "../types";
+import { RateLimiter as RateLimiterClass } from "../utils/rate-limiter";
 import { Agent } from "./agent";
 import { AgentForge } from "./agent-forge";
 
@@ -53,6 +54,8 @@ export function llmProvider(
   return (target: any) => {
     target.llmProvider = provider;
     target.llmConfig = config;
+    // Attach a flag to indicate llmProvider was set (for decorator order safety)
+    target.__hasLlmProvider = true;
     return target;
   };
 }
@@ -76,6 +79,7 @@ export function forge() {
         // Lazy read of static properties at runtime
         const provider = (this.constructor as any).llmProvider;
         const providerConfig = (this.constructor as any).llmConfig;
+        const rateLimiterConfig = (this.constructor as any).rateLimiterConfig;
         if (!provider || !providerConfig) {
           throw new Error(
             "LLM provider and config must be set via @llmProvider on the class before using @forge"
@@ -84,9 +88,26 @@ export function forge() {
         // Only initialize static forge once
         if (!(this.constructor as any).forge) {
           (this.constructor as any).forgeReady = (async () => {
-            (this.constructor as any).forge = new AgentForge(
-              await LLM.create(provider, providerConfig)
-            );
+            const llm = await LLM.create(provider, providerConfig);
+            // If a rate limiter config is present, wrap LLM methods
+            if (rateLimiterConfig) {
+              const limiter = new RateLimiterClass({
+                callsPerSecond: rateLimiterConfig.rateLimitPerSecond,
+                callsPerMinute: rateLimiterConfig.rateLimitPerMinute,
+                verbose: rateLimiterConfig.verbose,
+                toolName: provider,
+              });
+              // Patch LLM methods to await the limiter
+              for (const method of ["chat", "chatStream", "complete"]) {
+                const orig = (llm as any)[method];
+                (llm as any)[method] = async function (...args: any[]) {
+                  await limiter.waitForToken();
+                  return orig.apply(this, args);
+                };
+              }
+              (llm as any).__rateLimiter = limiter;
+            }
+            (this.constructor as any).forge = new AgentForge(llm);
           })();
         }
       }

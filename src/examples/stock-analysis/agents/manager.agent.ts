@@ -15,7 +15,6 @@ import { configuredProvider, configuredApiKey, configuredModel } from "../provid
       1. Plan and assign tasks to the agents.
       2. If you need to, you can ask the agents to do a job multiple times.
       3. Don't let the agents work on the same job at the same time.
-      4. Always check with the research evaluator agent the work of the Financial Researcher agent.
       5. If the financial analyst agent returns a report, ask the report writer agent to write the report.
       6. If the report writer agent returns a report, return the final report to the user.
 
