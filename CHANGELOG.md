@@ -1,4 +1,12 @@
 ## What's Changed
+* add support for agentforge.config.json with option to extend model list by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/46
+
+
+**Full Changelog**: https://github.com/frostlogic-ab/agent-forge/compare/v2.0.0-alpha.2...v2.0.0-alpha.3
+
+# [2.0.0-alpha.3](https://github.com/frostlogic-ab/agent-forge/compare/v2.0.0-alpha.2...v2.0.0-alpha.3) (2025-05-26)
+
+## What's Changed
 * Add decorators for MCP and RateLimiter by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/45
 
 
