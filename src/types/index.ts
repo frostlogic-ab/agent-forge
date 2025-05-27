@@ -229,3 +229,16 @@ export interface Task {
   startTime?: number;
   endTime?: number;
 }
+
+export interface RateLimiterConfig {
+  rateLimitPerSecond?: number;
+  rateLimitPerMinute?: number;
+  toolSpecificLimits?: {
+    [toolNamePattern: string]: {
+      rateLimitPerSecond?: number;
+      rateLimitPerMinute?: number;
+    };
+  };
+  verbose?: boolean;
+  cacheTTL?: number;
+}

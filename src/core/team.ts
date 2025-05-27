@@ -4,6 +4,7 @@ import {
   type Task,
   type TeamRunOptions,
 } from "../types";
+import { Visualizer } from "../utils/decorators";
 import { globalEventEmitter } from "../utils/event-emitter";
 import { RateLimiter } from "../utils/rate-limiter";
 import { enableConsoleStreaming } from "../utils/streaming";
@@ -14,7 +15,9 @@ import { TaskExecutor } from "./team/task-executor";
 import { TeamDeadlockHandler } from "./team/team-deadlock-handler";
 import { TeamDependencyGraph } from "./team/team-dependency-graph";
 import { TeamReporter } from "./team/team-reporter";
+import { TeamRunLogger } from "./team/team-run-logger";
 import { TeamTaskManager } from "./team/team-task-manager";
+import { writeTeamRunTimelineHtmlToFile } from "./team/team-timeline-generator";
 import { TASK_FORMAT_PROMPT } from "./team/team.constants";
 
 /**
@@ -37,6 +40,7 @@ export class Team {
   private teamTaskManager!: TeamTaskManager;
   private taskExecutor!: TaskExecutor;
   private teamDeadlockHandler!: TeamDeadlockHandler;
+  private teamRunLogger?: TeamRunLogger;
 
   /**
    * Creates a new team with a manager agent
@@ -53,6 +57,10 @@ export class Team {
     this.name = name;
     this.description = description;
     this.teamDependencyGraph = new TeamDependencyGraph();
+    // Enable visualization if the parent class has __visualizerEnabled
+    if ((this.constructor as any).__visualizerEnabled) {
+      this.teamRunLogger = new TeamRunLogger();
+    }
   }
 
   /**
@@ -100,6 +108,18 @@ export class Team {
   }
 
   /**
+   * Adds multiple agents to the team
+   * @param agents The agents to add
+   * @returns The team instance for method chaining
+   */
+  addAgents(agents: Agent[]): Team {
+    for (const agent of agents) {
+      this.addAgent(agent);
+    }
+    return this;
+  }
+
+  /**
    * Gets an agent by name
    * @param name Name of the agent to get
    * @returns The agent instance
@@ -132,6 +152,13 @@ export class Team {
   }
 
   /**
+   * Get the team run logger (for visualization/debugging)
+   */
+  public getTeamRunLogger(): TeamRunLogger | undefined {
+    return this.teamRunLogger;
+  }
+
+  /**
    * Runs the team with the given input
    * The manager agent decides which agent(s) to use
    * @param input The input to the team
@@ -139,6 +166,14 @@ export class Team {
    * @returns The final result
    */
   async run(input: string, options?: TeamRunOptions): Promise<AgentResult> {
+    if (this.teamRunLogger) {
+      this.teamRunLogger.log({
+        type: "TeamRunStart",
+        summary: `Team run started with input: ${input}`,
+        details: { input, options },
+        timestamp: Date.now(),
+      });
+    }
     this.reset();
     this.options = options;
     this.verbose = options?.verbose || false;
@@ -155,7 +190,8 @@ export class Team {
       this.managerResponseParser,
       this.agents,
       this.teamDependencyGraph,
-      this.verbose
+      this.verbose,
+      this.teamRunLogger
     );
     this.taskExecutor = new TaskExecutor(
       this.agents,
@@ -163,12 +199,14 @@ export class Team {
       this._logVerbose,
       this._emitStreamEvent,
       this.options,
-      this.tasks
+      this.tasks,
+      this.teamRunLogger
     );
     this.teamDeadlockHandler = new TeamDeadlockHandler(
       this.manager,
       this._logVerbose,
-      this.verbose
+      this.verbose,
+      this.teamRunLogger
     );
 
     if (stream && options?.enableConsoleStream) {
@@ -277,6 +315,21 @@ ${TASK_FORMAT_PROMPT}
           name: this.name,
           result,
         });
+      }
+
+      if (this.teamRunLogger) {
+        this.teamRunLogger.log({
+          type: "TeamRunEnd",
+          summary: "Team run completed",
+          details: { result },
+          timestamp: Date.now(),
+        });
+        // Write timeline HTML file
+        const filePath = await writeTeamRunTimelineHtmlToFile(
+          this.teamRunLogger.getEvents()
+        );
+        // eslint-disable-next-line no-console
+        console.log(`\n[Visualizer] Team run timeline written to: ${filePath}`);
       }
 
       return result;

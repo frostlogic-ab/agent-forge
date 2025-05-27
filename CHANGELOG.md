@@ -1,4 +1,62 @@
 ## What's Changed
+* Add @tool decorator to add tools to agents by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/50
+
+
+**Full Changelog**: https://github.com/frostlogic-ab/agent-forge/compare/v2.0.0-alpha.6...v2.0.0-alpha.7
+
+# [2.0.0-alpha.7](https://github.com/frostlogic-ab/agent-forge/compare/v2.0.0-alpha.6...v2.0.0-alpha.7) (2025-05-27)
+
+## What's Changed
+* Add new Visualizer util decorator to generate a timeline of agent events by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/49
+
+
+**Full Changelog**: https://github.com/frostlogic-ab/agent-forge/compare/v2.0.0-alpha.5...v2.0.0-alpha.6
+
+# [2.0.0-alpha.6](https://github.com/frostlogic-ab/agent-forge/compare/v2.0.0-alpha.5...v2.0.0-alpha.6) (2025-05-27)
+
+## What's Changed
+* Reuse @RateLimiter decorator for llmProvider by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/48
+
+
+**Full Changelog**: https://github.com/frostlogic-ab/agent-forge/compare/v2.0.0-alpha.4...v2.0.0-alpha.5
+
+# [2.0.0-alpha.5](https://github.com/frostlogic-ab/agent-forge/compare/v2.0.0-alpha.4...v2.0.0-alpha.5) (2025-05-26)
+
+## What's Changed
+* Rewrite simple-agent example and document how to use workflows by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/47
+
+
+**Full Changelog**: https://github.com/frostlogic-ab/agent-forge/compare/v2.0.0-alpha.3...v2.0.0-alpha.4
+
+# [2.0.0-alpha.4](https://github.com/frostlogic-ab/agent-forge/compare/v2.0.0-alpha.3...v2.0.0-alpha.4) (2025-05-26)
+
+## What's Changed
+* add support for agentforge.config.json with option to extend model list by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/46
+
+
+**Full Changelog**: https://github.com/frostlogic-ab/agent-forge/compare/v2.0.0-alpha.2...v2.0.0-alpha.3
+
+# [2.0.0-alpha.3](https://github.com/frostlogic-ab/agent-forge/compare/v2.0.0-alpha.2...v2.0.0-alpha.3) (2025-05-26)
+
+## What's Changed
+* Add decorators for MCP and RateLimiter by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/45
+
+
+**Full Changelog**: https://github.com/frostlogic-ab/agent-forge/compare/v2.0.0-alpha.1...v2.0.0-alpha.2
+
+# [2.0.0-alpha.2](https://github.com/frostlogic-ab/agent-forge/compare/v2.0.0-alpha.1...v2.0.0-alpha.2) (2025-05-25)
+
+## What's Changed
+* Update documentation to explicitly promote use of environment variables by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/42
+* remove yarn state from repository by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/43
+* A2a, Agent, LLMProvider and forge decorators by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/44
+
+
+**Full Changelog**: https://github.com/frostlogic-ab/agent-forge/compare/v1.5.2...v2.0.0-alpha.1
+
+# [2.0.0-alpha.1](https://github.com/frostlogic-ab/agent-forge/compare/v1.5.2...v2.0.0-alpha.1) (2025-05-25)
+
+## What's Changed
 * fix exports of a2a types and classes by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/41
 
 

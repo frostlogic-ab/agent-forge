@@ -38,6 +38,8 @@ const AgentConfigSchema = z.object({
  * Loads agent configuration from a YAML file
  * @param filePath Path to the YAML file
  * @returns Agent configuration object
+ *
+ * @deprecated Use the @agent decorator instead
  */
 export async function loadAgentConfigFromYaml(
   filePath: string
@@ -72,6 +74,8 @@ export async function loadAgentConfigFromYaml(
  * Loads and creates an agent from a YAML file
  * @param filePath Path to the YAML file
  * @returns Initialized agent instance
+ *
+ * @deprecated Use the @agent decorator instead
  */
 export async function loadAgentFromYaml(filePath: string): Promise<Agent> {
   const config = await loadAgentConfigFromYaml(filePath);
@@ -82,6 +86,8 @@ export async function loadAgentFromYaml(filePath: string): Promise<Agent> {
  * Loads all agents from a directory of YAML files
  * @param directoryPath Path to directory containing agent YAML files
  * @returns Array of initialized agent instances
+ *
+ * @deprecated Use the @agent decorator instead
  */
 export async function loadAgentsFromDirectory(
   directoryPath: string

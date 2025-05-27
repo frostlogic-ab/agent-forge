@@ -148,13 +148,21 @@ export class AgentForge {
       throw new Error(`Agent with name '${managerName}' is not registered`);
     }
 
-    return new Team(manager, name, description);
+    // Set the visualizer flag on the Team class before creating the instance
+    if ((this.constructor as any).__visualizerEnabled) {
+      (Team as any).__visualizerEnabled = true;
+    }
+
+    const team = new Team(manager, name, description);
+    return team;
   }
 
   /**
    * Loads agents from YAML files in a directory
    * @param directoryPath Path to directory containing agent YAML files
    * @returns The AgentForge instance for method chaining
+   *
+   * @deprecated Use the @agent decorator instead
    */
   async loadAgentsFromDirectory(directoryPath: string): Promise<AgentForge> {
     const agents = await loadAgentsFromDirectory(directoryPath);
@@ -306,4 +314,20 @@ export class AgentForge {
         throw new Error(`Unsupported execution mode: ${mode}`);
     }
   }
+}
+
+/**
+ * Utility to instantiate a decorated team/forge class and await its async static initialization.
+ * @param TeamClass The class to instantiate (must have static forgeReady)
+ * @returns The instance, after static async initialization is complete
+ */
+export async function readyForge<T extends { new (...args: any[]): any }>(
+  TeamClass: T,
+  ...args: ConstructorParameters<T>
+): Promise<InstanceType<T>> {
+  const instance = new TeamClass(...args);
+  if ((TeamClass as any).forgeReady) {
+    await (TeamClass as any).forgeReady;
+  }
+  return instance as InstanceType<T>;
 }
