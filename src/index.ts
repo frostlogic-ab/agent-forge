@@ -73,7 +73,8 @@ export type { Task } from "./types";
 export type { RateLimiterConfig } from "./types";
 
 // Decorators
-export { agent, llmProvider, forge, RateLimiter } from "./core/decorators";
+export { agent, llmProvider, forge } from "./core/decorators";
+export { RateLimiter, Visualizer } from "./utils/decorators";
 export { a2aClient, a2aServer } from "./a2a/decorators";
 export { MCP } from "./tools/decorators";
 

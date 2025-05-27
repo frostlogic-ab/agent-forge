@@ -107,7 +107,12 @@ export function forge() {
               }
               (llm as any).__rateLimiter = limiter;
             }
-            (this.constructor as any).forge = new AgentForge(llm);
+            const forge = new AgentForge(llm);
+            // Transfer __visualizerEnabled flag from the decorated class to the AgentForge instance
+            if ((this.constructor as any).__visualizerEnabled) {
+              (forge.constructor as any).__visualizerEnabled = true;
+            }
+            (this.constructor as any).forge = forge;
           })();
         }
       }

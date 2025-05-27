@@ -1,5 +1,5 @@
 import * as dotenv from "dotenv";
-import { AgentForge, Agent, agent, llmProvider, LLMProvider, readyForge, forge } from "../index";
+import { AgentForge, Agent, agent, llmProvider, LLMProvider, readyForge, forge, Visualizer } from "../index";
 
 
 // Load environment variables from .env file at the project root
@@ -28,7 +28,6 @@ class ResearcherAgent extends Agent {}
 })
 class SummarizerAgent extends Agent {}
 
-
 @agent({
   name: "Manager",
   role: "Team Manager",
@@ -41,6 +40,7 @@ class SummarizerAgent extends Agent {}
 })
 class ManagerAgent extends Agent {}
 
+@Visualizer()
 @llmProvider(process.env.LLM_PROVIDER as LLMProvider, {apiKey: process.env.LLM_API_KEY})
 @forge()
 class SimpleAgent {

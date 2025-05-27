@@ -3,6 +3,7 @@ import type { Agent } from "../agent";
 import type { AgentAssignment } from "./manager-response-parser";
 import type { ManagerResponseParser } from "./manager-response-parser";
 import type { TeamDependencyGraph } from "./team-dependency-graph";
+import type { TeamRunLogger } from "./team-run-logger";
 // Potentially import ManagerResponseParser and TeamDependencyGraph later
 
 export class TeamTaskManager {
@@ -10,17 +11,23 @@ export class TeamTaskManager {
   private agents: Map<string, Agent>;
   private teamDependencyGraph: TeamDependencyGraph;
   private verbose: boolean;
+  private teamRunLogger?: TeamRunLogger;
 
+  /**
+   * @param teamRunLogger Optional logger for timeline visualization
+   */
   constructor(
     managerResponseParser: ManagerResponseParser,
     agents: Map<string, Agent>,
     teamDependencyGraph: TeamDependencyGraph,
-    verbose: boolean
+    verbose: boolean,
+    teamRunLogger?: TeamRunLogger
   ) {
     this.managerResponseParser = managerResponseParser;
     this.agents = agents;
     this.teamDependencyGraph = teamDependencyGraph;
     this.verbose = verbose;
+    this.teamRunLogger = teamRunLogger;
   }
 
   public createTasksFromAssignments(
@@ -238,6 +245,21 @@ export class TeamTaskManager {
         logVerbose(`📌 Dependencies: ${dependencies.join(", ")}`);
       }
     }
+    if (this.teamRunLogger) {
+      this.teamRunLogger.log({
+        type: "TaskCreated",
+        actor: agentName,
+        summary: `Task ${taskId} created for ${agentName}`,
+        details: {
+          taskId,
+          agentName,
+          description,
+          dependencies,
+          isDefault,
+        },
+        timestamp: Date.now(),
+      });
+    }
   }
 
   private logSkippedTask(
@@ -249,6 +271,15 @@ export class TeamTaskManager {
     conversationHistory.push(message);
     if (this.verbose) {
       logVerbose(`⚠️ ${message}`);
+    }
+    if (this.teamRunLogger) {
+      this.teamRunLogger.log({
+        type: "TaskSkipped",
+        actor: agentName,
+        summary: `Task skipped for non-existent agent ${agentName}`,
+        details: { agentName },
+        timestamp: Date.now(),
+      });
     }
   }
 
@@ -324,6 +355,15 @@ export class TeamTaskManager {
       if (this.verbose) {
         logVerbose(`⚠️ ${message}`);
       }
+      if (this.teamRunLogger) {
+        this.teamRunLogger.log({
+          type: "TaskCancelFailed",
+          actor: undefined,
+          summary: `Failed to cancel task ${taskId} (not found)`,
+          details: { taskId },
+          timestamp: Date.now(),
+        });
+      }
       return false;
     }
     if (task.status === "in_progress" || task.status === "completed") {
@@ -331,6 +371,15 @@ export class TeamTaskManager {
       conversationHistory.push(message);
       if (this.verbose) {
         logVerbose(`⚠️ ${message}`);
+      }
+      if (this.teamRunLogger) {
+        this.teamRunLogger.log({
+          type: "TaskCancelFailed",
+          actor: task.agentName,
+          summary: `Failed to cancel task ${taskId} (already ${task.status})`,
+          details: { taskId, status: task.status },
+          timestamp: Date.now(),
+        });
       }
       return false;
     }
@@ -340,6 +389,15 @@ export class TeamTaskManager {
     conversationHistory.push(message);
     if (this.verbose) {
       logVerbose(`🚫 ${message}`);
+    }
+    if (this.teamRunLogger) {
+      this.teamRunLogger.log({
+        type: "TaskCanceled",
+        actor: task.agentName,
+        summary: `Task ${taskId} canceled`,
+        details: { taskId, agentName: task.agentName },
+        timestamp: Date.now(),
+      });
     }
     for (const [otherId, otherTask] of tasks.entries()) {
       if (
@@ -352,6 +410,15 @@ export class TeamTaskManager {
         otherTask.endTime = Date.now();
         if (this.verbose) {
           logVerbose(`⛔ ${failMessage}`);
+        }
+        if (this.teamRunLogger) {
+          this.teamRunLogger.log({
+            type: "TaskFailedDueToDependency",
+            actor: otherTask.agentName,
+            summary: `Task ${otherId} failed due to canceled dependency ${taskId}`,
+            details: { taskId: otherId, failedDependency: taskId },
+            timestamp: Date.now(),
+          });
         }
       }
     }
@@ -372,6 +439,15 @@ export class TeamTaskManager {
       if (this.verbose) {
         logVerbose(`⚠️ ${message}`);
       }
+      if (this.teamRunLogger) {
+        this.teamRunLogger.log({
+          type: "TaskModifyFailed",
+          actor: undefined,
+          summary: `Failed to modify dependencies for task ${taskId} (not found)`,
+          details: { taskId },
+          timestamp: Date.now(),
+        });
+      }
       return false;
     }
     if (task.status !== "pending") {
@@ -379,6 +455,15 @@ export class TeamTaskManager {
       conversationHistory.push(message);
       if (this.verbose) {
         logVerbose(`⚠️ ${message}`);
+      }
+      if (this.teamRunLogger) {
+        this.teamRunLogger.log({
+          type: "TaskModifyFailed",
+          actor: task.agentName,
+          summary: `Failed to modify dependencies for task ${taskId} (already ${task.status})`,
+          details: { taskId, status: task.status },
+          timestamp: Date.now(),
+        });
       }
       return false;
     }
@@ -388,6 +473,15 @@ export class TeamTaskManager {
       conversationHistory.push(message);
       if (this.verbose) {
         logVerbose(`⚠️ ${message}`);
+      }
+      if (this.teamRunLogger) {
+        this.teamRunLogger.log({
+          type: "TaskModifyFailed",
+          actor: task.agentName,
+          summary: `Failed to modify dependencies for task ${taskId} (missing dependencies)`,
+          details: { taskId, missingDependencies: missingDeps },
+          timestamp: Date.now(),
+        });
       }
       return false;
     }
@@ -405,6 +499,15 @@ export class TeamTaskManager {
           logVerbose(`  Cycle: ${cycle.join(" -> ")}`);
         }
       }
+      if (this.teamRunLogger) {
+        this.teamRunLogger.log({
+          type: "TaskModifyFailed",
+          actor: task.agentName,
+          summary: `Failed to modify dependencies for task ${taskId} (circular dependencies)`,
+          details: { taskId, cycles },
+          timestamp: Date.now(),
+        });
+      }
       return false;
     }
     const oldDeps = task.dependencies;
@@ -413,6 +516,15 @@ export class TeamTaskManager {
     conversationHistory.push(modifiedMessage);
     if (this.verbose) {
       logVerbose(`🔄 ${modifiedMessage}`);
+    }
+    if (this.teamRunLogger) {
+      this.teamRunLogger.log({
+        type: "TaskDependenciesModified",
+        actor: task.agentName,
+        summary: `Task ${taskId} dependencies modified`,
+        details: { taskId, oldDependencies: oldDeps, newDependencies },
+        timestamp: Date.now(),
+      });
     }
     return true;
   }

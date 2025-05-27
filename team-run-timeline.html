@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Agent Forge Team Run Timeline</title>
+  <style>
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+      margin: 0; 
+      padding: 0; 
+      min-height: 100vh;
+    }
+    
+    .header { 
+      background: rgba(255,255,255,0.1); 
+      backdrop-filter: blur(10px);
+      color: #fff; 
+      padding: 2rem; 
+      text-align: center;
+      border-bottom: 1px solid rgba(255,255,255,0.2);
+    }
+    
+    .header h1 { 
+      margin: 0; 
+      font-size: 2.5rem; 
+      font-weight: 300;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    }
+    
+    .header .subtitle {
+      margin-top: 0.5rem;
+      opacity: 0.9;
+      font-size: 1.1rem;
+    }
+    
+    .timeline { 
+      max-width: 1200px; 
+      margin: 2rem auto; 
+      padding: 0 1rem;
+    }
+    
+    .section {
+      margin-bottom: 3rem;
+    }
+    
+    .section-title {
+      color: #fff;
+      font-size: 1.5rem;
+      font-weight: 600;
+      margin-bottom: 1.5rem;
+      padding-left: 0.5rem;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+    }
+    
+    .task-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+    
+    .task-card { 
+      background: #fff; 
+      border-radius: 12px; 
+      box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+      overflow: hidden;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+    
+    .task-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 48px rgba(0,0,0,0.15);
+    }
+    
+    .task-header { 
+      padding: 1.5rem; 
+      border-bottom: 1px solid #e9ecef;
+      background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    }
+    
+    .task-id { 
+      font-size: 0.85rem; 
+      color: #6c757d; 
+      font-weight: 500;
+      margin-bottom: 0.5rem;
+    }
+    
+    .task-title { 
+      font-size: 1.1rem; 
+      font-weight: 600; 
+      color: #212529;
+      margin-bottom: 0.75rem;
+      line-height: 1.4;
+    }
+    
+    .task-agent { 
+      display: inline-block;
+      background: linear-gradient(135deg, #007bff, #0056b3);
+      color: #fff; 
+      padding: 0.4rem 0.8rem; 
+      border-radius: 20px; 
+      font-size: 0.85rem;
+      font-weight: 500;
+      margin-bottom: 0.5rem;
+    }
+    
+    .task-status { 
+      display: inline-block;
+      padding: 0.3rem 0.7rem; 
+      border-radius: 15px; 
+      font-size: 0.8rem;
+      font-weight: 500;
+      margin-left: 0.5rem;
+    }
+    
+    .status-completed { background: linear-gradient(135deg, #28a745, #20c997); color: #fff; }
+    .status-pending { background: linear-gradient(135deg, #ffc107, #ffb300); color: #212529; }
+    .status-failed { background: linear-gradient(135deg, #dc3545, #c82333); color: #fff; }
+    .status-in_progress { background: linear-gradient(135deg, #17a2b8, #138496); color: #fff; }
+    
+    .task-body { 
+      padding: 1.5rem; 
+    }
+    
+    .task-description { 
+      color: #495057; 
+      line-height: 1.6;
+      margin-bottom: 1rem;
+      font-size: 0.95rem;
+    }
+    
+    .task-dependencies {
+      margin-bottom: 1rem;
+    }
+    
+    .task-dependencies-title {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #6c757d;
+      margin-bottom: 0.5rem;
+    }
+    
+    .dependency-tag {
+      display: inline-block;
+      background: #e9ecef;
+      color: #495057;
+      padding: 0.2rem 0.5rem;
+      border-radius: 10px;
+      font-size: 0.75rem;
+      margin-right: 0.3rem;
+      margin-bottom: 0.3rem;
+    }
+    
+    .task-timing {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.8rem;
+      color: #6c757d;
+      padding-top: 1rem;
+      border-top: 1px solid #e9ecef;
+    }
+    
+    .task-duration {
+      font-weight: 500;
+    }
+    
+    .task-result {
+      margin-top: 1rem;
+      padding: 1rem;
+      background: #f8f9fa;
+      border-radius: 8px;
+      border-left: 4px solid #007bff;
+    }
+    
+    .task-result-title {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #495057;
+      margin-bottom: 0.5rem;
+    }
+    
+    .task-result-content {
+      font-size: 0.9rem;
+      color: #212529;
+      line-height: 1.5;
+      max-height: 150px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+    }
+    
+    .event-list {
+      display: grid;
+      gap: 1rem;
+    }
+    
+    .event { 
+      background: rgba(255,255,255,0.95); 
+      border-radius: 8px; 
+      box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+      overflow: hidden;
+      backdrop-filter: blur(10px);
+    }
+    
+    .event-summary { 
+      cursor: pointer; 
+      padding: 1rem; 
+      display: flex; 
+      align-items: center;
+      transition: background-color 0.2s ease;
+    }
+    
+    .event-summary:hover { 
+      background: rgba(248,249,250,0.8); 
+    }
+    
+    .event-details { 
+      display: none; 
+      padding: 1rem; 
+      background: #f8f9fa;
+      border-top: 1px solid #e9ecef;
+    }
+    
+    .event.open .event-details { 
+      display: block; 
+    }
+    
+    .event-type { 
+      font-size: 0.85rem; 
+      color: #fff; 
+      padding: 0.3rem 0.6rem;
+      border-radius: 12px;
+      margin-right: 1rem;
+      font-weight: 500;
+      min-width: 120px;
+      text-align: center;
+    }
+    
+    .event-type.TaskCreated { background: linear-gradient(135deg, #28a745, #20c997); }
+    .event-type.TaskAssigned { background: linear-gradient(135deg, #17a2b8, #138496); }
+    .event-type.AgentResponse { background: linear-gradient(135deg, #007bff, #0056b3); }
+    .event-type.TaskStatusChanged { background: linear-gradient(135deg, #ffc107, #ffb300); color: #212529; }
+    .event-type.TeamRunStarted { background: linear-gradient(135deg, #6f42c1, #5a32a3); }
+    .event-type.TeamRunCompleted { background: linear-gradient(135deg, #fd7e14, #e55a4e); }
+    
+    .event-message {
+      flex: 1;
+      font-weight: 500;
+      color: #212529;
+    }
+    
+    .event-timestamp { 
+      font-size: 0.8rem; 
+      color: #868e96; 
+      font-weight: 500;
+    }
+    
+    pre { 
+      background: #212529; 
+      color: #f8f9fa;
+      padding: 1rem; 
+      border-radius: 6px; 
+      overflow-x: auto;
+      font-size: 0.85rem;
+      line-height: 1.4;
+    }
+    
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    
+    .stat-card {
+      background: rgba(255,255,255,0.95);
+      padding: 1.5rem;
+      border-radius: 8px;
+      text-align: center;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+    }
+    
+    .stat-number {
+      font-size: 2rem;
+      font-weight: 700;
+      color: #007bff;
+      margin-bottom: 0.5rem;
+    }
+    
+    .stat-label {
+      color: #6c757d;
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>🤖 Agent Forge Team Timeline</h1>
+    <div class="subtitle">Task execution visualization and analysis</div>
+  </div>
+  
+  <div class="timeline">
+    
+    <div class="section">
+      <div class="section-title">📈 Execution Summary</div>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-number">4</div>
+          <div class="stat-label">Total Tasks</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number">4</div>
+          <div class="stat-label">Completed</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number">0</div>
+          <div class="stat-label">Failed</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number">5.7s</div>
+          <div class="stat-label">Avg Duration</div>
+        </div>
+      </div>
+    </div>
+  
+    
+    <div class="section">
+      <div class="section-title">📋 Task Execution</div>
+      <div class="task-grid">
+        
+    <div class="task-card">
+      <div class="task-header">
+        <div class="task-id">task-1</div>
+        <div class="task-title">Research and provide a comprehensive definition of quantum computing, including key concepts like qubits, superposition, and entanglement, and how it differs from classical computing.</div>
+        <div>
+          <span class="task-agent">Researcher</span>
+          <span class="task-status status-completed">completed</span>
+        </div>
+      </div>
+      
+      <div class="task-body">
+        
+        
+        
+          <div class="task-result">
+            <div class="task-result-title">Result:</div>
+            <div class="task-result-content">Okay, I will research and provide a comprehensive definition of quantum computing, including key concepts like qubits, superposition, and entanglement, and how it differs from classical computing.
+
+**Quantum Computing: A Comprehensive Definition**
+
+Quantum computing is a type of computation that harnesses the principles of quantum mechanics to solve complex problems that are intractable for classical computers. Unlike classical computers that store information as bits representing 0 or 1, quantu...</div>
+          </div>
+        
+        
+        <div class="task-timing">
+          <span>Created: 1:55:39 PM</span>
+          <span class="task-duration">Duration: 6.0s</span>
+        </div>
+      </div>
+    </div>
+  
+    <div class="task-card">
+      <div class="task-header">
+        <div class="task-id">task-2</div>
+        <div class="task-title">Summarize the information provided by the Researcher regarding the definition of quantum computing and its potential impact on cybersecurity.</div>
+        <div>
+          <span class="task-agent">Summarizer</span>
+          <span class="task-status status-completed">completed</span>
+        </div>
+      </div>
+      
+      <div class="task-body">
+        
+          <div class="task-dependencies">
+            <div class="task-dependencies-title">Dependencies:</div>
+            <span class="dependency-tag">task-1</span>
+          </div>
+        
+        
+        
+          <div class="task-result">
+            <div class="task-result-title">Result:</div>
+            <div class="task-result-content">Okay, I will summarize the information about quantum computing and its potential impact on cybersecurity, based on the results of the dependency tasks (task-1 and task-2). Since I have access to the results of these tasks, I will proceed directly with the summarization.
+
+Please provide me with the content of task-1 and task-2 so I can proceed.
+</div>
+          </div>
+        
+        
+        <div class="task-timing">
+          <span>Created: 1:55:39 PM</span>
+          <span class="task-duration">Duration: 8.6s</span>
+        </div>
+      </div>
+    </div>
+  
+    <div class="task-card">
+      <div class="task-header">
+        <div class="task-id">task-3</div>
+        <div class="task-title">Research and explain how quantum computing might impact cybersecurity, including potential threats to current encryption methods and possible quantum-resistant cryptographic solutions.</div>
+        <div>
+          <span class="task-agent">Researcher</span>
+          <span class="task-status status-completed">completed</span>
+        </div>
+      </div>
+      
+      <div class="task-body">
+        
+        
+        
+          <div class="task-result">
+            <div class="task-result-title">Result:</div>
+            <div class="task-result-content">Okay, I will research and explain how quantum computing might impact cybersecurity, including potential threats to current encryption methods and possible quantum-resistant cryptographic solutions.
+
+**Quantum Computing's Impact on Cybersecurity**
+
+Quantum computing poses both significant threats and potential solutions to the field of cybersecurity. The development of sufficiently powerful quantum computers could render many of today's widely used encryption methods obsolete, while also offering...</div>
+          </div>
+        
+        
+        <div class="task-timing">
+          <span>Created: 1:55:47 PM</span>
+          <span class="task-duration">Duration: 7.4s</span>
+        </div>
+      </div>
+    </div>
+  
+    <div class="task-card">
+      <div class="task-header">
+        <div class="task-id">task-4</div>
+        <div class="task-title">Summarize the information provided by the Researcher regarding the definition of quantum computing and its potential impact on cybersecurity, incorporating results from both task-1 and task-3.</div>
+        <div>
+          <span class="task-agent">Summarizer</span>
+          <span class="task-status status-completed">completed</span>
+        </div>
+      </div>
+      
+      <div class="task-body">
+        
+          <div class="task-dependencies">
+            <div class="task-dependencies-title">Dependencies:</div>
+            <span class="dependency-tag">task-1</span><span class="dependency-tag">task-3</span>
+          </div>
+        
+        
+        
+          <div class="task-result">
+            <div class="task-result-title">Result:</div>
+            <div class="task-result-content">Okay, I will summarize the information about quantum computing and its potential impact on cybersecurity, based on the results of the dependency tasks (task-1 and task-3). Since I have access to the results of these tasks, I will proceed directly with the summarization.
+
+Please provide me with the content of task-1 and task-3 so I can proceed.
+</div>
+          </div>
+        
+        
+        <div class="task-timing">
+          <span>Created: 1:55:56 PM</span>
+          <span class="task-duration">Duration: 0.8s</span>
+        </div>
+      </div>
+    </div>
+  
+      </div>
+    </div>
+    
+    
+    <div class="section">
+      <div class="section-title">📊 Complete Event Timeline</div>
+      <div class="event-list">
+        
+    <div class="event" id="event-0">
+      <div class="event-summary" onclick="toggleEvent(0)">
+        <span class="event-type TeamRunStart">TeamRunStart</span>
+        <span class="event-message">Team run started with input: What is quantum computing and how might it affect cybersecurity?</span>
+        <span class="event-timestamp">5/27/2025, 1:55:37 PM</span>
+      </div>
+      <div class="event-details">
+        <strong>Actor:</strong> System<br/>
+        <strong>Details:</strong>
+        <pre>{
+  "input": "What is quantum computing and how might it affect cybersecurity?",
+  "options": {
+    "verbose": true
+  }
+}</pre>
+      </div>
+    </div>
+  
+    <div class="event" id="event-1">
+      <div class="event-summary" onclick="toggleEvent(1)">
+        <span class="event-type TaskCreated">TaskCreated</span>
+        <span class="event-message">Task task-1 created for Researcher</span>
+        <span class="event-timestamp">5/27/2025, 1:55:39 PM</span>
+      </div>
+      <div class="event-details">
+        <strong>Actor:</strong> Researcher<br/>
+        <strong>Details:</strong>
+        <pre>{
+  "taskId": "task-1",
+  "agentName": "Researcher",
+  "description": "Research and provide a comprehensive definition of quantum computing, including key concepts like qubits, superposition, and entanglement, and how it differs from classical computing.\n**Depends on:** none",
+  "dependencies": [],
+  "isDefault": false
+}</pre>
+      </div>
+    </div>
+  
+    <div class="event" id="event-2">
+      <div class="event-summary" onclick="toggleEvent(2)">
+        <span class="event-type TaskCreated">TaskCreated</span>
+        <span class="event-message">Task task-2 created for Summarizer</span>
+        <span class="event-timestamp">5/27/2025, 1:55:39 PM</span>
+      </div>
+      <div class="event-details">
+        <strong>Actor:</strong> Summarizer<br/>
+        <strong>Details:</strong>
+        <pre>{
+  "taskId": "task-2",
+  "agentName": "Summarizer",
+  "description": "Summarize the information provided by the Researcher regarding the definition of quantum computing and its potential impact on cybersecurity.\n**Depends on:** task-1, task-2",
+  "dependencies": [
+    "task-1"
+  ],
+  "isDefault": false
+}</pre>
+      </div>
+    </div>
+  
+    <div class="event" id="event-3">
+      <div class="event-summary" onclick="toggleEvent(3)">
+        <span class="event-type TaskAssigned">TaskAssigned</span>
+        <span class="event-message">Task assigned to Researcher</span>
+        <span class="event-timestamp">5/27/2025, 1:55:39 PM</span>
+      </div>
+      <div class="event-details">
+        <strong>Actor:</strong> Manager<br/>
+        <strong>Details:</strong>
+        <pre>{
+  "taskId": "task-1",
+  "agentName": "Researcher",
+  "description": "Research and provide a comprehensive definition of quantum computing, including key concepts like qubits, superposition, and entanglement, and how it differs from classical computing.\n**Depends on:** none",
+  "dependencies": [],
+  "formattedTask": "\nTask: Research and provide a comprehensive definition of quantum computing, including key concepts like qubits, superposition, and entanglement, and how it differs from classical computing.\n**Depends on:** none\n\n\n\n\n\nPlease provide a clear and detailed response.\nIMPORTANT: If you need to use tools like search or fetch, be sure to EXECUTE them rather than just showing the code.\nIMPORTANT: You already have access to the results of dependency tasks above. DO NOT try to use tools to retrieve them.\n\nIMPORTANT: If you encounter any tool execution errors, please clearly state that you're unable to access the requested data. DO NOT make up or estimate data - stick strictly to facts.\n"
+}</pre>
+      </div>
+    </div>
+  
+    <div class="event" id="event-4">
+      <div class="event-summary" onclick="toggleEvent(4)">
+        <span class="event-type AgentResponse">AgentResponse</span>
+        <span class="event-message">Agent Researcher completed task task-1</span>
+        <span class="event-timestamp">5/27/2025, 1:55:45 PM</span>
+      </div>
+      <div class="event-details">
+        <strong>Actor:</strong> Researcher<br/>
+        <strong>Details:</strong>
+        <pre>{
+  "taskId": "task-1",
+  "agentName": "Researcher",
+  "result": "Okay, I will research and provide a comprehensive definition of quantum computing, including key concepts like qubits, superposition, and entanglement, and how it differs from classical computing.\n\n**Quantum Computing: A Comprehensive Definition**\n\nQuantum computing is a type of computation that harnesses the principles of quantum mechanics to solve complex problems that are intractable for classical computers. Unlike classical computers that store information as bits representing 0 or 1, quantum computers use quantum bits, or *qubits*, which can exist in a combination of both states simultaneously. This fundamental difference, along with other quantum phenomena like superposition and entanglement, allows quantum computers to perform certain calculations much faster and more efficiently than their classical counterparts.\n\n**Key Concepts:**\n\n1.  **Qubit (Quantum Bit):**\n\n    *   A qubit is the basic unit of information in a quantum computer. Unlike a classical bit, which can be either 0 or 1, a qubit can exist in a *superposition* of both states simultaneously.\n    *   Mathematically, a qubit's state is represented as a linear combination of the basis states |0⟩ and |1⟩:\n\n        |ψ⟩ = α|0⟩ + β|1⟩\n\n        where α and β are complex numbers such that |α|² + |β|² = 1. |α|² represents the probability of measuring the qubit in the state |0⟩, and |β|² represents the probability of measuring the qubit in the state |1⟩.\n    *   Physical realizations of qubits can vary, including using the spin of an electron, the polarization of a photon, or the energy levels of an atom.\n\n2.  **Superposition:**\n\n    *   Superposition is the ability of a quantum system to exist in multiple states at the same time. In the context of qubits, this means a qubit can be in a combination of both 0 and 1 simultaneously, rather than being definitively either 0 or 1.\n    *   This allows quantum computers to explore many possibilities concurrently, leading to potential speedups in certain algorithms.\n    *   When a qubit in superposition is measured, it collapses into one of the definite states (0 or 1) with probabilities determined by the coefficients α and β in its state vector.\n\n3.  **Entanglement:**\n\n    *   Entanglement is a quantum mechanical phenomenon where two or more qubits become linked together in such a way that they share the same fate, no matter how far apart they are.\n    *   When qubits are entangled, the state of one qubit is instantly correlated with the state of the other(s), even if they are separated by vast distances.\n    *   Measuring the state of one entangled qubit instantly determines the state of the other(s), regardless of the distance between them. This correlation is a key resource in quantum computing and quantum communication.\n    *   Entanglement allows quantum computers to perform computations that are impossible for classical computers, by exploiting the correlations between qubits.\n\n**How Quantum Computing Differs from Classical Computing:**\n\n| Feature          | Classical Computing                                  | Quantum Computing                                       |\n| ---------------- | ---------------------------------------------------- | ------------------------------------------------------- |\n| Basic Unit       | Bit (0 or 1)                                         | Qubit (superposition of 0 and 1)                         |\n| Information Storage | Definite state (0 or 1)                              | Superposition of states                                 |\n| Computation      | Sequential, based on Boolean logic                   | Parallel, exploiting superposition and entanglement      |\n| Problem Solving    | Limited by computational complexity of algorithms    | Potential for exponential speedup for certain problems |\n| Examples         | Everyday computers, servers, smartphones              | Quantum computers (e.g., IBM Quantum, Google's Sycamore) |\n\n**In Summary:**\n\nQuantum computing leverages the principles of quantum mechanics, such as superposition and entanglement, to perform computations in a fundamentally different way than classical computers. While classical computers store information as bits representing 0 or 1, quantum computers use qubits that can exist in a superposition of both states simultaneously. This allows quantum computers to explore many possibilities concurrently and potentially solve certain problems much faster and more efficiently than classical computers. However, quantum computers are still in their early stages of development and are not meant to replace classical computers entirely. They are expected to be used for specific types of problems where they offer a significant advantage.\n",
+  "metadata": {
+    "tokenUsage": {
+      "prompt": 170,
+      "completion": 920,
+      "total": 1090
+    },
+    "executionTime": 5970,
+    "modelName": "gemini-2.0-flash-001"
+  }
+}</pre>
+      </div>
+    </div>
+  
+    <div class="event" id="event-5">
+      <div class="event-summary" onclick="toggleEvent(5)">
+        <span class="event-type TaskStatusChanged">TaskStatusChanged</span>
+        <span class="event-message">Task task-1 status: completed</span>
+        <span class="event-timestamp">5/27/2025, 1:55:45 PM</span>
+      </div>
+      <div class="event-details">
+        <strong>Actor:</strong> Researcher<br/>
+        <strong>Details:</strong>
+        <pre>{
+  "taskId": "task-1",
+  "status": "completed",
+  "result": "Okay, I will research and provide a comprehensive definition of quantum computing, including key concepts like qubits, superposition, and entanglement, and how it differs from classical computing.\n\n**Quantum Computing: A Comprehensive Definition**\n\nQuantum computing is a type of computation that harnesses the principles of quantum mechanics to solve complex problems that are intractable for classical computers. Unlike classical computers that store information as bits representing 0 or 1, quantum computers use quantum bits, or *qubits*, which can exist in a combination of both states simultaneously. This fundamental difference, along with other quantum phenomena like superposition and entanglement, allows quantum computers to perform certain calculations much faster and more efficiently than their classical counterparts.\n\n**Key Concepts:**\n\n1.  **Qubit (Quantum Bit):**\n\n    *   A qubit is the basic unit of information in a quantum computer. Unlike a classical bit, which can be either 0 or 1, a qubit can exist in a *superposition* of both states simultaneously.\n    *   Mathematically, a qubit's state is represented as a linear combination of the basis states |0⟩ and |1⟩:\n\n        |ψ⟩ = α|0⟩ + β|1⟩\n\n        where α and β are complex numbers such that |α|² + |β|² = 1. |α|² represents the probability of measuring the qubit in the state |0⟩, and |β|² represents the probability of measuring the qubit in the state |1⟩.\n    *   Physical realizations of qubits can vary, including using the spin of an electron, the polarization of a photon, or the energy levels of an atom.\n\n2.  **Superposition:**\n\n    *   Superposition is the ability of a quantum system to exist in multiple states at the same time. In the context of qubits, this means a qubit can be in a combination of both 0 and 1 simultaneously, rather than being definitively either 0 or 1.\n    *   This allows quantum computers to explore many possibilities concurrently, leading to potential speedups in certain algorithms.\n    *   When a qubit in superposition is measured, it collapses into one of the definite states (0 or 1) with probabilities determined by the coefficients α and β in its state vector.\n\n3.  **Entanglement:**\n\n    *   Entanglement is a quantum mechanical phenomenon where two or more qubits become linked together in such a way that they share the same fate, no matter how far apart they are.\n    *   When qubits are entangled, the state of one qubit is instantly correlated with the state of the other(s), even if they are separated by vast distances.\n    *   Measuring the state of one entangled qubit instantly determines the state of the other(s), regardless of the distance between them. This correlation is a key resource in quantum computing and quantum communication.\n    *   Entanglement allows quantum computers to perform computations that are impossible for classical computers, by exploiting the correlations between qubits.\n\n**How Quantum Computing Differs from Classical Computing:**\n\n| Feature          | Classical Computing                                  | Quantum Computing                                       |\n| ---------------- | ---------------------------------------------------- | ------------------------------------------------------- |\n| Basic Unit       | Bit (0 or 1)                                         | Qubit (superposition of 0 and 1)                         |\n| Information Storage | Definite state (0 or 1)                              | Superposition of states                                 |\n| Computation      | Sequential, based on Boolean logic                   | Parallel, exploiting superposition and entanglement      |\n| Problem Solving    | Limited by computational complexity of algorithms    | Potential for exponential speedup for certain problems |\n| Examples         | Everyday computers, servers, smartphones              | Quantum computers (e.g., IBM Quantum, Google's Sycamore) |\n\n**In Summary:**\n\nQuantum computing leverages the principles of quantum mechanics, such as superposition and entanglement, to perform computations in a fundamentally different way than classical computers. While classical computers store information as bits representing 0 or 1, quantum computers use qubits that can exist in a superposition of both states simultaneously. This allows quantum computers to explore many possibilities concurrently and potentially solve certain problems much faster and more efficiently than classical computers. However, quantum computers are still in their early stages of development and are not meant to replace classical computers entirely. They are expected to be used for specific types of problems where they offer a significant advantage.\n"
+}</pre>
+      </div>
+    </div>
+  
+    <div class="event" id="event-6">
+      <div class="event-summary" onclick="toggleEvent(6)">
+        <span class="event-type TaskCreated">TaskCreated</span>
+        <span class="event-message">Task task-3 created for Researcher</span>
+        <span class="event-timestamp">5/27/2025, 1:55:47 PM</span>
+      </div>
+      <div class="event-details">
+        <strong>Actor:</strong> Researcher<br/>
+        <strong>Details:</strong>
+        <pre>{
+  "taskId": "task-3",
+  "agentName": "Researcher",
+  "description": "Research and explain how quantum computing might impact cybersecurity, including potential threats to current encryption methods and possible quantum-resistant cryptographic solutions.\n**Depends on:** none",
+  "dependencies": [],
+  "isDefault": false
+}</pre>
+      </div>
+    </div>
+  
+    <div class="event" id="event-7">
+      <div class="event-summary" onclick="toggleEvent(7)">
+        <span class="event-type TaskAssigned">TaskAssigned</span>
+        <span class="event-message">Task assigned to Summarizer</span>
+        <span class="event-timestamp">5/27/2025, 1:55:47 PM</span>
+      </div>
+      <div class="event-details">
+        <strong>Actor:</strong> Manager<br/>
+        <strong>Details:</strong>
+        <pre>{
+  "taskId": "task-2",
+  "agentName": "Summarizer",
+  "description": "Summarize the information provided by the Researcher regarding the definition of quantum computing and its potential impact on cybersecurity.\n**Depends on:** task-1, task-2",
+  "dependencies": [
+    "task-1"
+  ],
+  "formattedTask": "\nTask: Summarize the information provided by the Researcher regarding the definition of quantum computing and its potential impact on cybersecurity.\n**Depends on:** task-1, task-2\n\n\n\nThis task depends on previous work: task-1\n\nPlease provide a clear and detailed response.\nIMPORTANT: If you need to use tools like search or fetch, be sure to EXECUTE them rather than just showing the code.\nIMPORTANT: You already have access to the results of dependency tasks above. DO NOT try to use tools to retrieve them.\n\nIMPORTANT: If you encounter any tool execution errors, please clearly state that you're unable to access the requested data. DO NOT make up or estimate data - stick strictly to facts.\n"
+}</pre>
+      </div>
+    </div>
+  
+    <div class="event" id="event-8">
+      <div class="event-summary" onclick="toggleEvent(8)">
+        <span class="event-type TaskAssigned">TaskAssigned</span>
+        <span class="event-message">Task assigned to Researcher</span>
+        <span class="event-timestamp">5/27/2025, 1:55:47 PM</span>
+      </div>
+      <div class="event-details">
+        <strong>Actor:</strong> Manager<br/>
+        <strong>Details:</strong>
+        <pre>{
+  "taskId": "task-3",
+  "agentName": "Researcher",
+  "description": "Research and explain how quantum computing might impact cybersecurity, including potential threats to current encryption methods and possible quantum-resistant cryptographic solutions.\n**Depends on:** none",
+  "dependencies": [],
+  "formattedTask": "\nTask: Research and explain how quantum computing might impact cybersecurity, including potential threats to current encryption methods and possible quantum-resistant cryptographic solutions.\n**Depends on:** none\n\n\n\n\n\nPlease provide a clear and detailed response.\nIMPORTANT: If you need to use tools like search or fetch, be sure to EXECUTE them rather than just showing the code.\nIMPORTANT: You already have access to the results of dependency tasks above. DO NOT try to use tools to retrieve them.\n\nIMPORTANT: If you encounter any tool execution errors, please clearly state that you're unable to access the requested data. DO NOT make up or estimate data - stick strictly to facts.\n"
+}</pre>
+      </div>
+    </div>
+  
+    <div class="event" id="event-9">
+      <div class="event-summary" onclick="toggleEvent(9)">
+        <span class="event-type AgentResponse">AgentResponse</span>
+        <span class="event-message">Agent Summarizer completed task task-2</span>
+        <span class="event-timestamp">5/27/2025, 1:55:48 PM</span>
+      </div>
+      <div class="event-details">
+        <strong>Actor:</strong> Summarizer<br/>
+        <strong>Details:</strong>
+        <pre>{
+  "taskId": "task-2",
+  "agentName": "Summarizer",
+  "result": "Okay, I will summarize the information about quantum computing and its potential impact on cybersecurity, based on the results of the dependency tasks (task-1 and task-2). Since I have access to the results of these tasks, I will proceed directly with the summarization.\n\nPlease provide me with the content of task-1 and task-2 so I can proceed.\n",
+  "metadata": {
+    "tokenUsage": {
+      "prompt": 183,
+      "completion": 75,
+      "total": 258
+    },
+    "executionTime": 905,
+    "modelName": "gemini-2.0-flash-001"
+  }
+}</pre>
+      </div>
+    </div>
+  
+    <div class="event" id="event-10">
+      <div class="event-summary" onclick="toggleEvent(10)">
+        <span class="event-type TaskStatusChanged">TaskStatusChanged</span>
+        <span class="event-message">Task task-2 status: completed</span>
+        <span class="event-timestamp">5/27/2025, 1:55:48 PM</span>
+      </div>
+      <div class="event-details">
+        <strong>Actor:</strong> Summarizer<br/>
+        <strong>Details:</strong>
+        <pre>{
+  "taskId": "task-2",
+  "status": "completed",
+  "result": "Okay, I will summarize the information about quantum computing and its potential impact on cybersecurity, based on the results of the dependency tasks (task-1 and task-2). Since I have access to the results of these tasks, I will proceed directly with the summarization.\n\nPlease provide me with the content of task-1 and task-2 so I can proceed.\n"
+}</pre>
+      </div>
+    </div>
+  
+    <div class="event" id="event-11">
+      <div class="event-summary" onclick="toggleEvent(11)">
+        <span class="event-type AgentResponse">AgentResponse</span>
+        <span class="event-message">Agent Researcher completed task task-3</span>
+        <span class="event-timestamp">5/27/2025, 1:55:54 PM</span>
+      </div>
+      <div class="event-details">
+        <strong>Actor:</strong> Researcher<br/>
+        <strong>Details:</strong>
+        <pre>{
+  "taskId": "task-3",
+  "agentName": "Researcher",
+  "result": "Okay, I will research and explain how quantum computing might impact cybersecurity, including potential threats to current encryption methods and possible quantum-resistant cryptographic solutions.\n\n**Quantum Computing's Impact on Cybersecurity**\n\nQuantum computing poses both significant threats and potential solutions to the field of cybersecurity. The development of sufficiently powerful quantum computers could render many of today's widely used encryption methods obsolete, while also offering the possibility of developing new, quantum-resistant cryptographic techniques.\n\n**Threats to Current Encryption Methods:**\n\n1.  **Shor's Algorithm:**\n    *   Peter Shor's algorithm, developed in 1994, is a quantum algorithm that can efficiently factor large numbers. This poses a direct threat to public-key cryptography systems like RSA (Rivest-Shamir-Adleman) and ECC (Elliptic Curve Cryptography), which rely on the mathematical difficulty of factoring large numbers or solving the discrete logarithm problem.\n    *   RSA and ECC are widely used to secure internet communications, financial transactions, and data storage. A sufficiently powerful quantum computer running Shor's algorithm could break these encryption methods in a reasonable amount of time, potentially exposing sensitive information.\n    *   The time required for a quantum computer to break RSA or ECC depends on the key size and the capabilities of the quantum computer. However, it is generally accepted that current key sizes will be vulnerable to future quantum computers.\n\n2.  **Grover's Algorithm:**\n    *   Grover's algorithm is another quantum algorithm that can speed up the search of unsorted databases. While it doesn't break public-key cryptography directly, it can be used to accelerate brute-force attacks on symmetric-key cryptography algorithms like AES (Advanced Encryption Standard).\n    *   Grover's algorithm provides a quadratic speedup, meaning that it can reduce the search time from *N* to √*N*, where *N* is the number of possible keys. This means that while AES isn't completely broken by Grover's algorithm, the key size needs to be doubled to maintain the same level of security. For example, AES-128 would need to be replaced with AES-256.\n\n**Quantum-Resistant Cryptographic Solutions (Post-Quantum Cryptography):**\n\nTo mitigate the threats posed by quantum computers, researchers are developing post-quantum cryptography (PQC) or quantum-resistant cryptography. These are cryptographic algorithms that are believed to be secure against both classical and quantum computers. The goal is to replace vulnerable algorithms like RSA and ECC with PQC algorithms before quantum computers become a practical threat.\n\nSeveral families of PQC algorithms are being explored:\n\n1.  **Lattice-based Cryptography:**\n    *   Lattice-based cryptography relies on the difficulty of solving problems on mathematical lattices. These problems are believed to be hard for both classical and quantum computers.\n    *   Examples of lattice-based algorithms include CRYSTALS-Kyber (key-establishment) and CRYSTALS-Dilithium (digital signatures).\n\n2.  **Code-based Cryptography:**\n    *   Code-based cryptography is based on the difficulty of decoding general linear codes.\n    *   An example of a code-based algorithm is Classic McEliece.\n\n3.  **Multivariate Polynomial Cryptography:**\n    *   Multivariate cryptography relies on the difficulty of solving systems of multivariate polynomial equations over finite fields.\n    *   An example of a multivariate algorithm is Rainbow.\n\n4.  **Hash-based Cryptography:**\n    *   Hash-based cryptography relies on the security of cryptographic hash functions.\n    *   An example of a hash-based signature scheme is SPHINCS+.\n\n5.  **Isogeny-based Cryptography:**\n    *   Isogeny-based cryptography is based on the difficulty of finding isogenies between elliptic curves.\n    *   An example of an isogeny-based algorithm is SIKE (Supersingular Isogeny Key Encapsulation). *Note: SIKE was broken in 2022 and is no longer considered secure.*\n\n**Standardization Efforts:**\n\n*   The National Institute of Standards and Technology (NIST) has been running a competition to standardize post-quantum cryptographic algorithms. In 2022, NIST announced the first group of algorithms to be standardized: CRYSTALS-Kyber, CRYSTALS-Dilithium, Falcon, and SPHINCS+.\n*   These algorithms are expected to be incorporated into cryptographic protocols and systems in the coming years.\n\n**Challenges and Considerations:**\n\n*   **Performance:** PQC algorithms often have different performance characteristics than traditional algorithms. Some PQC algorithms may have larger key sizes or slower execution times, which can impact performance.\n*   **Implementation Security:** Implementing PQC algorithms securely is crucial. Vulnerabilities in the implementation can negate the theoretical security of the algorithm.\n*   **Transition:** Migrating to PQC algorithms will be a complex and time-consuming process. It will require updating cryptographic libraries, protocols, and systems.\n*   **Uncertainty:** While PQC algorithms are believed to be secure, there is always the possibility that new attacks or vulnerabilities will be discovered in the future.\n\n**In Summary:**\n\nQuantum computing poses a significant threat to current encryption methods, particularly RSA and ECC, due to Shor's algorithm. To address this threat, researchers are developing post-quantum cryptographic algorithms that are believed to be secure against both classical and quantum computers. NIST is leading the standardization effort to identify and promote the adoption of these algorithms. The transition to PQC will be a complex and challenging process, but it is essential to maintain the security of our digital infrastructure in the face of the quantum computing threat.\n",
+  "metadata": {
+    "tokenUsage": {
+      "prompt": 1224,
+      "completion": 1180,
+      "total": 2404
+    },
+    "executionTime": 7449,
+    "modelName": "gemini-2.0-flash-001"
+  }
+}</pre>
+      </div>
+    </div>
+  
+    <div class="event" id="event-12">
+      <div class="event-summary" onclick="toggleEvent(12)">
+        <span class="event-type TaskStatusChanged">TaskStatusChanged</span>
+        <span class="event-message">Task task-3 status: completed</span>
+        <span class="event-timestamp">5/27/2025, 1:55:54 PM</span>
+      </div>
+      <div class="event-details">
+        <strong>Actor:</strong> Researcher<br/>
+        <strong>Details:</strong>
+        <pre>{
+  "taskId": "task-3",
+  "status": "completed",
+  "result": "Okay, I will research and explain how quantum computing might impact cybersecurity, including potential threats to current encryption methods and possible quantum-resistant cryptographic solutions.\n\n**Quantum Computing's Impact on Cybersecurity**\n\nQuantum computing poses both significant threats and potential solutions to the field of cybersecurity. The development of sufficiently powerful quantum computers could render many of today's widely used encryption methods obsolete, while also offering the possibility of developing new, quantum-resistant cryptographic techniques.\n\n**Threats to Current Encryption Methods:**\n\n1.  **Shor's Algorithm:**\n    *   Peter Shor's algorithm, developed in 1994, is a quantum algorithm that can efficiently factor large numbers. This poses a direct threat to public-key cryptography systems like RSA (Rivest-Shamir-Adleman) and ECC (Elliptic Curve Cryptography), which rely on the mathematical difficulty of factoring large numbers or solving the discrete logarithm problem.\n    *   RSA and ECC are widely used to secure internet communications, financial transactions, and data storage. A sufficiently powerful quantum computer running Shor's algorithm could break these encryption methods in a reasonable amount of time, potentially exposing sensitive information.\n    *   The time required for a quantum computer to break RSA or ECC depends on the key size and the capabilities of the quantum computer. However, it is generally accepted that current key sizes will be vulnerable to future quantum computers.\n\n2.  **Grover's Algorithm:**\n    *   Grover's algorithm is another quantum algorithm that can speed up the search of unsorted databases. While it doesn't break public-key cryptography directly, it can be used to accelerate brute-force attacks on symmetric-key cryptography algorithms like AES (Advanced Encryption Standard).\n    *   Grover's algorithm provides a quadratic speedup, meaning that it can reduce the search time from *N* to √*N*, where *N* is the number of possible keys. This means that while AES isn't completely broken by Grover's algorithm, the key size needs to be doubled to maintain the same level of security. For example, AES-128 would need to be replaced with AES-256.\n\n**Quantum-Resistant Cryptographic Solutions (Post-Quantum Cryptography):**\n\nTo mitigate the threats posed by quantum computers, researchers are developing post-quantum cryptography (PQC) or quantum-resistant cryptography. These are cryptographic algorithms that are believed to be secure against both classical and quantum computers. The goal is to replace vulnerable algorithms like RSA and ECC with PQC algorithms before quantum computers become a practical threat.\n\nSeveral families of PQC algorithms are being explored:\n\n1.  **Lattice-based Cryptography:**\n    *   Lattice-based cryptography relies on the difficulty of solving problems on mathematical lattices. These problems are believed to be hard for both classical and quantum computers.\n    *   Examples of lattice-based algorithms include CRYSTALS-Kyber (key-establishment) and CRYSTALS-Dilithium (digital signatures).\n\n2.  **Code-based Cryptography:**\n    *   Code-based cryptography is based on the difficulty of decoding general linear codes.\n    *   An example of a code-based algorithm is Classic McEliece.\n\n3.  **Multivariate Polynomial Cryptography:**\n    *   Multivariate cryptography relies on the difficulty of solving systems of multivariate polynomial equations over finite fields.\n    *   An example of a multivariate algorithm is Rainbow.\n\n4.  **Hash-based Cryptography:**\n    *   Hash-based cryptography relies on the security of cryptographic hash functions.\n    *   An example of a hash-based signature scheme is SPHINCS+.\n\n5.  **Isogeny-based Cryptography:**\n    *   Isogeny-based cryptography is based on the difficulty of finding isogenies between elliptic curves.\n    *   An example of an isogeny-based algorithm is SIKE (Supersingular Isogeny Key Encapsulation). *Note: SIKE was broken in 2022 and is no longer considered secure.*\n\n**Standardization Efforts:**\n\n*   The National Institute of Standards and Technology (NIST) has been running a competition to standardize post-quantum cryptographic algorithms. In 2022, NIST announced the first group of algorithms to be standardized: CRYSTALS-Kyber, CRYSTALS-Dilithium, Falcon, and SPHINCS+.\n*   These algorithms are expected to be incorporated into cryptographic protocols and systems in the coming years.\n\n**Challenges and Considerations:**\n\n*   **Performance:** PQC algorithms often have different performance characteristics than traditional algorithms. Some PQC algorithms may have larger key sizes or slower execution times, which can impact performance.\n*   **Implementation Security:** Implementing PQC algorithms securely is crucial. Vulnerabilities in the implementation can negate the theoretical security of the algorithm.\n*   **Transition:** Migrating to PQC algorithms will be a complex and time-consuming process. It will require updating cryptographic libraries, protocols, and systems.\n*   **Uncertainty:** While PQC algorithms are believed to be secure, there is always the possibility that new attacks or vulnerabilities will be discovered in the future.\n\n**In Summary:**\n\nQuantum computing poses a significant threat to current encryption methods, particularly RSA and ECC, due to Shor's algorithm. To address this threat, researchers are developing post-quantum cryptographic algorithms that are believed to be secure against both classical and quantum computers. NIST is leading the standardization effort to identify and promote the adoption of these algorithms. The transition to PQC will be a complex and challenging process, but it is essential to maintain the security of our digital infrastructure in the face of the quantum computing threat.\n"
+}</pre>
+      </div>
+    </div>
+  
+    <div class="event" id="event-13">
+      <div class="event-summary" onclick="toggleEvent(13)">
+        <span class="event-type TaskCreated">TaskCreated</span>
+        <span class="event-message">Task task-4 created for Summarizer</span>
+        <span class="event-timestamp">5/27/2025, 1:55:56 PM</span>
+      </div>
+      <div class="event-details">
+        <strong>Actor:</strong> Summarizer<br/>
+        <strong>Details:</strong>
+        <pre>{
+  "taskId": "task-4",
+  "agentName": "Summarizer",
+  "description": "Summarize the information provided by the Researcher regarding the definition of quantum computing and its potential impact on cybersecurity, incorporating results from both task-1 and task-3.\n**Depends on:** task-1, task-3",
+  "dependencies": [
+    "task-1",
+    "task-3"
+  ],
+  "isDefault": false
+}</pre>
+      </div>
+    </div>
+  
+    <div class="event" id="event-14">
+      <div class="event-summary" onclick="toggleEvent(14)">
+        <span class="event-type TaskAssigned">TaskAssigned</span>
+        <span class="event-message">Task assigned to Summarizer</span>
+        <span class="event-timestamp">5/27/2025, 1:55:56 PM</span>
+      </div>
+      <div class="event-details">
+        <strong>Actor:</strong> Manager<br/>
+        <strong>Details:</strong>
+        <pre>{
+  "taskId": "task-4",
+  "agentName": "Summarizer",
+  "description": "Summarize the information provided by the Researcher regarding the definition of quantum computing and its potential impact on cybersecurity, incorporating results from both task-1 and task-3.\n**Depends on:** task-1, task-3",
+  "dependencies": [
+    "task-1",
+    "task-3"
+  ],
+  "formattedTask": "\nTask: Summarize the information provided by the Researcher regarding the definition of quantum computing and its potential impact on cybersecurity, incorporating results from both task-1 and task-3.\n**Depends on:** task-1, task-3\n\n\n\nThis task depends on previous work: task-1, task-3\n\nPlease provide a clear and detailed response.\nIMPORTANT: If you need to use tools like search or fetch, be sure to EXECUTE them rather than just showing the code.\nIMPORTANT: You already have access to the results of dependency tasks above. DO NOT try to use tools to retrieve them.\n\nIMPORTANT: If you encounter any tool execution errors, please clearly state that you're unable to access the requested data. DO NOT make up or estimate data - stick strictly to facts.\n"
+}</pre>
+      </div>
+    </div>
+  
+    <div class="event" id="event-15">
+      <div class="event-summary" onclick="toggleEvent(15)">
+        <span class="event-type AgentResponse">AgentResponse</span>
+        <span class="event-message">Agent Summarizer completed task task-4</span>
+        <span class="event-timestamp">5/27/2025, 1:55:57 PM</span>
+      </div>
+      <div class="event-details">
+        <strong>Actor:</strong> Summarizer<br/>
+        <strong>Details:</strong>
+        <pre>{
+  "taskId": "task-4",
+  "agentName": "Summarizer",
+  "result": "Okay, I will summarize the information about quantum computing and its potential impact on cybersecurity, based on the results of the dependency tasks (task-1 and task-3). Since I have access to the results of these tasks, I will proceed directly with the summarization.\n\nPlease provide me with the content of task-1 and task-3 so I can proceed.\n",
+  "metadata": {
+    "tokenUsage": {
+      "prompt": 421,
+      "completion": 75,
+      "total": 496
+    },
+    "executionTime": 814,
+    "modelName": "gemini-2.0-flash-001"
+  }
+}</pre>
+      </div>
+    </div>
+  
+    <div class="event" id="event-16">
+      <div class="event-summary" onclick="toggleEvent(16)">
+        <span class="event-type TaskStatusChanged">TaskStatusChanged</span>
+        <span class="event-message">Task task-4 status: completed</span>
+        <span class="event-timestamp">5/27/2025, 1:55:57 PM</span>
+      </div>
+      <div class="event-details">
+        <strong>Actor:</strong> Summarizer<br/>
+        <strong>Details:</strong>
+        <pre>{
+  "taskId": "task-4",
+  "status": "completed",
+  "result": "Okay, I will summarize the information about quantum computing and its potential impact on cybersecurity, based on the results of the dependency tasks (task-1 and task-3). Since I have access to the results of these tasks, I will proceed directly with the summarization.\n\nPlease provide me with the content of task-1 and task-3 so I can proceed.\n"
+}</pre>
+      </div>
+    </div>
+  
+    <div class="event" id="event-17">
+      <div class="event-summary" onclick="toggleEvent(17)">
+        <span class="event-type TeamRunEnd">TeamRunEnd</span>
+        <span class="event-message">Team run completed</span>
+        <span class="event-timestamp">5/27/2025, 1:56:02 PM</span>
+      </div>
+      <div class="event-details">
+        <strong>Actor:</strong> System<br/>
+        <strong>Details:</strong>
+        <pre>{
+  "result": {
+    "output": "Quantum computing is a revolutionary approach to computation that leverages the principles of quantum mechanics, such as superposition and entanglement, to solve complex problems intractable for classical computers. Unlike classical computers that use bits representing 0 or 1, quantum computers use qubits. Qubits can exist in a superposition of both 0 and 1 simultaneously, vastly increasing computational possibilities. Entanglement links qubits, enabling them to act in unison, further enhancing computing power.\n\nThe advent of quantum computing presents both threats and opportunities for cybersecurity.\n\n**Threats:** Quantum computers, particularly through Shor's algorithm, pose a significant risk to current encryption methods like RSA and ECC, which secure much of our online communication and data. Shor's algorithm can efficiently factor large numbers, breaking the foundation of these encryption methods. Grover's algorithm, while not directly breaking public-key cryptography, accelerates brute-force attacks on symmetric-key algorithms like AES, necessitating larger key sizes for continued security.\n\n**Opportunities:** To counter these threats, researchers are developing quantum-resistant cryptographic solutions, also known as post-quantum cryptography (PQC). These algorithms are designed to be secure against both classical and quantum computers. Families of PQC algorithms include lattice-based cryptography, code-based cryptography, multivariate polynomial cryptography, hash-based cryptography, and isogeny-based cryptography (though some isogeny-based methods have been compromised). NIST is actively standardizing PQC algorithms to facilitate their adoption.\n\nThe transition to PQC presents challenges, including potential performance impacts due to larger key sizes or slower execution times, the need for secure implementations, and the complexity of migrating existing systems. Despite these challenges, the shift to quantum-resistant cryptography is crucial to maintaining the security of our digital infrastructure in the face of advancing quantum computing capabilities.\n",
+    "metadata": {
+      "tokenUsage": {
+        "prompt": 5299,
+        "completion": 365,
+        "total": 5664
+      },
+      "executionTime": 2764,
+      "modelName": "gemini-2.0-flash-001"
+    }
+  }
+}</pre>
+      </div>
+    </div>
+  
+      </div>
+    </div>
+    
+  </div>
+  
+  <script>
+    function toggleEvent(idx) {
+      var el = document.getElementById('event-' + idx);
+      if (el.classList.contains('open')) {
+        el.classList.remove('open');
+      } else {
+        el.classList.add('open');
+      }
+    }
+  </script>
+</body>
+</html>
