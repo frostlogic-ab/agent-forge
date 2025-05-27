@@ -4,11 +4,7 @@
   "description": "A TypeScript framework for creating and orchestrating AI agents with LLM integration",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
-  "files": [
-    "dist",
-    "README.md",
-    "LICENSE"
-  ],
+  "files": ["dist", "README.md", "LICENSE"],
   "scripts": {
     "build": "tsc",
     "build:watch": "tsc --watch",
@@ -30,20 +26,11 @@
     "semantic-release": "semantic-release",
     "example:simple-agent": "ts-node src/examples/simple-agent.ts",
     "example:stock-analysis": "ts-node src/examples/stock-analysis/index.ts",
-    "example:streaming-example-workflow": "ts-node src/examples/streaming-example-workflow.ts",
-    "example:streaming-example-team": "ts-node src/examples/streaming-example-team.ts",
-    "example:web-page-content-example": "ts-node src/examples/web-page-content-example.ts",
     "example:a2a-server": "ts-node src/examples/a2a-example/a2a-server-example.ts",
-    "example:a2a-team": "ts-node src/examples/a2a-example/a2a-team-example.ts"
+    "example:a2a-team": "ts-node src/examples/a2a-example/a2a-team-example.ts",
+    "example:tool-example": "ts-node src/examples/tool-example.ts"
   },
-  "keywords": [
-    "ai",
-    "agents",
-    "llm",
-    "framework",
-    "typescript",
-    "yaml"
-  ],
+  "keywords": ["ai", "agents", "llm", "framework", "typescript", "yaml"],
   "author": "",
   "license": "MIT",
   "dependencies": {

@@ -9,6 +9,7 @@ import {
   MCPToolWrapper,
   createMCPClient,
 } from "../tools/mcp-tool";
+import type { Tool } from "../tools/tool";
 import type { AgentConfig, LLMProvider, RateLimiterConfig } from "../types";
 import { RateLimiter as RateLimiterClass } from "../utils/rate-limiter";
 import { Agent } from "./agent";
@@ -28,12 +29,72 @@ export function agent(config: AgentConfig): ClassDecorator {
     // Runtime check: ensure target is an Agent constructor
     if (typeof target !== "function" || !(target.prototype instanceof Agent)) {
       throw new Error(
-        "@MCP decorator can only be applied to classes extending Agent"
+        "@agent decorator can only be applied to classes extending Agent"
       );
     }
 
     target.agentConfig = config;
     return target;
+  };
+}
+
+/**
+ * Tool decorator. Adds a tool to an agent class.
+ *
+ * @param ToolClass Tool class constructor
+ *
+ * Usage:
+ *   @tool(WebSearchTool)
+ *   @tool(CalculatorTool)
+ *   @agent(config)
+ *   class MyAgent extends Agent {}
+ */
+export function tool<T extends Tool>(
+  ToolClass: new (...args: any[]) => T
+): ClassDecorator {
+  return (target: any): any => {
+    // Runtime check: ensure target is an Agent constructor
+    if (typeof target !== "function" || !(target.prototype instanceof Agent)) {
+      throw new Error(
+        "@tool decorator can only be applied to classes extending Agent"
+      );
+    }
+
+    // Store tool classes on the constructor
+    if (!(target as any).toolClasses) {
+      (target as any).toolClasses = [];
+    }
+    (target as any).toolClasses.push(ToolClass);
+
+    // Only wrap the class once - check if we already have a tool wrapper
+    if ((target as any).__hasToolWrapper) {
+      return target;
+    }
+
+    // Mark that we've wrapped this class
+    (target as any).__hasToolWrapper = true;
+
+    // Return a subclass that adds tools on instantiation
+    return class extends target {
+      constructor(...args: any[]) {
+        super(...args);
+        
+        // Add all tools from the static toolClasses array
+        if ((this.constructor as any).toolClasses) {
+          for (const ToolClassToAdd of (this.constructor as any).toolClasses) {
+            try {
+              const toolInstance = new ToolClassToAdd();
+              this.addTool(toolInstance);
+            } catch (error) {
+              console.warn(
+                `Failed to instantiate tool ${ToolClassToAdd.name}:`,
+                error
+              );
+            }
+          }
+        }
+      }
+    };
   };
 }
 
