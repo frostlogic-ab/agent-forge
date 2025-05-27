@@ -1,4 +1,12 @@
 ## What's Changed
+* Add new Visualizer util decorator to generate a timeline of agent events by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/49
+
+
+**Full Changelog**: https://github.com/frostlogic-ab/agent-forge/compare/v2.0.0-alpha.5...v2.0.0-alpha.6
+
+# [2.0.0-alpha.6](https://github.com/frostlogic-ab/agent-forge/compare/v2.0.0-alpha.5...v2.0.0-alpha.6) (2025-05-27)
+
+## What's Changed
 * Reuse @RateLimiter decorator for llmProvider by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/48
 
 
