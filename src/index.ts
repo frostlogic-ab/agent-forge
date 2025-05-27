@@ -76,7 +76,7 @@ export type { RateLimiterConfig } from "./types";
 export { agent, llmProvider, forge } from "./core/decorators";
 export { RateLimiter, Visualizer } from "./utils/decorators";
 export { a2aClient, a2aServer } from "./a2a/decorators";
-export { MCP } from "./tools/decorators";
+export { MCP, tool } from "./tools/decorators";
 
 export {
   loadAgentForgeConfig,
