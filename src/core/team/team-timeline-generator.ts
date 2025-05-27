@@ -284,6 +284,7 @@ export function generateTeamRunTimelineHtml(events: TeamRunEvent[]): string {
       overflow-x: auto;
       font-size: 0.85rem;
       line-height: 1.4;
+      text-wrap: auto;
     }
     
     .stats-grid {
