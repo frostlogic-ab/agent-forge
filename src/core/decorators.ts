@@ -1,7 +1,7 @@
 import type { ConfigOptions } from "token.js";
+import type { LLMProvider } from "token.js/dist/chat";
 import { LLM } from "../llm/llm";
-
-import type { AgentConfig, LLMProvider } from "../types";
+import type { AgentConfig } from "../types";
 import { RateLimiter as RateLimiterClass } from "../utils/rate-limiter";
 import { Agent } from "./agent";
 import { AgentForge } from "./agent-forge";

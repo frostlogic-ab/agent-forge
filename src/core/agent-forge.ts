@@ -400,18 +400,40 @@ export class AgentForge {
 
 /**
  * Utility to instantiate a decorated team/forge class and await its async static initialization.
- * @param TeamClass The class to instantiate (must have static forgeReady)
+ * This function handles all the async setup needed for agents and forge initialization.
+ * @param TeamClass The class to instantiate
+ * @param agents Optional array of agents to register and configure with LLM provider
  * @returns The instance, after static async initialization is complete
  */
 export async function readyForge<T extends { new (...args: any[]): any }>(
   TeamClass: T,
+  agents?: Agent[],
   ...args: ConstructorParameters<T>
 ): Promise<InstanceType<T>> {
   const instance = new TeamClass(...args);
 
-  // Wait for static forge initialization
+  // Wait for static forge initialization (old forgeReady pattern)
   if ((TeamClass as any).forgeReady) {
     await (TeamClass as any).forgeReady;
+  }
+
+  // Wait for LLM provider initialization (new decorator pattern)
+  if ((instance.constructor as any).forgeReady) {
+    await (instance.constructor as any).forgeReady;
+  }
+
+  // If agents are provided, configure them with the LLM provider
+  if (agents && agents.length > 0) {
+    const forge = (instance.constructor as any).forge as AgentForge;
+    if (forge) {
+      const llmProvider = forge.getDefaultLLMProvider();
+      if (llmProvider) {
+        agents.forEach((agent) => {
+          agent.setLLMProvider(llmProvider);
+        });
+      }
+      await forge.registerAgents(agents);
+    }
   }
 
   return instance as InstanceType<T>;

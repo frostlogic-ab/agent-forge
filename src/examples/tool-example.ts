@@ -140,10 +140,8 @@ class ToolExample {
   static forge: AgentForge;
 
   static async run() {
-    await readyForge(ToolExample);
-
     const assistantAgent = new AssistantAgent();
-    ToolExample.forge.registerAgent(assistantAgent);
+    await readyForge(ToolExample, [assistantAgent]);
 
     // Run the agent with different queries that would use different tools
     console.log("Running assistant agent with a calculation query...");

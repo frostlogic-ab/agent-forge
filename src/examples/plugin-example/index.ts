@@ -65,12 +65,6 @@ class PluginExample {
   static forge: AgentForge;
 
   static async run() {
-    // Initialize the framework
-    await readyForge(PluginExample);
-    await PluginExample.forge.initialize();
-
-    console.log("🚀 Plugin Example Starting\n");
-
     // Register our agents
     const agents = [
       new ManagerAgent(),
@@ -78,9 +72,11 @@ class PluginExample {
       new SummarizerAgent(),
     ];
 
-    for (const agent of agents) {
-      await PluginExample.forge.registerAgent(agent);
-    }
+    // Initialize the framework with agents
+    await readyForge(PluginExample, agents);
+    await PluginExample.forge.initialize();
+
+    console.log("🚀 Plugin Example Starting\n");
 
     console.log("\n📊 Plugin Status:");
     const enabledPlugins = PluginExample.forge.getPluginManager().getEnabledPlugins();
