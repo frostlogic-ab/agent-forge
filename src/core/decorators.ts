@@ -105,6 +105,16 @@ export function forge() {
               (forge.constructor as any).__visualizerEnabled = true;
             }
             (this.constructor as any).forge = forge;
+
+            // Register any pending plugins
+            if ((this.constructor as any).__pluginsToRegister) {
+              for (const plugin of (this.constructor as any)
+                .__pluginsToRegister) {
+                if (!forge.getPluginManager().hasPlugin(plugin.name)) {
+                  await forge.registerPlugin(plugin);
+                }
+              }
+            }
           })();
         }
       }
