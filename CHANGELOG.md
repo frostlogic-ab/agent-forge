@@ -1,4 +1,12 @@
 ## What's Changed
+* Add RAG with ChromaDB for agents with @RAGChromaDB decorator by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/51
+
+
+**Full Changelog**: https://github.com/frostlogic-ab/agent-forge/compare/v2.0.0-alpha.7...v2.0.0-alpha.8
+
+# [2.0.0-alpha.8](https://github.com/frostlogic-ab/agent-forge/compare/v2.0.0-alpha.7...v2.0.0-alpha.8) (2025-05-29)
+
+## What's Changed
 * Add @tool decorator to add tools to agents by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/50
 
 
