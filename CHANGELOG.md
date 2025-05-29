@@ -1,4 +1,12 @@
 ## What's Changed
+* Add custom plugin support and decorator to use plugin on agent-forge with @plugin(new Plugin()) decorator by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/52
+
+
+**Full Changelog**: https://github.com/frostlogic-ab/agent-forge/compare/v2.0.0-alpha.8...v2.0.0-alpha.9
+
+# [2.0.0-alpha.9](https://github.com/frostlogic-ab/agent-forge/compare/v2.0.0-alpha.8...v2.0.0-alpha.9) (2025-05-29)
+
+## What's Changed
 * Add RAG with ChromaDB for agents with @RAGChromaDB decorator by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/51
 
 

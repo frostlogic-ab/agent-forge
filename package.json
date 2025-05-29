@@ -1,10 +1,14 @@
 {
   "name": "agent-forge",
-  "version": "2.0.0-alpha.8",
+  "version": "2.0.0-alpha.9",
   "description": "A TypeScript framework for creating and orchestrating AI agents with LLM integration",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
-  "files": ["dist", "README.md", "LICENSE"],
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "build": "tsc",
     "build:watch": "tsc --watch",
@@ -34,7 +38,14 @@
     "example:rag-simple": "ts-node src/examples/rag-example/simple-rag-example.ts",
     "example:plugins": "ts-node src/examples/plugin-example/index.ts"
   },
-  "keywords": ["ai", "agents", "llm", "framework", "typescript", "yaml"],
+  "keywords": [
+    "ai",
+    "agents",
+    "llm",
+    "framework",
+    "typescript",
+    "yaml"
+  ],
   "author": "",
   "license": "MIT",
   "dependencies": {
