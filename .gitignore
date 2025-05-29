@@ -10,6 +10,7 @@ node_modules/
 dist/
 build/
 lib/
+team-run-timeline.html
 
 # Environment variables
 .env

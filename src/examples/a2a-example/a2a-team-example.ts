@@ -13,8 +13,6 @@ class TeamExample {
   static forge: AgentForge;
 
   static async run() {
-    const teamInstance = await readyForge(TeamExample);
-  
     let helpfulAssistantRemoteAgent: RemoteHelpfulAssistant;
     try {
       helpfulAssistantRemoteAgent = await new RemoteHelpfulAssistant();
@@ -23,9 +21,9 @@ class TeamExample {
       console.error(`ERROR: Failed to create RemoteHelpfulAssistant via @a2aClient: ${error}`);
       process.exit(1);
     }
+    
     const agents = [new ManagerAgent(), new ResearcherAgent(), new SummarizerAgent()];
-
-    TeamExample.forge.registerAgents(agents);
+    await readyForge(TeamExample, agents);
 
     const team = TeamExample.forge.createTeam("ManagerAgent", "Team", "A team of agents that can help with a variety of tasks.")
       .addAgents(agents)

@@ -10,7 +10,7 @@
       "complexity": {
         "noExcessiveCognitiveComplexity": "warn",
         "noUselessFragments": "error",
-        "noForEach": "warn"
+        "noForEach": "off"
       },
       "correctness": {
         "noUnusedVariables": "error",

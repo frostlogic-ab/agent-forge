@@ -41,8 +41,7 @@ class SimpleRAGExample {
     try {
       // Create and register agent
       const agent = new KnowledgeAssistant();
-      await readyForge(SimpleRAGExample);
-      SimpleRAGExample.forge.registerAgent(agent);
+      await readyForge(SimpleRAGExample, [agent]);
 
       // Ask a question - RAG will auto-initialize on first use
       const result = await agent.run(

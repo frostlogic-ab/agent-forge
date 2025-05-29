@@ -68,15 +68,13 @@ class RAGTeamExample {
 
   static async run() {
     try {
-      // Initialize forge
-      await readyForge(RAGTeamExample);
-
       // Create and register agents
       const knowledgeAssistant = new KnowledgeAssistant();
       const researchSpecialist = new ResearchSpecialist();
       const teamManager = new TeamManager();
 
-      RAGTeamExample.forge.registerAgents([
+      // Initialize forge with agents
+      await readyForge(RAGTeamExample, [
         knowledgeAssistant,
         researchSpecialist,
         teamManager,
