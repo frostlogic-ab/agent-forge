@@ -64,6 +64,21 @@ export type {
   EmbeddingResponse,
 } from "./rag";
 
+// Plugin system exports
+export {
+  Plugin,
+  PluginManager,
+  PluginLifecycleHooks,
+  LoggingPlugin,
+  MetricsPlugin,
+} from "./plugins";
+export type {
+  PluginContext,
+  PluginHookData,
+  PluginHookHandler,
+  PluginMetrics,
+} from "./plugins";
+
 // Streaming exports
 export { globalEventEmitter, EventEmitter } from "./utils/event-emitter";
 export { enableConsoleStreaming } from "./utils/streaming";
@@ -94,6 +109,7 @@ export { RateLimiter, Visualizer } from "./utils/decorators";
 export { a2aClient, a2aServer } from "./a2a/decorators";
 export { MCP, tool } from "./tools/decorators";
 export { RAGChromaDb } from "./rag/decorators";
+export { plugin } from "./plugins/decorators";
 
 export {
   loadAgentForgeConfig,

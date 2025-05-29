@@ -759,12 +759,193 @@ const generalResponse = await forge.runAgent(
 
 #### RAG Workflow Features
 
-- **Automatic Initialization**: `readyForge()` automatically detects and initializes RAG systems
 - **Document Chunking**: Intelligent text splitting with configurable size and overlap
 - **Semantic Search**: Retrieves relevant documents using embedding similarity
 - **Error Handling**: Graceful fallback when ChromaDB is unavailable
 - **Team Integration**: RAG agents work seamlessly in team workflows
 - **Tool Integration**: RAG appears as a tool that agents can use when needed
+
+## Plugin System
+
+Agent Forge features a powerful plugin architecture with lifecycle hooks that enables you to extend framework functionality and implement cross-cutting concerns like logging, metrics, security, and caching.
+
+### Plugin Lifecycle Hooks
+
+Plugins can hook into various points in the framework's execution:
+
+- **Framework Lifecycle**: `FRAMEWORK_INITIALIZE`, `FRAMEWORK_READY`, `FRAMEWORK_SHUTDOWN`
+- **Agent Lifecycle**: `AGENT_REGISTER`, `AGENT_BEFORE_RUN`, `AGENT_AFTER_RUN`, `AGENT_ERROR`
+- **LLM Lifecycle**: `LLM_BEFORE_REQUEST`, `LLM_AFTER_REQUEST`, `LLM_STREAM_START`, `LLM_STREAM_END`
+- **Tool Lifecycle**: `TOOL_BEFORE_EXECUTE`, `TOOL_AFTER_EXECUTE`, `TOOL_ERROR`
+- **Team/Workflow Lifecycle**: `TEAM_BEFORE_RUN`, `TEAM_AFTER_RUN`, `WORKFLOW_BEFORE_RUN`, `WORKFLOW_AFTER_RUN`
+
+### Built-in Plugins
+
+Agent Forge includes several built-in plugins:
+
+#### LoggingPlugin
+Provides detailed logging of agent and tool activities:
+
+```ts
+import { LoggingPlugin } from "agent-forge";
+
+// The LoggingPlugin automatically logs:
+// - Agent execution start/end with timing
+// - Tool calls with parameters and duration
+// - Framework initialization events
+```
+
+#### MetricsPlugin
+Tracks performance metrics, token usage, and execution statistics:
+
+```ts
+import { MetricsPlugin } from "agent-forge";
+
+const metricsPlugin = new MetricsPlugin();
+// Tracks: agent runs, execution time, tool calls, errors, token usage
+const metrics = metricsPlugin.getMetrics();
+const averageTime = metricsPlugin.getAverageExecutionTime();
+```
+
+### Creating Custom Plugins
+
+To create a custom plugin, extend the `Plugin` class:
+
+```ts
+import { Plugin, PluginLifecycleHooks, type PluginHookData } from "agent-forge";
+
+export class SecurityPlugin extends Plugin {
+  readonly name = 'security';
+  readonly version = '1.0.0';
+  readonly priority = 90; // Higher numbers run first
+
+  getHooks() {
+    return {
+      [PluginLifecycleHooks.AGENT_BEFORE_RUN]: this.validateInput.bind(this),
+      [PluginLifecycleHooks.TOOL_BEFORE_EXECUTE]: this.validateToolCall.bind(this),
+    };
+  }
+
+  private validateInput(data: PluginHookData): any {
+    const { input } = data.payload;
+    
+    // Your validation logic here
+    if (this.containsSensitiveData(input)) {
+      this.log('⚠️ Input contains sensitive data - sanitizing', 'warn');
+      return { ...data.payload, input: this.sanitizeInput(input) };
+    }
+    
+    return data.payload;
+  }
+
+  private validateToolCall(data: PluginHookData): any {
+    const { toolName } = data.payload;
+    
+    if (!this.isToolAllowed(toolName)) {
+      throw new Error(`Tool ${toolName} is not allowed by security policy`);
+    }
+    
+    return data.payload;
+  }
+
+  // ... implementation details
+}
+```
+
+### Using Plugins
+
+#### With Decorators
+
+```ts
+import { plugin, forge, llmProvider, agent } from "agent-forge";
+import { LoggingPlugin, MetricsPlugin } from "agent-forge";
+
+@plugin(new LoggingPlugin())
+@plugin(new MetricsPlugin())
+@plugin(new SecurityPlugin()) // Your custom plugin
+@llmProvider("openai", { apiKey: process.env.LLM_API_KEY })
+@forge()
+class MyApplication {
+  static forge: AgentForge;
+
+  static async run() {
+    // Initialize framework with plugins
+    await MyApplication.forge.initialize();
+    
+    // ... your application logic
+    
+    // Shutdown cleanly
+    await MyApplication.forge.shutdown();
+  }
+}
+```
+
+#### Programmatically
+
+```ts
+import { AgentForge, LoggingPlugin, MetricsPlugin } from "agent-forge";
+
+const forge = new AgentForge();
+
+// Register plugins
+await forge.registerPlugin(new LoggingPlugin());
+await forge.registerPlugin(new MetricsPlugin());
+
+// Initialize framework
+await forge.initialize();
+
+// Plugin manager access
+const pluginManager = forge.getPluginManager();
+const enabledPlugins = pluginManager.getEnabledPlugins();
+const metricsPlugin = pluginManager.getPlugin('metrics');
+```
+
+### Plugin Management
+
+```ts
+// Get plugin manager
+const pluginManager = forge.getPluginManager();
+
+// List all plugins
+const allPlugins = pluginManager.getAllPlugins();
+const enabledPlugins = pluginManager.getEnabledPlugins();
+
+// Get specific plugin
+const metricsPlugin = pluginManager.getPlugin('metrics') as MetricsPlugin;
+
+// Enable/disable plugins
+const loggingPlugin = pluginManager.getPlugin('logging');
+loggingPlugin?.disable();
+loggingPlugin?.enable();
+
+// Unregister plugin
+await pluginManager.unregisterPlugin('security');
+```
+
+### Plugin Use Cases
+
+The plugin architecture enables many powerful use cases:
+
+- **Development**: Debugging, performance profiling, step-through execution
+- **Production**: Monitoring, alerting, health checks, SLA tracking  
+- **Security**: Input validation, output sanitization, access control
+- **Performance**: Caching, connection pooling, request batching
+- **Integration**: Database logging, webhook notifications, external APIs
+- **Compliance**: Audit trails, data retention, privacy controls
+
+### Plugin Example
+
+See the complete plugin example at `src/examples/plugin-example/` which demonstrates:
+
+- Built-in and custom plugins working together
+- Security validation and caching
+- Metrics collection and reporting
+- Plugin management and lifecycle
+- Integration with teams and workflows
+
+```bash
+npm run example:plugins
+```
 
 ## Decorators Reference
 
@@ -772,6 +953,7 @@ const generalResponse = await forge.runAgent(
 - `@tool(ToolClass)`: Add a tool to an agent. Can be used multiple times to add multiple tools.
 - `@llmProvider(provider, config)`: Set LLM provider for a class.
 - `@forge()`: Attach a static AgentForge instance to a class.
+- `@plugin(pluginInstance)`: Register a plugin with the framework.
 - `@a2aServer(options)`: Expose an agent as an A2A server.
 - `@a2aClient(options)`: Connect an agent to a remote A2A server.
 - `@MCP(protocol, config)`: Attach MCP tools to an agent.

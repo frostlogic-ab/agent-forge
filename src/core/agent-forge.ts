@@ -1,5 +1,6 @@
 import { loadAgentsFromDirectory } from "../config/yaml-loader";
 import type { LLM } from "../llm/llm";
+import { type Plugin, PluginLifecycleHooks, PluginManager } from "../plugins";
 import type { Tool } from "../tools/tool";
 import { ToolRegistry } from "../tools/tool-registry";
 import {
@@ -19,6 +20,7 @@ export class AgentForge {
   private agents: Map<string, Agent> = new Map();
   private tools: ToolRegistry = new ToolRegistry();
   private llmProvider?: LLM;
+  private pluginManager: PluginManager;
 
   /**
    * Creates a new Agent Forge instance
@@ -26,6 +28,47 @@ export class AgentForge {
    */
   constructor(llmProvider?: LLM) {
     this.llmProvider = llmProvider;
+    this.pluginManager = new PluginManager(this);
+  }
+
+  /**
+   * Gets the plugin manager
+   */
+  getPluginManager(): PluginManager {
+    return this.pluginManager;
+  }
+
+  /**
+   * Registers a plugin with the framework
+   * @param plugin The plugin to register
+   * @returns The AgentForge instance for method chaining
+   */
+  async registerPlugin(plugin: Plugin): Promise<AgentForge> {
+    await this.pluginManager.registerPlugin(plugin);
+    return this;
+  }
+
+  /**
+   * Initializes the framework and executes initialization hooks
+   */
+  async initialize(): Promise<void> {
+    await this.pluginManager.executeHook(
+      PluginLifecycleHooks.FRAMEWORK_INITIALIZE,
+      { forge: this }
+    );
+    await this.pluginManager.executeHook(PluginLifecycleHooks.FRAMEWORK_READY, {
+      forge: this,
+    });
+  }
+
+  /**
+   * Shuts down the framework and executes shutdown hooks
+   */
+  async shutdown(): Promise<void> {
+    await this.pluginManager.executeHook(
+      PluginLifecycleHooks.FRAMEWORK_SHUTDOWN,
+      { forge: this }
+    );
   }
 
   /**
@@ -87,13 +130,28 @@ export class AgentForge {
    * @param agent The agent to register
    * @returns The AgentForge instance for method chaining
    */
-  registerAgent(agent: Agent): AgentForge {
+  async registerAgent(agent: Agent): Promise<AgentForge> {
+    // Execute before hook
+    const modifiedAgent = await this.pluginManager.executeHook(
+      PluginLifecycleHooks.AGENT_REGISTER,
+      { agent, registered: false }
+    );
+
+    const agentToRegister = modifiedAgent.agent || agent;
+
     // Apply the default LLM provider if set and agent doesn't have one
-    if (this.llmProvider && !agent.getLLMProvider()) {
-      agent.setLLMProvider(this.llmProvider);
+    if (this.llmProvider && !agentToRegister.getLLMProvider()) {
+      agentToRegister.setLLMProvider(this.llmProvider);
     }
 
-    this.agents.set(agent.name, agent);
+    this.agents.set(agentToRegister.name, agentToRegister);
+
+    // Execute after hook
+    await this.pluginManager.executeHook(PluginLifecycleHooks.AGENT_REGISTER, {
+      agent: agentToRegister,
+      registered: true,
+    });
+
     return this;
   }
 
@@ -102,9 +160,9 @@ export class AgentForge {
    * @param agents The agents to register
    * @returns The AgentForge instance for method chaining
    */
-  registerAgents(agents: Agent[]): AgentForge {
+  async registerAgents(agents: Agent[]): Promise<AgentForge> {
     for (const agent of agents) {
-      this.registerAgent(agent);
+      await this.registerAgent(agent);
     }
     return this;
   }
@@ -166,7 +224,7 @@ export class AgentForge {
    */
   async loadAgentsFromDirectory(directoryPath: string): Promise<AgentForge> {
     const agents = await loadAgentsFromDirectory(directoryPath);
-    this.registerAgents(agents);
+    await this.registerAgents(agents);
     return this;
   }
 
@@ -182,7 +240,31 @@ export class AgentForge {
       throw new Error(`Agent with name '${agentName}' is not registered`);
     }
 
-    return await agent.run(input);
+    // Before run hook
+    const beforeRunData = await this.pluginManager.executeHook(
+      PluginLifecycleHooks.AGENT_BEFORE_RUN,
+      { agent, input }
+    );
+
+    try {
+      const result = await agent.run(beforeRunData.input || input);
+
+      // After run hook
+      const finalResult = await this.pluginManager.executeHook(
+        PluginLifecycleHooks.AGENT_AFTER_RUN,
+        { agent, input, result }
+      );
+
+      return finalResult.result || result;
+    } catch (error) {
+      // Error hook
+      await this.pluginManager.executeHook(PluginLifecycleHooks.AGENT_ERROR, {
+        agent,
+        input,
+        error,
+      });
+      throw error;
+    }
   }
 
   /**
