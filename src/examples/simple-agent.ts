@@ -47,15 +47,13 @@ class SimpleAgent {
   static forge: AgentForge;
 
   static async run() {
-    await readyForge(SimpleAgent);
-
     const agents = [
       new ResearcherAgent(),
       new SummarizerAgent(),
       new ManagerAgent(),
     ];
 
-    SimpleAgent.forge.registerAgents(agents);
+    await readyForge(SimpleAgent, agents);
 
     // Workflow example
     const workflow = SimpleAgent.forge.createWorkflow("Research and Summarize", "Research a topic and then summarize the findings");

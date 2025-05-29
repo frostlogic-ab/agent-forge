@@ -27,14 +27,13 @@ npm install agent-forge
 
 - Node.js (latest LTS recommended)
 - LLM API keys (e.g., OpenAI)
-- (For MCP/Brave Search) Docker and relevant API keys
 
 ## Quick Start
 
 ### 1. Team of Local Agents
 
 ```ts
-import { forge, llmProvider, agent } from "agent-forge";
+import { forge, llmProvider, agent, readyForge } from "agent-forge";
 import { AgentForge, Agent } from "agent-forge";
 
 @agent({
@@ -70,13 +69,14 @@ class TeamExample {
   static forge: AgentForge;
 
   static async run() {
-    new TeamExample();
     const agents = [
       new ManagerAgent(),
       new ResearcherAgent(),
       new SummarizerAgent(),
     ];
-    TeamExample.forge.registerAgents(agents);
+
+    await readyForge(TeamExample, agents);
+
     const team = TeamExample.forge
       .createTeam(
         "ManagerAgent",
@@ -135,9 +135,8 @@ class WorkflowExample {
   static forge: AgentForge;
 
   static async run() {
-    await readyForge(WorkflowExample);
     const agents = [new ResearcherAgent(), new SummarizerAgent()];
-    WorkflowExample.forge.registerAgents(agents);
+    await readyForge(WorkflowExample, agents);
 
     // Create a workflow: research, then summarize
     const workflow = WorkflowExample.forge.createWorkflow(
@@ -235,10 +234,11 @@ class TeamWithRemoteExample {
   static forge: AgentForge;
 
   static async run() {
-    new TeamWithRemoteExample();
     const remoteAgent = await new RemoteHelpfulAssistant();
     const agents = [new ManagerAgent(), new SummarizerAgent(), remoteAgent];
-    TeamWithRemoteExample.forge.registerAgents(agents);
+    
+    await readyForge(TeamWithRemoteExample, agents);
+    
     const team = TeamWithRemoteExample.forge
       .createTeam("ManagerAgent", "Hybrid Team", "A team with a remote agent")
       .addAgents(agents);
@@ -288,7 +288,7 @@ class ToolExample {
 
   static async run() {
     const agent = new ResearchAgent();
-    ToolExample.forge.registerAgent(agent);
+    await readyForge(ToolExample, [agent]);
 
     const result = await ToolExample.forge.runAgent(
       "ResearchAgent",
@@ -505,13 +505,14 @@ class TeamWithMCPExample {
   static forge: AgentForge;
 
   static async run() {
-    new TeamWithMCPExample();
     const agents = [
       new ManagerAgent(),
       new ResearcherAgent(),
       new SummarizerAgent(),
     ];
-    TeamWithMCPExample.forge.registerAgents(agents);
+    
+    await readyForge(TeamWithMCPExample, agents);
+    
     const team = TeamWithMCPExample.forge
       .createTeam(
         "ManagerAgent",
@@ -610,11 +611,9 @@ class RAGExample {
   static forge: AgentForge;
 
   static async run() {
-    // readyForge automatically initializes RAG systems
-    await readyForge(RAGExample);
-    
     const agent = new KnowledgeAssistant();
-    RAGExample.forge.registerAgent(agent);
+    // readyForge automatically initializes RAG systems
+    await readyForge(RAGExample, [agent]);
 
     const result = await RAGExample.forge.runAgent(
       "Knowledge Assistant",
@@ -667,14 +666,12 @@ class RAGTeam {
   static forge: AgentForge;
 
   static async run() {
-    await readyForge(RAGTeam);
-    
     const agents = [
       new TeamManager(),
       new ResearchSpecialist(),
     ];
     
-    RAGTeam.forge.registerAgents(agents);
+    await readyForge(RAGTeam, agents);
     
     const team = RAGTeam.forge.createTeam(
       "Team Manager",
