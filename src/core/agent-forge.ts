@@ -326,8 +326,11 @@ export async function readyForge<T extends { new (...args: any[]): any }>(
   ...args: ConstructorParameters<T>
 ): Promise<InstanceType<T>> {
   const instance = new TeamClass(...args);
+
+  // Wait for static forge initialization
   if ((TeamClass as any).forgeReady) {
     await (TeamClass as any).forgeReady;
   }
+
   return instance as InstanceType<T>;
 }

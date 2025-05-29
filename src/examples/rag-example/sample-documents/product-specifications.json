@@ -1,0 +1,291 @@
+{
+  "products": [
+    {
+      "id": "LAPTOP-001",
+      "name": "UltraBook Pro 15",
+      "category": "Laptops",
+      "description": "High-performance laptop designed for professionals and content creators",
+      "specifications": {
+        "processor": {
+          "brand": "Intel",
+          "model": "Core i7-13700H",
+          "cores": 14,
+          "threads": 20,
+          "baseClockSpeed": "2.4 GHz",
+          "maxTurboSpeed": "5.0 GHz",
+          "cache": "24MB L3"
+        },
+        "memory": {
+          "type": "DDR5",
+          "capacity": "32GB",
+          "speed": "4800 MHz",
+          "slots": 2,
+          "maxCapacity": "64GB",
+          "upgradeable": true
+        },
+        "storage": {
+          "primary": {
+            "type": "NVMe SSD",
+            "capacity": "1TB",
+            "interface": "PCIe 4.0",
+            "speed": "7000 MB/s read, 6000 MB/s write"
+          },
+          "secondary": {
+            "type": "Available slot",
+            "capacity": "Up to 2TB",
+            "interface": "PCIe 4.0"
+          }
+        },
+        "display": {
+          "size": "15.6 inches",
+          "resolution": "2560x1600",
+          "panelType": "IPS LCD",
+          "colorGamut": "100% sRGB, 85% DCI-P3",
+          "brightness": "400 nits",
+          "refreshRate": "120Hz",
+          "touchScreen": false
+        },
+        "graphics": {
+          "integrated": "Intel Iris Xe Graphics",
+          "dedicated": {
+            "brand": "NVIDIA",
+            "model": "RTX 4060",
+            "memory": "8GB GDDR6",
+            "memoryBus": "128-bit"
+          }
+        },
+        "connectivity": {
+          "wifi": "Wi-Fi 6E (802.11ax)",
+          "bluetooth": "5.3",
+          "ethernet": "Gigabit Ethernet",
+          "cellular": "None"
+        },
+        "ports": [
+          "2x Thunderbolt 4/USB-C",
+          "2x USB 3.2 Gen 2 Type-A",
+          "1x HDMI 2.1",
+          "1x 3.5mm audio jack",
+          "1x SD card reader",
+          "1x Ethernet port"
+        ],
+        "battery": {
+          "capacity": "86Wh",
+          "technology": "Lithium-polymer",
+          "chargingPower": "100W USB-C PD",
+          "batteryLife": "Up to 12 hours"
+        },
+        "physical": {
+          "dimensions": {
+            "width": "356mm",
+            "depth": "243mm",
+            "height": "19.9mm"
+          },
+          "weight": "2.1kg",
+          "material": "Aluminum alloy",
+          "color": "Space Gray"
+        }
+      },
+      "features": [
+        "Backlit keyboard with adjustable brightness",
+        "Precision trackpad with multi-touch gestures",
+        "Fingerprint reader for Windows Hello",
+        "HD webcam with privacy shutter",
+        "Dual-array microphones with noise cancellation",
+        "Stereo speakers with Dolby Audio",
+        "Active cooling system with dual fans"
+      ],
+      "operatingSystem": "Windows 11 Pro",
+      "warranty": "3 years international warranty",
+      "price": {
+        "currency": "USD",
+        "amount": 2299.99,
+        "msrp": 2499.99
+      }
+    },
+    {
+      "id": "SMARTPHONE-001",
+      "name": "TechPhone 14 Pro",
+      "category": "Smartphones",
+      "description": "Premium smartphone with advanced camera system and high-performance processor",
+      "specifications": {
+        "processor": {
+          "brand": "Custom",
+          "model": "A17 Pro",
+          "cores": 6,
+          "architecture": "ARM64",
+          "process": "3nm",
+          "neuralEngine": "16-core"
+        },
+        "memory": {
+          "ram": "8GB",
+          "storage": ["128GB", "256GB", "512GB", "1TB"],
+          "expandable": false
+        },
+        "display": {
+          "size": "6.7 inches",
+          "resolution": "2796x1290",
+          "pixelDensity": "460 PPI",
+          "technology": "Super Retina XDR OLED",
+          "refreshRate": "120Hz",
+          "brightness": "1000 nits typical, 2000 nits peak",
+          "features": ["HDR10", "Dolby Vision", "True Tone", "Wide color gamut"]
+        },
+        "camera": {
+          "rear": {
+            "main": {
+              "megapixels": 48,
+              "aperture": "f/1.78",
+              "sensorSize": "1/1.28 inch",
+              "opticalImageStabilization": true,
+              "features": ["2x optical zoom", "Sensor-shift OIS"]
+            },
+            "ultrawide": {
+              "megapixels": 12,
+              "aperture": "f/2.2",
+              "fieldOfView": "120 degrees",
+              "features": ["Macro photography"]
+            },
+            "telephoto": {
+              "megapixels": 12,
+              "aperture": "f/2.8",
+              "opticalZoom": "3x",
+              "digitalZoom": "15x",
+              "opticalImageStabilization": true
+            }
+          },
+          "front": {
+            "megapixels": 12,
+            "aperture": "f/1.9",
+            "features": ["Face ID", "Portrait mode", "4K video"]
+          },
+          "video": {
+            "recording": ["4K at 60fps", "1080p at 240fps", "720p at 960fps"],
+            "features": ["Cinematic mode", "Action mode", "ProRes recording"]
+          }
+        },
+        "connectivity": {
+          "cellular": "5G (sub-6GHz and mmWave)",
+          "wifi": "Wi-Fi 6E",
+          "bluetooth": "5.3",
+          "nfc": true,
+          "lightning": false,
+          "usbC": true
+        },
+        "sensors": [
+          "Face ID sensor",
+          "Three-axis gyro",
+          "Accelerometer",
+          "Proximity sensor",
+          "Ambient light sensor",
+          "Barometer",
+          "Magnetometer"
+        ],
+        "battery": {
+          "capacity": "4422mAh",
+          "chargingWired": "20W fast charging",
+          "chargingWireless": "15W MagSafe, 7.5W Qi",
+          "batteryLife": "Up to 23 hours video playback"
+        },
+        "physical": {
+          "dimensions": {
+            "height": "160.8mm",
+            "width": "77.6mm",
+            "depth": "7.85mm"
+          },
+          "weight": "221g",
+          "material": "Titanium frame, Ceramic Shield front",
+          "colors": ["Natural Titanium", "Blue Titanium", "White Titanium", "Black Titanium"],
+          "waterResistance": "IP68"
+        }
+      },
+      "features": [
+        "Face ID facial recognition",
+        "MagSafe magnetic attachment",
+        "Crash Detection",
+        "Emergency SOS via satellite",
+        "Dynamic Island interface",
+        "Always-On display",
+        "Haptic feedback"
+      ],
+      "operatingSystem": "iOS 17",
+      "warranty": "1 year limited warranty",
+      "price": {
+        "currency": "USD",
+        "128GB": 1199.99,
+        "256GB": 1299.99,
+        "512GB": 1499.99,
+        "1TB": 1699.99
+      }
+    },
+    {
+      "id": "MONITOR-001",
+      "name": "UltraWide Pro 34",
+      "category": "Monitors",
+      "description": "34-inch ultrawide monitor perfect for productivity and content creation",
+      "specifications": {
+        "display": {
+          "size": "34 inches",
+          "aspectRatio": "21:9",
+          "resolution": "3440x1440",
+          "pixelDensity": "109 PPI",
+          "panelType": "IPS",
+          "curvature": "1900R",
+          "refreshRate": "144Hz",
+          "responseTime": "1ms GtG",
+          "brightness": "400 nits",
+          "contrast": "1000:1",
+          "colorGamut": "98% DCI-P3, 135% sRGB",
+          "colorDepth": "10-bit",
+          "hdr": "HDR10"
+        },
+        "connectivity": {
+          "inputs": [
+            "2x HDMI 2.1",
+            "1x DisplayPort 1.4",
+            "1x USB-C (90W PD)",
+            "4x USB 3.0 hub"
+          ],
+          "wireless": "None"
+        },
+        "features": [
+          "Picture-in-Picture (PiP)",
+          "Picture-by-Picture (PbP)",
+          "KVM switch functionality",
+          "Blue light filter",
+          "Flicker-free technology",
+          "Height and tilt adjustment",
+          "VESA mount compatible (100x100mm)"
+        ],
+        "physical": {
+          "dimensions": {
+            "withStand": {
+              "width": "809mm",
+              "height": "526mm",
+              "depth": "264mm"
+            },
+            "withoutStand": {
+              "width": "809mm",
+              "height": "366mm",
+              "depth": "88mm"
+            }
+          },
+          "weight": {
+            "withStand": "8.9kg",
+            "withoutStand": "5.8kg"
+          }
+        },
+        "power": {
+          "consumption": "65W typical",
+          "powerSupply": "External adapter",
+          "energyStar": "Certified"
+        }
+      },
+      "warranty": "3 years manufacturer warranty",
+      "price": {
+        "currency": "USD",
+        "amount": 699.99,
+        "msrp": 799.99
+      }
+    }
+  ]
+} 

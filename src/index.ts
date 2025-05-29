@@ -48,6 +48,23 @@ export {
 // LLM provider exports
 export { LLM } from "./llm/llm";
 
+// RAG exports
+export {
+  ChromaDbClient,
+  RAGTool,
+  DocumentIndexer,
+  RAGChromaDb,
+} from "./rag";
+export type {
+  RAGChromaDbConfig,
+  DocumentChunk,
+  RAGSearchResult,
+  RAGQueryOptions,
+  DocumentIndexingResult,
+  ChromaDbClientConfig,
+  EmbeddingResponse,
+} from "./rag";
+
 // Streaming exports
 export { globalEventEmitter, EventEmitter } from "./utils/event-emitter";
 export { enableConsoleStreaming } from "./utils/streaming";
