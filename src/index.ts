@@ -53,7 +53,6 @@ export {
   ChromaDbClient,
   RAGTool,
   DocumentIndexer,
-  RAGChromaDb,
 } from "./rag";
 export type {
   RAGChromaDbConfig,
@@ -94,6 +93,7 @@ export { agent, llmProvider, forge } from "./core/decorators";
 export { RateLimiter, Visualizer } from "./utils/decorators";
 export { a2aClient, a2aServer } from "./a2a/decorators";
 export { MCP, tool } from "./tools/decorators";
+export { RAGChromaDb } from "./rag/decorators";
 
 export {
   loadAgentForgeConfig,
