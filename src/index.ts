@@ -48,6 +48,22 @@ export {
 // LLM provider exports
 export { LLM } from "./llm/llm";
 
+// RAG exports
+export {
+  ChromaDbClient,
+  RAGTool,
+  DocumentIndexer,
+} from "./rag";
+export type {
+  RAGChromaDbConfig,
+  DocumentChunk,
+  RAGSearchResult,
+  RAGQueryOptions,
+  DocumentIndexingResult,
+  ChromaDbClientConfig,
+  EmbeddingResponse,
+} from "./rag";
+
 // Streaming exports
 export { globalEventEmitter, EventEmitter } from "./utils/event-emitter";
 export { enableConsoleStreaming } from "./utils/streaming";
@@ -77,6 +93,7 @@ export { agent, llmProvider, forge } from "./core/decorators";
 export { RateLimiter, Visualizer } from "./utils/decorators";
 export { a2aClient, a2aServer } from "./a2a/decorators";
 export { MCP, tool } from "./tools/decorators";
+export { RAGChromaDb } from "./rag/decorators";
 
 export {
   loadAgentForgeConfig,

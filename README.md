@@ -530,6 +530,242 @@ class TeamWithMCPExample {
 TeamWithMCPExample.run();
 ```
 
+### 7. RAG (Retrieval-Augmented Generation) with ChromaDB
+
+Agent Forge provides built-in RAG capabilities using ChromaDB, allowing agents to retrieve and use information from indexed documents. This enables agents to answer questions based on your specific knowledge base.
+
+#### Prerequisites
+
+1. **ChromaDB Server**: Start ChromaDB using Docker:
+   ```bash
+   docker run -p 8000:8000 chromadb/chroma
+   ```
+
+2. **Install Dependencies**: ChromaDB is automatically included when you install Agent Forge.
+
+#### Setting Up RAG
+
+##### 1. Index Your Documents
+
+First, create and index your documents using the `DocumentIndexer`:
+
+```ts
+import { DocumentIndexer, RAGChromaDbConfig } from "agent-forge";
+
+const ragConfig: RAGChromaDbConfig = {
+  collectionName: "company_knowledge_base",
+  chromaUrl: "http://localhost:8000",
+  chunkSize: 800,
+  chunkOverlap: 150,
+};
+
+const indexer = new DocumentIndexer(ragConfig);
+await indexer.initialize();
+
+// Index a directory of documents
+const result = await indexer.indexDirectory("./documents");
+console.log(`Indexed ${result.documentsProcessed} documents`);
+
+// Or index specific files
+await indexer.indexFiles(["./file1.txt", "./file2.md"]);
+
+// Or index text directly
+await indexer.indexText("Your content here", "source-name");
+```
+
+**Supported file types:**
+- `.txt` - Plain text files
+- `.md`, `.markdown` - Markdown files  
+- `.json` - JSON files (text content extracted recursively)
+
+##### 2. Create RAG-Enabled Agents
+
+Use the `@RAGChromaDb` decorator to add retrieval capabilities to agents:
+
+```ts
+import { RAGChromaDb, agent, llmProvider, forge, readyForge } from "agent-forge";
+import { Agent, AgentForge, LLMProvider } from "agent-forge";
+
+@RAGChromaDb({
+  collectionName: "company_knowledge_base",
+  chromaUrl: "http://localhost:8000",
+  topK: 3,
+  similarityThreshold: 0.3,
+})
+@agent({
+  name: "Knowledge Assistant",
+  role: "Knowledge Base Specialist",
+  description: "Assistant with access to company knowledge base",
+  objective: "Provide accurate information from company documents",
+  model: process.env.LLM_API_MODEL!,
+  temperature: 0.3,
+})
+class KnowledgeAssistant extends Agent {}
+
+@llmProvider(process.env.LLM_PROVIDER as LLMProvider, {
+  apiKey: process.env.LLM_API_KEY,
+})
+@forge()
+class RAGExample {
+  static forge: AgentForge;
+
+  static async run() {
+    // readyForge automatically initializes RAG systems
+    await readyForge(RAGExample);
+    
+    const agent = new KnowledgeAssistant();
+    RAGExample.forge.registerAgent(agent);
+
+    const result = await RAGExample.forge.runAgent(
+      "Knowledge Assistant",
+      "What is our company's remote work policy?"
+    );
+    
+    console.log(result.output);
+  }
+}
+
+RAGExample.run();
+```
+
+##### 3. RAG Teams and Workflows
+
+RAG-enabled agents work seamlessly with teams and workflows:
+
+```ts
+@RAGChromaDb({
+  collectionName: "company_knowledge_base",
+  chromaUrl: "http://localhost:8000",
+  topK: 5,
+  similarityThreshold: 0.2,
+})
+@agent({
+  name: "Research Specialist",
+  role: "Research and Analysis Expert",
+  description: "Specialist in researching company documents",
+  objective: "Conduct thorough research and analysis",
+  model: process.env.LLM_API_MODEL!,
+  temperature: 0.4,
+})
+class ResearchSpecialist extends Agent {}
+
+@agent({
+  name: "Team Manager",
+  role: "Team Coordination Manager", 
+  description: "Manages team workflow and coordinates responses",
+  objective: "Coordinate team members and synthesize expertise",
+  model: process.env.LLM_API_MODEL!,
+  temperature: 0.6,
+})
+class TeamManager extends Agent {}
+
+@llmProvider(process.env.LLM_PROVIDER as LLMProvider, {
+  apiKey: process.env.LLM_API_KEY,
+})
+@forge()
+class RAGTeam {
+  static forge: AgentForge;
+
+  static async run() {
+    await readyForge(RAGTeam);
+    
+    const agents = [
+      new TeamManager(),
+      new ResearchSpecialist(),
+    ];
+    
+    RAGTeam.forge.registerAgents(agents);
+    
+    const team = RAGTeam.forge.createTeam(
+      "Team Manager",
+      "Knowledge Team",
+      "Team with access to company knowledge base"
+    );
+    team.addAgents(agents);
+
+    const result = await team.run(
+      "Research our vacation policies and technical documentation standards",
+      { verbose: true }
+    );
+    
+    console.log(result.output);
+  }
+}
+
+RAGTeam.run();
+```
+
+#### RAG Configuration Options
+
+The `@RAGChromaDb` decorator accepts the following configuration:
+
+```ts
+interface RAGChromaDbConfig {
+  collectionName: string;          // ChromaDB collection name
+  chromaUrl?: string;              // ChromaDB server URL (default: "http://localhost:8000")
+  topK?: number;                   // Number of documents to retrieve (default: 5)
+  similarityThreshold?: number;    // Minimum similarity score (default: 0.0)
+  chunkSize?: number;              // Text chunk size for indexing (default: 1000)
+  chunkOverlap?: number;           // Chunk overlap size (default: 200)
+  maxRetries?: number;             // Connection retry attempts (default: 3)
+  timeout?: number;                // Request timeout in ms (default: 30000)
+}
+```
+
+#### Document Training Script
+
+You can run the included document training example:
+
+```bash
+# Train documents (index them into ChromaDB)
+npm run example:rag-train
+
+# Train documents with increased memory (for large document sets)
+npm run example:rag-train-memory
+
+# Run simple RAG example
+npm run example:rag-simple
+
+# Run RAG team example
+npm run example:rag-team
+```
+
+**Troubleshooting Memory Issues:**
+
+If you encounter "heap out of memory" errors:
+2. Reduce document chunk size in your configuration
+3. Process smaller batches of files at a time
+4. Ensure you have sufficient system memory available
+
+#### RAG vs Non-RAG Comparison
+
+RAG-enabled agents have access to your specific knowledge base, while regular agents rely only on their training data:
+
+```ts
+// RAG-enabled agent - has access to company documents
+const ragResponse = await forge.runAgent(
+  "Knowledge Assistant", 
+  "What are our professional development policies?"
+);
+// Returns specific, accurate information from your documents
+
+// Regular agent - uses general knowledge only
+const generalResponse = await forge.runAgent(
+  "General Assistant",
+  "What are our professional development policies?"  
+);
+// Returns generic advice, not company-specific information
+```
+
+#### RAG Workflow Features
+
+- **Automatic Initialization**: `readyForge()` automatically detects and initializes RAG systems
+- **Document Chunking**: Intelligent text splitting with configurable size and overlap
+- **Semantic Search**: Retrieves relevant documents using embedding similarity
+- **Error Handling**: Graceful fallback when ChromaDB is unavailable
+- **Team Integration**: RAG agents work seamlessly in team workflows
+- **Tool Integration**: RAG appears as a tool that agents can use when needed
+
 ## Decorators Reference
 
 - `@agent(config)`: Attach agent config to a class.
@@ -540,6 +776,7 @@ TeamWithMCPExample.run();
 - `@a2aClient(options)`: Connect an agent to a remote A2A server.
 - `@MCP(protocol, config)`: Attach MCP tools to an agent.
 - `@RateLimiter(config)`: Add rate limiting to an agent's tool usage.
+- `@RAGChromaDb(config)`: Add RAG (Retrieval-Augmented Generation) capabilities with ChromaDB to an agent.
 - `@Visualizer()`: Enable timeline visualization for team runs. When used above `@forge` and `@llmProvider`, it will automatically generate an interactive HTML timeline of all agent, manager, and task events after each run.
 
 **Usage Example:**

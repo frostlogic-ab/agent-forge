@@ -1,0 +1,180 @@
+TECHNICAL DOCUMENTATION - API REFERENCE
+
+========================================
+Authentication System
+========================================
+
+Our API uses JWT (JSON Web Tokens) for authentication. All endpoints require a valid token except for the login endpoint.
+
+Token Generation:
+- Tokens are generated upon successful login
+- Tokens expire after 24 hours
+- Refresh tokens are valid for 30 days
+
+Authentication Headers:
+Authorization: Bearer <your-jwt-token>
+
+Login Endpoint:
+POST /api/auth/login
+Body: { "email": "user@example.com", "password": "password123" }
+Response: { "token": "jwt-token-here", "refreshToken": "refresh-token-here" }
+
+========================================
+User Management API
+========================================
+
+Get User Profile:
+GET /api/users/profile
+Headers: Authorization: Bearer <token>
+Response: User object with profile information
+
+Update User Profile:
+PUT /api/users/profile
+Headers: Authorization: Bearer <token>
+Body: { "name": "John Doe", "email": "john@example.com" }
+Response: Updated user object
+
+List All Users (Admin only):
+GET /api/users
+Headers: Authorization: Bearer <admin-token>
+Query Parameters: 
+  - page: Page number (default: 1)
+  - limit: Items per page (default: 10)
+  - search: Search term for name or email
+
+Create New User (Admin only):
+POST /api/users
+Headers: Authorization: Bearer <admin-token>
+Body: { "name": "Jane Smith", "email": "jane@example.com", "role": "user" }
+
+========================================
+Data Analytics API
+========================================
+
+Get Analytics Dashboard:
+GET /api/analytics/dashboard
+Headers: Authorization: Bearer <token>
+Query Parameters:
+  - dateFrom: Start date (YYYY-MM-DD)
+  - dateTo: End date (YYYY-MM-DD)
+  - metrics: Comma-separated list of metrics
+
+Available Metrics:
+- user_registrations: Number of new user registrations
+- page_views: Total page views
+- api_calls: Number of API requests
+- revenue: Total revenue in USD
+- active_users: Number of active users
+
+Generate Report:
+POST /api/analytics/reports
+Headers: Authorization: Bearer <token>
+Body: {
+  "reportType": "monthly",
+  "metrics": ["user_registrations", "revenue"],
+  "dateRange": {
+    "start": "2024-01-01",
+    "end": "2024-01-31"
+  }
+}
+
+========================================
+File Upload API
+========================================
+
+Upload Single File:
+POST /api/files/upload
+Headers: 
+  - Authorization: Bearer <token>
+  - Content-Type: multipart/form-data
+Body: Form data with 'file' field
+
+Supported File Types:
+- Images: jpg, jpeg, png, gif (max 5MB)
+- Documents: pdf, doc, docx, txt (max 10MB)
+- Videos: mp4, avi, mov (max 100MB)
+
+Batch Upload:
+POST /api/files/batch-upload
+Headers: Authorization: Bearer <token>
+Body: Form data with multiple 'files' fields
+Max files per batch: 10
+
+Get File Info:
+GET /api/files/{fileId}
+Headers: Authorization: Bearer <token>
+Response: File metadata including URL, size, type
+
+Delete File:
+DELETE /api/files/{fileId}
+Headers: Authorization: Bearer <token>
+Response: Success confirmation
+
+========================================
+Webhook Configuration
+========================================
+
+Our system supports webhooks for real-time event notifications.
+
+Supported Events:
+- user.created: When a new user registers
+- user.updated: When user profile is modified
+- payment.completed: When payment is processed
+- file.uploaded: When file upload completes
+
+Configure Webhook:
+POST /api/webhooks
+Headers: Authorization: Bearer <admin-token>
+Body: {
+  "url": "https://your-server.com/webhook",
+  "events": ["user.created", "payment.completed"],
+  "secret": "your-webhook-secret"
+}
+
+Webhook Payload Format:
+{
+  "event": "user.created",
+  "timestamp": "2024-01-15T10:30:00Z",
+  "data": {
+    "userId": "123",
+    "email": "new-user@example.com"
+  }
+}
+
+Security:
+- All webhook payloads are signed with HMAC-SHA256
+- Include X-Signature header for verification
+- Implement proper verification in your webhook handler
+
+========================================
+Error Handling
+========================================
+
+HTTP Status Codes:
+- 200: Success
+- 201: Created
+- 400: Bad Request (invalid parameters)
+- 401: Unauthorized (invalid or missing token)
+- 403: Forbidden (insufficient permissions)
+- 404: Not Found
+- 429: Too Many Requests (rate limited)
+- 500: Internal Server Error
+
+Error Response Format:
+{
+  "error": {
+    "code": "INVALID_CREDENTIALS",
+    "message": "The provided credentials are invalid",
+    "details": "Please check your email and password"
+  }
+}
+
+Rate Limiting:
+- Standard users: 1000 requests per hour
+- Premium users: 5000 requests per hour
+- Enterprise users: 10000 requests per hour
+
+Headers included in rate-limited responses:
+- X-RateLimit-Limit: Maximum requests allowed
+- X-RateLimit-Remaining: Requests remaining in current window
+- X-RateLimit-Reset: Unix timestamp when limit resets 
