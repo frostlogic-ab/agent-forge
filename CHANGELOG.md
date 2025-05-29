@@ -1,4 +1,12 @@
 ## What's Changed
+* readyForge util now registers agents and handles init async and statically by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/53
+
+
+**Full Changelog**: https://github.com/frostlogic-ab/agent-forge/compare/v2.0.0-alpha.9...v2.0.0-alpha.10
+
+# [2.0.0-alpha.10](https://github.com/frostlogic-ab/agent-forge/compare/v2.0.0-alpha.9...v2.0.0-alpha.10) (2025-05-29)
+
+## What's Changed
 * Add custom plugin support and decorator to use plugin on agent-forge with @plugin(new Plugin()) decorator by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/52
 
 
