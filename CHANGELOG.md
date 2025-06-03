@@ -1,4 +1,12 @@
 ## What's Changed
+* Export decorator metadata by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/56
+
+
+**Full Changelog**: https://github.com/frostlogic-ab/agent-forge/compare/v2.0.0-alpha.12...v2.0.0-alpha.13
+
+# [2.0.0-alpha.13](https://github.com/frostlogic-ab/agent-forge/compare/v2.0.0-alpha.12...v2.0.0-alpha.13) (2025-06-03)
+
+## What's Changed
 * accept any type for addAgent to accept classes that extend Agent by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/55
 
 
