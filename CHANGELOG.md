@@ -1,4 +1,12 @@
 ## What's Changed
+* accept any type for addAgent to accept classes that extend Agent by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/55
+
+
+**Full Changelog**: https://github.com/frostlogic-ab/agent-forge/compare/v2.0.0-alpha.11...v2.0.0-alpha.12
+
+# [2.0.0-alpha.12](https://github.com/frostlogic-ab/agent-forge/compare/v2.0.0-alpha.11...v2.0.0-alpha.12) (2025-06-03)
+
+## What's Changed
 * include agents as classes and normalize a2a and local classes inclusion by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/54
 
 
