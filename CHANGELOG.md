@@ -1,4 +1,12 @@
 ## What's Changed
+* include agents as classes and normalize a2a and local classes inclusion by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/54
+
+
+**Full Changelog**: https://github.com/frostlogic-ab/agent-forge/compare/v2.0.0-alpha.10...v2.0.0-alpha.11
+
+# [2.0.0-alpha.11](https://github.com/frostlogic-ab/agent-forge/compare/v2.0.0-alpha.10...v2.0.0-alpha.11) (2025-06-03)
+
+## What's Changed
 * readyForge util now registers agents and handles init async and statically by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/53
 
 
