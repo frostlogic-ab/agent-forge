@@ -39,12 +39,13 @@ class SimpleRAGExample {
 
   static async run() {
     try {
-      // Create and register agent
-      const agent = new KnowledgeAssistant();
-      await readyForge(SimpleRAGExample, [agent]);
+      // Pass agent class to readyForge
+      const agentClasses = [KnowledgeAssistant];
+      await readyForge(SimpleRAGExample, agentClasses);
 
       // Ask a question - RAG will auto-initialize on first use
-      const result = await agent.run(
+      const result = await SimpleRAGExample.forge.runAgent(
+        "Knowledge Assistant",
         "What is our company's remote work policy? Include eligibility requirements."
       );
       

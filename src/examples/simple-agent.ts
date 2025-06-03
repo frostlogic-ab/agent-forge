@@ -47,26 +47,22 @@ class SimpleAgent {
   static forge: AgentForge;
 
   static async run() {
-    const agents = [
-      new ResearcherAgent(),
-      new SummarizerAgent(),
-      new ManagerAgent(),
-    ];
-
-    await readyForge(SimpleAgent, agents);
+    // Pass agent classes to readyForge - it will handle instantiation
+    const agentClasses = [ResearcherAgent, SummarizerAgent, ManagerAgent];
+    await readyForge(SimpleAgent, agentClasses);
 
     // Workflow example
     const workflow = SimpleAgent.forge.createWorkflow("Research and Summarize", "Research a topic and then summarize the findings");
-    workflow.addStep(agents[0]);
-    workflow.addStep(agents[1]);
+    workflow.addStep(SimpleAgent.forge.getAgent("Researcher")!);
+    workflow.addStep(SimpleAgent.forge.getAgent("Summarizer")!);
 
     const workflowResult = await workflow.run("What is quantum computing and how might it affect cybersecurity?", { verbose: true });
     console.log("\nWorkflow Result:", workflowResult.output);
 
-
     // Team example
     const team = SimpleAgent.forge.createTeam("Manager", "Research Team", "A team that researches and summarizes topics");
-    team.addAgents(agents);
+    team.addAgent(SimpleAgent.forge.getAgent("Researcher")!);
+    team.addAgent(SimpleAgent.forge.getAgent("Summarizer")!);
 
     const teamResult = await team.run("What is quantum computing and how might it affect cybersecurity?", { verbose: true });
     console.log("\nTeam Result:", teamResult.output);

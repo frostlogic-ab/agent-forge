@@ -24,18 +24,16 @@ class StockAnalysisTeam {
     await ensureDockerContainers();
     await new Promise(resolve => setTimeout(resolve, 5000));
 
-    const agents = [
-      new AnalystAgent(),
-      new WriterAgent(),
-      new ManagerAgent(),
-      new ResearchAgent(),
-    ];
+    // Pass agent classes to readyForge - it will handle instantiation
+    const agentClasses = [AnalystAgent, WriterAgent, ManagerAgent, ResearchAgent];
 
     // Use readyForge utility for async initialization
-    await readyForge(StockAnalysisTeam, agents);
+    await readyForge(StockAnalysisTeam, agentClasses);
 
     const team = StockAnalysisTeam.forge.createTeam("Team manager", "Stock Analysis Team", "A team of agents to analyze stock prices");
-    team.addAgents(agents);
+    team.addAgent(StockAnalysisTeam.forge.getAgent("Financial analyst")!);
+    team.addAgent(StockAnalysisTeam.forge.getAgent("Report writer")!);
+    team.addAgent(StockAnalysisTeam.forge.getAgent("Financial researcher")!);
 
     const report = await team.run("Write a report on the stock price of Apple", { verbose: true });
     console.log(report);
