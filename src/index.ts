@@ -38,12 +38,12 @@ export { WebPageContentTool } from "./tools/web-page-content-tool";
 export {
   MCPClientWrapper,
   MCPSdkClientWrapper,
-  MCPTool,
   createMCPClient,
   MCPToolWrapper,
   MCPManager,
   MCPProtocolType,
 } from "./tools/mcp-tool";
+export type { MCPTool } from "./tools/mcp-tool";
 
 // LLM provider exports
 export { LLM } from "./llm/llm";
