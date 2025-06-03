@@ -10,7 +10,7 @@ import {
   type WorkflowRunOptions,
 } from "../types";
 import { enableConsoleStreaming } from "../utils/streaming";
-import type { Agent } from "./agent";
+import { Agent } from "./agent";
 import { Team } from "./team";
 import { Workflow } from "./workflow";
 
@@ -398,16 +398,20 @@ export class AgentForge {
   }
 }
 
+// Type definitions for the enhanced readyForge
+type AgentClass = new (...args: any[]) => Agent | Promise<Agent>;
+type AgentClassOrInstance = Agent | AgentClass;
+
 /**
  * Utility to instantiate a decorated team/forge class and await its async static initialization.
  * This function handles all the async setup needed for agents and forge initialization.
  * @param TeamClass The class to instantiate
- * @param agents Optional array of agents to register and configure with LLM provider
+ * @param agentClassesOrInstances Optional array of agent classes or instances to register and configure with LLM provider
  * @returns The instance, after static async initialization is complete
  */
 export async function readyForge<T extends { new (...args: any[]): any }>(
   TeamClass: T,
-  agents?: Agent[],
+  agentClassesOrInstances?: AgentClassOrInstance[],
   ...args: ConstructorParameters<T>
 ): Promise<InstanceType<T>> {
   const instance = new TeamClass(...args);
@@ -422,17 +426,60 @@ export async function readyForge<T extends { new (...args: any[]): any }>(
     await (instance.constructor as any).forgeReady;
   }
 
-  // If agents are provided, configure them with the LLM provider
-  if (agents && agents.length > 0) {
+  // If agent classes or instances are provided, instantiate them and configure with LLM provider
+  if (agentClassesOrInstances && agentClassesOrInstances.length > 0) {
     const forge = (instance.constructor as any).forge as AgentForge;
     if (forge) {
       const llmProvider = forge.getDefaultLLMProvider();
-      if (llmProvider) {
-        agents.forEach((agent) => {
-          agent.setLLMProvider(llmProvider);
-        });
+      const agentInstances: Agent[] = [];
+
+      // Process each agent class or instance
+      for (const agentClassOrInstance of agentClassesOrInstances) {
+        try {
+          let agentInstance: Agent;
+
+          // Check if it's already an agent instance
+          if (agentClassOrInstance instanceof Agent) {
+            agentInstance = agentClassOrInstance;
+          } else if (typeof agentClassOrInstance === "function") {
+            // It's a class constructor, instantiate it
+            const AgentClass = agentClassOrInstance as AgentClass;
+
+            // Handle remote agents (decorated with @a2aClient) which return promises
+            const constructorResult = new AgentClass();
+
+            if (constructorResult instanceof Promise) {
+              // Remote agent case - await the promise
+              agentInstance = await constructorResult;
+            } else {
+              // Regular agent case - direct instantiation
+              agentInstance = constructorResult;
+            }
+          } else {
+            throw new Error(
+              `Invalid agent type provided: ${typeof agentClassOrInstance}`
+            );
+          }
+
+          // Configure with LLM provider if available and agent doesn't have one
+          if (llmProvider && !agentInstance.getLLMProvider()) {
+            agentInstance.setLLMProvider(llmProvider);
+          }
+
+          agentInstances.push(agentInstance);
+        } catch (error) {
+          const agentName =
+            typeof agentClassOrInstance === "function"
+              ? agentClassOrInstance.name
+              : agentClassOrInstance.name || "Unknown";
+          throw new Error(
+            `Failed to instantiate agent '${agentName}': ${error instanceof Error ? error.message : String(error)}`
+          );
+        }
       }
-      await forge.registerAgents(agents);
+
+      // Register all successfully instantiated agents
+      await forge.registerAgents(agentInstances);
     }
   }
 

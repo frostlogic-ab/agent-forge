@@ -65,15 +65,11 @@ class PluginExample {
   static forge: AgentForge;
 
   static async run() {
-    // Register our agents
-    const agents = [
-      new ManagerAgent(),
-      new ResearchAgent(),
-      new SummarizerAgent(),
-    ];
+    // Register our agent classes
+    const agentClasses = [ManagerAgent, ResearchAgent, SummarizerAgent];
 
     // Initialize the framework with agents
-    await readyForge(PluginExample, agents);
+    await readyForge(PluginExample, agentClasses);
     await PluginExample.forge.initialize();
 
     console.log("🚀 Plugin Example Starting\n");
@@ -113,7 +109,8 @@ class PluginExample {
     try {
       const team = PluginExample.forge
         .createTeam("ManagerAgent", "Research Team", "A team that researches and summarizes")
-        .addAgents(agents);
+        .addAgent(PluginExample.forge.getAgent("ResearchAgent")!)
+        .addAgent(PluginExample.forge.getAgent("SummarizerAgent")!);
 
       const teamResult = await team.run(
         "Research the impact of AI on software development and provide a comprehensive summary.",

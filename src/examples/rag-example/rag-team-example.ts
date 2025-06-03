@@ -68,17 +68,11 @@ class RAGTeamExample {
 
   static async run() {
     try {
-      // Create and register agents
-      const knowledgeAssistant = new KnowledgeAssistant();
-      const researchSpecialist = new ResearchSpecialist();
-      const teamManager = new TeamManager();
+      // Pass agent classes to readyForge
+      const agentClasses = [KnowledgeAssistant, ResearchSpecialist, TeamManager];
 
-      // Initialize forge with agents
-      await readyForge(RAGTeamExample, [
-        knowledgeAssistant,
-        researchSpecialist,
-        teamManager,
-      ]);
+      // Initialize forge with agent classes
+      await readyForge(RAGTeamExample, agentClasses);
 
       // Team workflow example - RAG will auto-initialize when agents are first used
       const team = RAGTeamExample.forge.createTeam(
@@ -86,7 +80,8 @@ class RAGTeamExample {
         "Knowledge Team",
         "Team of specialists with access to company knowledge base"
       );
-      team.addAgents([knowledgeAssistant, researchSpecialist]);
+      team.addAgent(RAGTeamExample.forge.getAgent("Knowledge Assistant")!);
+      team.addAgent(RAGTeamExample.forge.getAgent("Research Specialist")!);
 
       const teamResult = await team.run(
         "I need information about our annual leave policy and API rate limits.",

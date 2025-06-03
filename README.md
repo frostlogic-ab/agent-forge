@@ -69,13 +69,9 @@ class TeamExample {
   static forge: AgentForge;
 
   static async run() {
-    const agents = [
-      new ManagerAgent(),
-      new ResearcherAgent(),
-      new SummarizerAgent(),
-    ];
-
-    await readyForge(TeamExample, agents);
+    // Pass agent classes to readyForge - it will handle instantiation
+    const agentClasses = [ManagerAgent, ResearcherAgent, SummarizerAgent];
+    await readyForge(TeamExample, agentClasses);
 
     const team = TeamExample.forge
       .createTeam(
@@ -83,7 +79,8 @@ class TeamExample {
         "Team",
         "A team of agents that can help with a variety of tasks."
       )
-      .addAgents(agents);
+      .addAgent(TeamExample.forge.getAgent("ResearcherAgent")!)
+      .addAgent(TeamExample.forge.getAgent("SummarizerAgent")!);
     const result = await team.run(
       "What is the status of AI in 2025? Make a full report and summary.",
       { verbose: true }
@@ -135,16 +132,16 @@ class WorkflowExample {
   static forge: AgentForge;
 
   static async run() {
-    const agents = [new ResearcherAgent(), new SummarizerAgent()];
-    await readyForge(WorkflowExample, agents);
+    const agentClasses = [ResearcherAgent, SummarizerAgent];
+    await readyForge(WorkflowExample, agentClasses);
 
     // Create a workflow: research, then summarize
     const workflow = WorkflowExample.forge.createWorkflow(
       "Research and Summarize",
       "Research a topic and then summarize the findings"
     );
-    workflow.addStep(agents[0]); // Researcher
-    workflow.addStep(agents[1]); // Summarizer
+    workflow.addStep(WorkflowExample.forge.getAgent("Researcher")!); // Researcher
+    workflow.addStep(WorkflowExample.forge.getAgent("Summarizer")!); // Summarizer
 
     const result = await workflow.run(
       "What is quantum computing and how might it affect cybersecurity?",
@@ -234,14 +231,20 @@ class TeamWithRemoteExample {
   static forge: AgentForge;
 
   static async run() {
-    const remoteAgent = await new RemoteHelpfulAssistant();
-    const agents = [new ManagerAgent(), new SummarizerAgent(), remoteAgent];
-    
-    await readyForge(TeamWithRemoteExample, agents);
-    
+    // Pass both local and remote agent classes to readyForge
+    const agentClasses = [
+      ManagerAgent,
+      SummarizerAgent,
+      RemoteHelpfulAssistant,
+    ];
+    await readyForge(TeamWithRemoteExample, agentClasses);
+
     const team = TeamWithRemoteExample.forge
       .createTeam("ManagerAgent", "Hybrid Team", "A team with a remote agent")
-      .addAgents(agents);
+      .addAgent(TeamWithRemoteExample.forge.getAgent("SummarizerAgent")!)
+      .addAgent(
+        TeamWithRemoteExample.forge.getAgent("RemoteHelpfulAssistant")!
+      );
     const result = await team.run(
       "What are the most important AI trends in 2025? Summarize the findings.",
       { verbose: true }
@@ -287,8 +290,8 @@ class ToolExample {
   static forge: AgentForge;
 
   static async run() {
-    const agent = new ResearchAgent();
-    await readyForge(ToolExample, [agent]);
+    const agentClasses = [ResearchAgent];
+    await readyForge(ToolExample, agentClasses);
 
     const result = await ToolExample.forge.runAgent(
       "ResearchAgent",
@@ -505,21 +508,17 @@ class TeamWithMCPExample {
   static forge: AgentForge;
 
   static async run() {
-    const agents = [
-      new ManagerAgent(),
-      new ResearcherAgent(),
-      new SummarizerAgent(),
-    ];
-    
-    await readyForge(TeamWithMCPExample, agents);
-    
+    const agentClasses = [ManagerAgent, ResearcherAgent, SummarizerAgent];
+    await readyForge(TeamWithMCPExample, agentClasses);
+
     const team = TeamWithMCPExample.forge
       .createTeam(
         "ManagerAgent",
         "Research Team",
         "A team with MCP-powered research"
       )
-      .addAgents(agents);
+      .addAgent(TeamWithMCPExample.forge.getAgent("ResearcherAgent")!)
+      .addAgent(TeamWithMCPExample.forge.getAgent("SummarizerAgent")!);
     const result = await team.run(
       "What are the latest breakthroughs in quantum computing? Summarize the findings.",
       { verbose: true }
@@ -538,6 +537,7 @@ Agent Forge provides built-in RAG capabilities using ChromaDB, allowing agents t
 #### Prerequisites
 
 1. **ChromaDB Server**: Start ChromaDB using Docker:
+
    ```bash
    docker run -p 8000:8000 chromadb/chroma
    ```
@@ -575,8 +575,9 @@ await indexer.indexText("Your content here", "source-name");
 ```
 
 **Supported file types:**
+
 - `.txt` - Plain text files
-- `.md`, `.markdown` - Markdown files  
+- `.md`, `.markdown` - Markdown files
 - `.json` - JSON files (text content extracted recursively)
 
 ##### 2. Create RAG-Enabled Agents
@@ -584,7 +585,13 @@ await indexer.indexText("Your content here", "source-name");
 Use the `@RAGChromaDb` decorator to add retrieval capabilities to agents:
 
 ```ts
-import { RAGChromaDb, agent, llmProvider, forge, readyForge } from "agent-forge";
+import {
+  RAGChromaDb,
+  agent,
+  llmProvider,
+  forge,
+  readyForge,
+} from "agent-forge";
 import { Agent, AgentForge, LLMProvider } from "agent-forge";
 
 @RAGChromaDb({
@@ -611,15 +618,15 @@ class RAGExample {
   static forge: AgentForge;
 
   static async run() {
-    const agent = new KnowledgeAssistant();
+    const agentClasses = [KnowledgeAssistant];
     // readyForge automatically initializes RAG systems
-    await readyForge(RAGExample, [agent]);
+    await readyForge(RAGExample, agentClasses);
 
     const result = await RAGExample.forge.runAgent(
       "Knowledge Assistant",
       "What is our company's remote work policy?"
     );
-    
+
     console.log(result.output);
   }
 }
@@ -650,7 +657,7 @@ class ResearchSpecialist extends Agent {}
 
 @agent({
   name: "Team Manager",
-  role: "Team Coordination Manager", 
+  role: "Team Coordination Manager",
   description: "Manages team workflow and coordinates responses",
   objective: "Coordinate team members and synthesize expertise",
   model: process.env.LLM_API_MODEL!,
@@ -666,25 +673,21 @@ class RAGTeam {
   static forge: AgentForge;
 
   static async run() {
-    const agents = [
-      new TeamManager(),
-      new ResearchSpecialist(),
-    ];
-    
-    await readyForge(RAGTeam, agents);
-    
+    const agentClasses = [TeamManager, ResearchSpecialist];
+    await readyForge(RAGTeam, agentClasses);
+
     const team = RAGTeam.forge.createTeam(
       "Team Manager",
       "Knowledge Team",
       "Team with access to company knowledge base"
     );
-    team.addAgents(agents);
+    team.addAgent(RAGTeam.forge.getAgent("Research Specialist")!);
 
     const result = await team.run(
       "Research our vacation policies and technical documentation standards",
       { verbose: true }
     );
-    
+
     console.log(result.output);
   }
 }
@@ -698,14 +701,14 @@ The `@RAGChromaDb` decorator accepts the following configuration:
 
 ```ts
 interface RAGChromaDbConfig {
-  collectionName: string;          // ChromaDB collection name
-  chromaUrl?: string;              // ChromaDB server URL (default: "http://localhost:8000")
-  topK?: number;                   // Number of documents to retrieve (default: 5)
-  similarityThreshold?: number;    // Minimum similarity score (default: 0.0)
-  chunkSize?: number;              // Text chunk size for indexing (default: 1000)
-  chunkOverlap?: number;           // Chunk overlap size (default: 200)
-  maxRetries?: number;             // Connection retry attempts (default: 3)
-  timeout?: number;                // Request timeout in ms (default: 30000)
+  collectionName: string; // ChromaDB collection name
+  chromaUrl?: string; // ChromaDB server URL (default: "http://localhost:8000")
+  topK?: number; // Number of documents to retrieve (default: 5)
+  similarityThreshold?: number; // Minimum similarity score (default: 0.0)
+  chunkSize?: number; // Text chunk size for indexing (default: 1000)
+  chunkOverlap?: number; // Chunk overlap size (default: 200)
+  maxRetries?: number; // Connection retry attempts (default: 3)
+  timeout?: number; // Request timeout in ms (default: 30000)
 }
 ```
 
@@ -729,10 +732,7 @@ npm run example:rag-team
 
 **Troubleshooting Memory Issues:**
 
-If you encounter "heap out of memory" errors:
-2. Reduce document chunk size in your configuration
-3. Process smaller batches of files at a time
-4. Ensure you have sufficient system memory available
+If you encounter "heap out of memory" errors: 2. Reduce document chunk size in your configuration 3. Process smaller batches of files at a time 4. Ensure you have sufficient system memory available
 
 #### RAG vs Non-RAG Comparison
 
@@ -741,7 +741,7 @@ RAG-enabled agents have access to your specific knowledge base, while regular ag
 ```ts
 // RAG-enabled agent - has access to company documents
 const ragResponse = await forge.runAgent(
-  "Knowledge Assistant", 
+  "Knowledge Assistant",
   "What are our professional development policies?"
 );
 // Returns specific, accurate information from your documents
@@ -749,7 +749,7 @@ const ragResponse = await forge.runAgent(
 // Regular agent - uses general knowledge only
 const generalResponse = await forge.runAgent(
   "General Assistant",
-  "What are our professional development policies?"  
+  "What are our professional development policies?"
 );
 // Returns generic advice, not company-specific information
 ```
@@ -781,6 +781,7 @@ Plugins can hook into various points in the framework's execution:
 Agent Forge includes several built-in plugins:
 
 #### LoggingPlugin
+
 Provides detailed logging of agent and tool activities:
 
 ```ts
@@ -793,6 +794,7 @@ import { LoggingPlugin } from "agent-forge";
 ```
 
 #### MetricsPlugin
+
 Tracks performance metrics, token usage, and execution statistics:
 
 ```ts
@@ -812,36 +814,37 @@ To create a custom plugin, extend the `Plugin` class:
 import { Plugin, PluginLifecycleHooks, type PluginHookData } from "agent-forge";
 
 export class SecurityPlugin extends Plugin {
-  readonly name = 'security';
-  readonly version = '1.0.0';
+  readonly name = "security";
+  readonly version = "1.0.0";
   readonly priority = 90; // Higher numbers run first
 
   getHooks() {
     return {
       [PluginLifecycleHooks.AGENT_BEFORE_RUN]: this.validateInput.bind(this),
-      [PluginLifecycleHooks.TOOL_BEFORE_EXECUTE]: this.validateToolCall.bind(this),
+      [PluginLifecycleHooks.TOOL_BEFORE_EXECUTE]:
+        this.validateToolCall.bind(this),
     };
   }
 
   private validateInput(data: PluginHookData): any {
     const { input } = data.payload;
-    
+
     // Your validation logic here
     if (this.containsSensitiveData(input)) {
-      this.log('⚠️ Input contains sensitive data - sanitizing', 'warn');
+      this.log("⚠️ Input contains sensitive data - sanitizing", "warn");
       return { ...data.payload, input: this.sanitizeInput(input) };
     }
-    
+
     return data.payload;
   }
 
   private validateToolCall(data: PluginHookData): any {
     const { toolName } = data.payload;
-    
+
     if (!this.isToolAllowed(toolName)) {
       throw new Error(`Tool ${toolName} is not allowed by security policy`);
     }
-    
+
     return data.payload;
   }
 
@@ -868,9 +871,13 @@ class MyApplication {
   static async run() {
     // Initialize framework with plugins
     await MyApplication.forge.initialize();
-    
+
+    // Register agent classes with readyForge
+    const agentClasses = [YourAgentClass]; // Replace with your actual agent classes
+    await readyForge(MyApplication, agentClasses);
+
     // ... your application logic
-    
+
     // Shutdown cleanly
     await MyApplication.forge.shutdown();
   }
@@ -894,7 +901,7 @@ await forge.initialize();
 // Plugin manager access
 const pluginManager = forge.getPluginManager();
 const enabledPlugins = pluginManager.getEnabledPlugins();
-const metricsPlugin = pluginManager.getPlugin('metrics');
+const metricsPlugin = pluginManager.getPlugin("metrics");
 ```
 
 ### Plugin Management
@@ -908,15 +915,15 @@ const allPlugins = pluginManager.getAllPlugins();
 const enabledPlugins = pluginManager.getEnabledPlugins();
 
 // Get specific plugin
-const metricsPlugin = pluginManager.getPlugin('metrics') as MetricsPlugin;
+const metricsPlugin = pluginManager.getPlugin("metrics") as MetricsPlugin;
 
 // Enable/disable plugins
-const loggingPlugin = pluginManager.getPlugin('logging');
+const loggingPlugin = pluginManager.getPlugin("logging");
 loggingPlugin?.disable();
 loggingPlugin?.enable();
 
 // Unregister plugin
-await pluginManager.unregisterPlugin('security');
+await pluginManager.unregisterPlugin("security");
 ```
 
 ### Plugin Use Cases
@@ -924,7 +931,7 @@ await pluginManager.unregisterPlugin('security');
 The plugin architecture enables many powerful use cases:
 
 - **Development**: Debugging, performance profiling, step-through execution
-- **Production**: Monitoring, alerting, health checks, SLA tracking  
+- **Production**: Monitoring, alerting, health checks, SLA tracking
 - **Security**: Input validation, output sanitization, access control
 - **Performance**: Caching, connection pooling, request batching
 - **Integration**: Database logging, webhook notifications, external APIs

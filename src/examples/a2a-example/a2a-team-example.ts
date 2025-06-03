@@ -13,29 +13,25 @@ class TeamExample {
   static forge: AgentForge;
 
   static async run() {
-    let helpfulAssistantRemoteAgent: RemoteHelpfulAssistant;
     try {
-      helpfulAssistantRemoteAgent = await new RemoteHelpfulAssistant();
-      console.log(`INFO: Remote agent '${helpfulAssistantRemoteAgent.name}' initialized. Description: ${helpfulAssistantRemoteAgent.description}`);
-    } catch (error) {
-      console.error(`ERROR: Failed to create RemoteHelpfulAssistant via @a2aClient: ${error}`);
-      process.exit(1);
-    }
-    
-    const agents = [new ManagerAgent(), new ResearcherAgent(), new SummarizerAgent()];
-    await readyForge(TeamExample, agents);
+      // Pass agent classes to readyForge - it will handle instantiation
+      const agentClasses = [ManagerAgent, ResearcherAgent, SummarizerAgent, RemoteHelpfulAssistant];
+      await readyForge(TeamExample, agentClasses);
 
-    const team = TeamExample.forge.createTeam("ManagerAgent", "Team", "A team of agents that can help with a variety of tasks.")
-      .addAgents(agents)
-      .addAgent(helpfulAssistantRemoteAgent);
-    try {
-      const result = await team.run("What is the status of AI in 2025? Make a full report and summarzied", { verbose: true });
+      const team = TeamExample.forge.createTeam("ManagerAgent", "Team", "A team of agents that can help with a variety of tasks.")
+        .addAgent(TeamExample.forge.getAgent("ResearcherAgent")!)
+        .addAgent(TeamExample.forge.getAgent("SummarizerAgent")!)
+        .addAgent(TeamExample.forge.getAgent("RemoteHelpfulAssistant")!);
+
+      const result = await team.run("What is the status of AI in 2025? Make a full report and summarized", { verbose: true });
       console.log(result);
     } catch (error) {
-      console.error("An unknown error occurred:", error);
+      console.error("An error occurred:", error);
       process.exit(1);
     }
   }
 }
 
-TeamExample.run(); 
+if (require.main === module) {
+  TeamExample.run().catch(console.error);
+} 
