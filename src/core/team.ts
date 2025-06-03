@@ -4,11 +4,10 @@ import {
   type Task,
   type TeamRunOptions,
 } from "../types";
-import { Visualizer } from "../utils/decorators";
 import { globalEventEmitter } from "../utils/event-emitter";
 import { RateLimiter } from "../utils/rate-limiter";
 import { enableConsoleStreaming } from "../utils/streaming";
-import type { Agent, AgentRunOptions } from "./agent";
+import { Agent, type AgentRunOptions } from "./agent";
 import { AgentInteractionHelper } from "./team/agent-interaction-helper";
 import { ManagerResponseParser } from "./team/manager-response-parser";
 import { TaskExecutor } from "./team/task-executor";
@@ -99,21 +98,31 @@ export class Team {
 
   /**
    * Adds an agent to the team
-   * @param agent The agent to add
+   * @param agent The agent to add must be an instance of Agent class or extend Agent class
    * @returns The team instance for method chaining
    */
-  addAgent(agent: Agent): Team {
+  addAgent(agent: any): Team {
+    if (!(agent instanceof Agent)) {
+      throw new Error(
+        "Agent must be an instance of Agent class or extend Agent class"
+      );
+    }
     this.agents.set(agent.name, agent);
     return this;
   }
 
   /**
    * Adds multiple agents to the team
-   * @param agents The agents to add
+   * @param agents The agents to add must be an instance of Agent class or extend Agent class
    * @returns The team instance for method chaining
    */
-  addAgents(agents: Agent[]): Team {
+  addAgents(agents: any[]): Team {
     for (const agent of agents) {
+      if (!(agent instanceof Agent)) {
+        throw new Error(
+          "Agent must be an instance of Agent class or extend Agent class"
+        );
+      }
       this.addAgent(agent);
     }
     return this;
