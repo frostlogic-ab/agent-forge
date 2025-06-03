@@ -23,6 +23,47 @@ yarn add agent-forge
 npm install agent-forge
 ```
 
+### TypeScript Configuration
+
+Agent Forge uses TypeScript decorators extensively. You **must** enable decorator support in your `tsconfig.json` file for the framework to work properly.
+
+Add these options to your `tsconfig.json`:
+
+```json
+{
+  "compilerOptions": {
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true
+    // ... other options
+  }
+}
+```
+
+### Example tsconfig.json
+
+Here's a minimal `tsconfig.json` that works with Agent Forge:
+
+```json
+{
+  "compilerOptions": {
+    "target": "es2020",
+    "module": "commonjs",
+    "lib": ["es2020"],
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "declaration": true,
+    "outDir": "./dist",
+    "rootDir": "./src"
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
+}
+```
+
 **Prerequisites:**
 
 - Node.js (latest LTS recommended)
