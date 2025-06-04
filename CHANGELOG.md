@@ -1,4 +1,12 @@
 ## What's Changed
+* Adds new A2A client options to customize the number of retries to get the status by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/57
+
+
+**Full Changelog**: https://github.com/frostlogic-ab/agent-forge/compare/v2.0.0-alpha.13...v2.0.0-alpha.14
+
+# [2.0.0-alpha.14](https://github.com/frostlogic-ab/agent-forge/compare/v2.0.0-alpha.13...v2.0.0-alpha.14) (2025-06-04)
+
+## What's Changed
 * Export decorator metadata by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/56
 
 
