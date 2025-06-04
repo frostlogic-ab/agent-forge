@@ -214,6 +214,16 @@ export interface TeamRunOptions {
    * Only applicable when stream is true
    */
   enableConsoleStream?: boolean;
+
+  /**
+   * Maximum number of turns to run
+   */
+  maxTurns?: number;
+
+  /**
+   * Maximum execution time in milliseconds (default: 2 minutes)
+   */
+  maxExecutionTime?: number;
 }
 
 /**

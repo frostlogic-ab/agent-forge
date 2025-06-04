@@ -1,12 +1,9 @@
-import type { ConfigOptions } from "token.js";
 import type { Agent } from "../core/agent";
 import { LLM } from "../llm/llm";
-import type { LLMProvider } from "../types";
 import { RemoteA2AAgent } from "./client/RemoteA2AAgent";
 import type { A2AClientOptions } from "./client/types";
 import { A2AServer } from "./server/A2AServer";
 import type { A2AServerOptions } from "./server/types";
-// import { agent } from "../core/decorators"; // If you want to re-export
 
 /**
  * Class decorator to make an Agent class use a remote A2A agent via the A2A protocol.
