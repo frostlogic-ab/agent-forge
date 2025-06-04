@@ -89,6 +89,8 @@ export class TaskExecutor {
     try {
       const agentResult = await agent.run(formattedTask, {
         stream: this.stream,
+        maxTurns: this.options?.maxTurns,
+        maxExecutionTime: this.options?.maxExecutionTime,
       });
 
       if (this.teamRunLogger) {

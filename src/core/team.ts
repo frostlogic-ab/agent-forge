@@ -380,7 +380,11 @@ ${TASK_FORMAT_PROMPT}
     conversationHistory: string[]
   ): Promise<string> {
     // Get the initial plan from the manager
-    const managerResult = await this.manager.run(managerPrompt);
+    const managerResult = await this.manager.run(managerPrompt, {
+      maxTurns: this.options?.maxTurns,
+      maxExecutionTime: this.options?.maxExecutionTime,
+      stream: this.options?.stream,
+    });
     conversationHistory.push(`Manager: ${managerResult.output}`);
 
     // Try to extract initial assignments or get explicit ones
@@ -423,7 +427,11 @@ ${TASK_FORMAT_PROMPT}
         // If changes were made, give manager feedback
         const changeReport =
           this.teamReporter.generateTaskChangeReport(taskChanges);
-        const changesResult = await this.manager.run(changeReport);
+        const changesResult = await this.manager.run(changeReport, {
+          maxTurns: this.options?.maxTurns,
+          maxExecutionTime: this.options?.maxExecutionTime,
+          stream: this.options?.stream,
+        });
         currentManagerResponse = changesResult.output;
         conversationHistory.push(
           `Manager (Changes): ${currentManagerResponse}`

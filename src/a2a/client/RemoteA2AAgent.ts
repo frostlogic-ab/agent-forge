@@ -35,6 +35,8 @@ export interface RemoteAgentRunOptions extends CoreAgentRunOptions {}
 
 export class RemoteA2AAgent extends Agent {
   private a2aClient: A2AClient;
+  private taskStatusRetries: number;
+  private taskStatusRetryDelay: number;
 
   // Private constructor to be called by the static factory method
   private constructor(
@@ -46,6 +48,8 @@ export class RemoteA2AAgent extends Agent {
     // Passing undefined for llmProvider to super, as RemoteA2AAgent doesn't use a local LLM.
     super(configForSuper, [], undefined);
     this.a2aClient = new A2AClient(clientOptions);
+    this.taskStatusRetries = clientOptions.taskStatusRetries ?? 10;
+    this.taskStatusRetryDelay = clientOptions.taskStatusRetryDelay ?? 1000;
   }
 
   public static async create(
@@ -159,7 +163,7 @@ export class RemoteA2AAgent extends Agent {
 
         let currentTask: A2ATask | null = initialTask;
         let attempts = 0;
-        const maxAttempts = options?.maxTurns || 10;
+        const maxAttempts = this.taskStatusRetries;
 
         while (attempts < maxAttempts) {
           if (isCancelledDuringStream(options)) {
@@ -178,7 +182,9 @@ export class RemoteA2AAgent extends Agent {
           ) {
             break;
           }
-          await new Promise((resolve) => setTimeout(resolve, 1000));
+          await new Promise((resolve) =>
+            setTimeout(resolve, this.taskStatusRetryDelay)
+          );
           attempts++;
         }
 
