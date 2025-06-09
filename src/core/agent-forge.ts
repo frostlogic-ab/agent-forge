@@ -1,5 +1,6 @@
 import { loadAgentsFromDirectory } from "../config/yaml-loader";
 import type { LLM } from "../llm/llm";
+import { type Plugin, PluginLifecycleHooks, PluginManager } from "../plugins";
 import type { Tool } from "../tools/tool";
 import { ToolRegistry } from "../tools/tool-registry";
 import {
@@ -9,7 +10,7 @@ import {
   type WorkflowRunOptions,
 } from "../types";
 import { enableConsoleStreaming } from "../utils/streaming";
-import type { Agent } from "./agent";
+import { Agent } from "./agent";
 import { Team } from "./team";
 import { Workflow } from "./workflow";
 
@@ -19,6 +20,7 @@ export class AgentForge {
   private agents: Map<string, Agent> = new Map();
   private tools: ToolRegistry = new ToolRegistry();
   private llmProvider?: LLM;
+  private pluginManager: PluginManager;
 
   /**
    * Creates a new Agent Forge instance
@@ -26,6 +28,47 @@ export class AgentForge {
    */
   constructor(llmProvider?: LLM) {
     this.llmProvider = llmProvider;
+    this.pluginManager = new PluginManager(this);
+  }
+
+  /**
+   * Gets the plugin manager
+   */
+  getPluginManager(): PluginManager {
+    return this.pluginManager;
+  }
+
+  /**
+   * Registers a plugin with the framework
+   * @param plugin The plugin to register
+   * @returns The AgentForge instance for method chaining
+   */
+  async registerPlugin(plugin: Plugin): Promise<AgentForge> {
+    await this.pluginManager.registerPlugin(plugin);
+    return this;
+  }
+
+  /**
+   * Initializes the framework and executes initialization hooks
+   */
+  async initialize(): Promise<void> {
+    await this.pluginManager.executeHook(
+      PluginLifecycleHooks.FRAMEWORK_INITIALIZE,
+      { forge: this }
+    );
+    await this.pluginManager.executeHook(PluginLifecycleHooks.FRAMEWORK_READY, {
+      forge: this,
+    });
+  }
+
+  /**
+   * Shuts down the framework and executes shutdown hooks
+   */
+  async shutdown(): Promise<void> {
+    await this.pluginManager.executeHook(
+      PluginLifecycleHooks.FRAMEWORK_SHUTDOWN,
+      { forge: this }
+    );
   }
 
   /**
@@ -87,13 +130,28 @@ export class AgentForge {
    * @param agent The agent to register
    * @returns The AgentForge instance for method chaining
    */
-  registerAgent(agent: Agent): AgentForge {
+  async registerAgent(agent: Agent): Promise<AgentForge> {
+    // Execute before hook
+    const modifiedAgent = await this.pluginManager.executeHook(
+      PluginLifecycleHooks.AGENT_REGISTER,
+      { agent, registered: false }
+    );
+
+    const agentToRegister = modifiedAgent.agent || agent;
+
     // Apply the default LLM provider if set and agent doesn't have one
-    if (this.llmProvider && !agent.getLLMProvider()) {
-      agent.setLLMProvider(this.llmProvider);
+    if (this.llmProvider && !agentToRegister.getLLMProvider()) {
+      agentToRegister.setLLMProvider(this.llmProvider);
     }
 
-    this.agents.set(agent.name, agent);
+    this.agents.set(agentToRegister.name, agentToRegister);
+
+    // Execute after hook
+    await this.pluginManager.executeHook(PluginLifecycleHooks.AGENT_REGISTER, {
+      agent: agentToRegister,
+      registered: true,
+    });
+
     return this;
   }
 
@@ -102,9 +160,9 @@ export class AgentForge {
    * @param agents The agents to register
    * @returns The AgentForge instance for method chaining
    */
-  registerAgents(agents: Agent[]): AgentForge {
+  async registerAgents(agents: Agent[]): Promise<AgentForge> {
     for (const agent of agents) {
-      this.registerAgent(agent);
+      await this.registerAgent(agent);
     }
     return this;
   }
@@ -148,17 +206,25 @@ export class AgentForge {
       throw new Error(`Agent with name '${managerName}' is not registered`);
     }
 
-    return new Team(manager, name, description);
+    // Set the visualizer flag on the Team class before creating the instance
+    if ((this.constructor as any).__visualizerEnabled) {
+      (Team as any).__visualizerEnabled = true;
+    }
+
+    const team = new Team(manager, name, description);
+    return team;
   }
 
   /**
    * Loads agents from YAML files in a directory
    * @param directoryPath Path to directory containing agent YAML files
    * @returns The AgentForge instance for method chaining
+   *
+   * @deprecated Use the @agent decorator instead
    */
   async loadAgentsFromDirectory(directoryPath: string): Promise<AgentForge> {
     const agents = await loadAgentsFromDirectory(directoryPath);
-    this.registerAgents(agents);
+    await this.registerAgents(agents);
     return this;
   }
 
@@ -174,7 +240,31 @@ export class AgentForge {
       throw new Error(`Agent with name '${agentName}' is not registered`);
     }
 
-    return await agent.run(input);
+    // Before run hook
+    const beforeRunData = await this.pluginManager.executeHook(
+      PluginLifecycleHooks.AGENT_BEFORE_RUN,
+      { agent, input }
+    );
+
+    try {
+      const result = await agent.run(beforeRunData.input || input);
+
+      // After run hook
+      const finalResult = await this.pluginManager.executeHook(
+        PluginLifecycleHooks.AGENT_AFTER_RUN,
+        { agent, input, result }
+      );
+
+      return finalResult.result || result;
+    } catch (error) {
+      // Error hook
+      await this.pluginManager.executeHook(PluginLifecycleHooks.AGENT_ERROR, {
+        agent,
+        input,
+        error,
+      });
+      throw error;
+    }
   }
 
   /**
@@ -306,4 +396,92 @@ export class AgentForge {
         throw new Error(`Unsupported execution mode: ${mode}`);
     }
   }
+}
+
+// Type definitions for the enhanced readyForge
+type AgentClass = new (...args: any[]) => Agent | Promise<Agent>;
+type AgentClassOrInstance = Agent | AgentClass;
+
+/**
+ * Utility to instantiate a decorated team/forge class and await its async static initialization.
+ * This function handles all the async setup needed for agents and forge initialization.
+ * @param TeamClass The class to instantiate
+ * @param agentClassesOrInstances Optional array of agent classes or instances to register and configure with LLM provider
+ * @returns The instance, after static async initialization is complete
+ */
+export async function readyForge<T extends { new (...args: any[]): any }>(
+  TeamClass: T,
+  agentClassesOrInstances?: AgentClassOrInstance[],
+  ...args: ConstructorParameters<T>
+): Promise<InstanceType<T>> {
+  const instance = new TeamClass(...args);
+
+  // Wait for static forge initialization (old forgeReady pattern)
+  if ((TeamClass as any).forgeReady) {
+    await (TeamClass as any).forgeReady;
+  }
+
+  // Wait for LLM provider initialization (new decorator pattern)
+  if ((instance.constructor as any).forgeReady) {
+    await (instance.constructor as any).forgeReady;
+  }
+
+  // If agent classes or instances are provided, instantiate them and configure with LLM provider
+  if (agentClassesOrInstances && agentClassesOrInstances.length > 0) {
+    const forge = (instance.constructor as any).forge as AgentForge;
+    if (forge) {
+      const llmProvider = forge.getDefaultLLMProvider();
+      const agentInstances: Agent[] = [];
+
+      // Process each agent class or instance
+      for (const agentClassOrInstance of agentClassesOrInstances) {
+        try {
+          let agentInstance: Agent;
+
+          // Check if it's already an agent instance
+          if (agentClassOrInstance instanceof Agent) {
+            agentInstance = agentClassOrInstance;
+          } else if (typeof agentClassOrInstance === "function") {
+            // It's a class constructor, instantiate it
+            const AgentClass = agentClassOrInstance as AgentClass;
+
+            // Handle remote agents (decorated with @a2aClient) which return promises
+            const constructorResult = new AgentClass();
+
+            if (constructorResult instanceof Promise) {
+              // Remote agent case - await the promise
+              agentInstance = await constructorResult;
+            } else {
+              // Regular agent case - direct instantiation
+              agentInstance = constructorResult;
+            }
+          } else {
+            throw new Error(
+              `Invalid agent type provided: ${typeof agentClassOrInstance}`
+            );
+          }
+
+          // Configure with LLM provider if available and agent doesn't have one
+          if (llmProvider && !agentInstance.getLLMProvider()) {
+            agentInstance.setLLMProvider(llmProvider);
+          }
+
+          agentInstances.push(agentInstance);
+        } catch (error) {
+          const agentName =
+            typeof agentClassOrInstance === "function"
+              ? agentClassOrInstance.name
+              : agentClassOrInstance.name || "Unknown";
+          throw new Error(
+            `Failed to instantiate agent '${agentName}': ${error instanceof Error ? error.message : String(error)}`
+          );
+        }
+      }
+
+      // Register all successfully instantiated agents
+      await forge.registerAgents(agentInstances);
+    }
+  }
+
+  return instance as InstanceType<T>;
 }

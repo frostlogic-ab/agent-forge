@@ -35,6 +35,8 @@ export interface RemoteAgentRunOptions extends CoreAgentRunOptions {}
 
 export class RemoteA2AAgent extends Agent {
   private a2aClient: A2AClient;
+  private taskStatusRetries: number;
+  private taskStatusRetryDelay: number;
 
   // Private constructor to be called by the static factory method
   private constructor(
@@ -46,6 +48,8 @@ export class RemoteA2AAgent extends Agent {
     // Passing undefined for llmProvider to super, as RemoteA2AAgent doesn't use a local LLM.
     super(configForSuper, [], undefined);
     this.a2aClient = new A2AClient(clientOptions);
+    this.taskStatusRetries = clientOptions.taskStatusRetries ?? 10;
+    this.taskStatusRetryDelay = clientOptions.taskStatusRetryDelay ?? 1000;
   }
 
   public static async create(
@@ -107,7 +111,7 @@ export class RemoteA2AAgent extends Agent {
           stream: true, // Explicitly enable streaming for the task creation
         };
         // Ensure the task is created on the server with streaming enabled
-        const initialTask = await this.a2aClient.sendTask(
+        const initialTask: A2ATaskSendResult = await this.a2aClient.sendTask(
           streamingTaskSendParams
         );
         if (!initialTask || !initialTask.id) {
@@ -115,6 +119,10 @@ export class RemoteA2AAgent extends Agent {
             "Failed to send task (with streaming) to remote agent or received invalid response."
           );
         }
+
+        // Track whether we received a final output artifact
+        let finalOutputFromArtifact = "";
+        let hasReceivedFinalOutput = false;
 
         // Now subscribe to the events for the task ID
         const stream = this.a2aClient.sendTaskSubscribe(
@@ -126,15 +134,24 @@ export class RemoteA2AAgent extends Agent {
               "Remote agent task cancelled by client during stream."
             );
           }
-          this.processA2AEvent(event, toolCalls, (chunk) => {
-            accumulatedLlmResponseForAgentResult += chunk;
-            globalEventEmitter.emit(AgentForgeEvents.LLM_STREAM_CHUNK, {
-              agentName: this.name,
-              chunk: chunk,
-              isDelta: true,
-              isComplete: false,
-            } as LLMStreamEvent);
-          });
+          this.processA2AEvent(
+            event,
+            toolCalls,
+            (chunk) => {
+              accumulatedLlmResponseForAgentResult += chunk;
+              globalEventEmitter.emit(AgentForgeEvents.LLM_STREAM_CHUNK, {
+                agentName: this.name,
+                chunk: chunk,
+                isDelta: true,
+                isComplete: false,
+              } as LLMStreamEvent);
+            },
+            (finalOutput) => {
+              // Callback for when we receive final output artifact
+              finalOutputFromArtifact = finalOutput;
+              hasReceivedFinalOutput = true;
+            }
+          );
           if (
             (event as A2ATaskStatusUpdateEvent).final ||
             (event as A2ATaskErrorEvent).final
@@ -147,19 +164,24 @@ export class RemoteA2AAgent extends Agent {
             break;
           }
         }
-        finalOutput = accumulatedLlmResponseForAgentResult;
+
+        // Prefer final output from artifact if available, otherwise use accumulated response
+        finalOutput = hasReceivedFinalOutput
+          ? finalOutputFromArtifact
+          : accumulatedLlmResponseForAgentResult;
       } else {
         // Non-streaming: send task without stream flag (or stream:false implicitly)
-        const initialTask = await this.a2aClient.sendTask(baseTaskSendParams);
+        const initialTask: A2ATaskSendResult =
+          await this.a2aClient.sendTask(baseTaskSendParams);
         if (!initialTask || !initialTask.id) {
           throw new Error(
             "Failed to send task to remote agent or received invalid response."
           );
         }
 
-        let currentTask: A2ATask | null = initialTask;
+        let currentTask: A2ATaskGetResult = initialTask;
         let attempts = 0;
-        const maxAttempts = options?.maxTurns || 10;
+        const maxAttempts = this.taskStatusRetries;
 
         while (attempts < maxAttempts) {
           if (isCancelledDuringStream(options)) {
@@ -167,7 +189,8 @@ export class RemoteA2AAgent extends Agent {
               "Remote agent task cancelled by client during polling."
             );
           }
-          currentTask = await this.a2aClient.getTask({ id: taskId });
+          const getParams: A2ATaskGetParams = { id: taskId };
+          currentTask = await this.a2aClient.getTask(getParams);
           if (!currentTask)
             throw new Error("Failed to get task status from remote agent.");
 
@@ -178,7 +201,9 @@ export class RemoteA2AAgent extends Agent {
           ) {
             break;
           }
-          await new Promise((resolve) => setTimeout(resolve, 1000));
+          await new Promise((resolve) =>
+            setTimeout(resolve, this.taskStatusRetryDelay)
+          );
           attempts++;
         }
 
@@ -283,7 +308,8 @@ export class RemoteA2AAgent extends Agent {
   private processA2AEvent(
     event: A2AStreamEvent,
     toolCalls: ToolCall[], // Allow modification
-    emitChunk: (chunk: string) => void
+    emitChunk: (chunk: string) => void,
+    emitFinalOutput?: (finalOutput: string) => void
   ) {
     if ("status" in event) {
       const statusEvent = event as A2ATaskStatusUpdateEvent;
@@ -318,9 +344,23 @@ export class RemoteA2AAgent extends Agent {
             e
           );
         }
+      } else if (
+        artifactEvent.artifact.name === "final_output.txt" ||
+        (artifactEvent.artifact.mimeType === "text/plain" &&
+          artifactEvent.artifact.name?.includes("final"))
+      ) {
+        // Handle final output artifacts by emitting their content as chunks
+        const finalContent = artifactEvent.artifact.parts
+          .map((p) => p.text)
+          .join("");
+        if (finalContent) {
+          emitChunk(finalContent);
+          if (emitFinalOutput) {
+            emitFinalOutput(finalContent);
+          }
+        }
       }
-      // Other artifacts, like final_output, are typically handled by polling logic
-      // or a specific final event, not streamed as LLM chunks.
+      // Other artifacts are handled above or can be ignored for streaming
     }
   }
 }

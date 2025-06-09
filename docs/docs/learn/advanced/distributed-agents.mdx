@@ -1,0 +1,487 @@
+---
+id: distributed-agents
+title: Distributed Agents (A2A)
+sidebar_position: 2
+---
+
+# Distributed Agents (A2A Protocol)
+
+Agent-to-Agent (A2A) communication enables building distributed agent networks where agents can run on different machines, processes, or containers while still collaborating on tasks.
+
+## A2A Communication Overview
+
+The A2A protocol provides:
+- **Remote Agent Access** - Use agents running on different machines
+- **Load Distribution** - Spread computational load across systems
+- **Scalability** - Add agent capacity dynamically  
+- **Fault Tolerance** - Continue operation if some agents fail
+- **Specialized Hardware** - Run agents on optimal hardware (GPU, etc.)
+
+## Creating an A2A Server
+
+Use `@a2aServer` to expose agents via the A2A protocol:
+
+```typescript
+import { Agent, agent, a2aServer, llmProvider, forge, readyForge } from "agent-forge";
+
+@agent({
+  name: "Data Analyst",
+  role: "Statistical Analysis Expert",
+  description: "Performs complex data analysis and visualization",
+  objective: "Extract insights from large datasets",
+  model: "gpt-4",
+  temperature: 0.2
+})
+class DataAnalystAgent extends Agent {}
+
+@a2aServer({ 
+  port: 3001,
+  path: "/a2a" 
+})
+@llmProvider("openai", { apiKey: process.env.OPENAI_API_KEY })
+@forge()
+class AnalysisServer {
+  static forge: AgentForge;
+  
+  static async run() {
+    console.log("Analysis server running on port 3001");
+    // Server keeps running, exposing agents via A2A
+  }
+}
+
+await readyForge(AnalysisServer, [DataAnalystAgent]);
+await AnalysisServer.run();
+```
+
+## Using Remote Agents (A2A Client)
+
+Use `@a2aClient` to connect to remote agents:
+
+```typescript
+import { Agent, agent, a2aClient, llmProvider, forge, readyForge } from "agent-forge";
+
+// Remote agent proxy
+@a2aClient({ 
+  serverUrl: "http://analysis-server:3001/a2a",
+  agentName: "Data Analyst" 
+})
+@agent({
+  name: "Remote Data Analyst",
+  role: "Remote Analysis Expert",
+  description: "Connects to remote analysis server",
+  objective: "Perform analysis using remote capabilities",
+  model: "gpt-4" // Not used - runs remotely
+})
+class RemoteAnalystAgent extends Agent {}
+
+// Local coordinator
+@agent({
+  name: "Coordinator",
+  role: "Task Coordinator",
+  description: "Orchestrates distributed analysis",
+  objective: "Coordinate complex multi-system analysis",
+  model: "gpt-4",
+  temperature: 0.5
+})
+class CoordinatorAgent extends Agent {}
+
+@llmProvider("openai", { apiKey: process.env.OPENAI_API_KEY })
+@forge()
+class DistributedSystem {
+  static forge: AgentForge;
+  
+  static async run() {
+    const team = this.forge
+      .createTeam("Coordinator")
+      .addAgent(new RemoteAnalystAgent());
+      
+    const result = await team.run("Analyze sales data trends for Q4");
+    console.log(result.output);
+  }
+}
+
+await readyForge(DistributedSystem, [CoordinatorAgent, RemoteAnalystAgent]);
+await DistributedSystem.run();
+```
+
+## A2A Server Configuration
+
+### Basic Server Setup
+```typescript
+@a2aServer({
+  port: 3000,              // Server port
+  host: "0.0.0.0",        // Bind to all interfaces  
+  path: "/a2a",           // A2A endpoint path
+  enableCors: true,       // Enable CORS for web clients
+  maxConnections: 100     // Connection limit
+})
+@forge()
+class MyA2AServer {}
+```
+
+### Advanced Server Options
+```typescript
+@a2aServer({
+  port: 3000,
+  host: "localhost",
+  path: "/a2a",
+  
+  // Authentication
+  authentication: {
+    type: "bearer",
+    tokens: ["secret-token-1", "secret-token-2"]
+  },
+  
+  // Rate limiting
+  rateLimit: {
+    windowMs: 60000,      // 1 minute window
+    maxRequests: 100      // 100 requests per minute
+  },
+  
+  // Load balancing
+  loadBalancing: {
+    strategy: "round-robin", // "random", "least-connections"
+    healthCheck: true,
+    timeout: 30000
+  },
+  
+  // Monitoring
+  monitoring: {
+    enabled: true,
+    metricsPath: "/metrics",
+    includeAgentMetrics: true
+  }
+})
+```
+
+## A2A Client Configuration
+
+### Basic Client Setup
+```typescript
+@a2aClient({
+  serverUrl: "http://localhost:3000/a2a",
+  agentName: "Remote Agent"
+})
+@agent(config)
+class RemoteAgent extends Agent {}
+```
+
+### Advanced Client Options
+```typescript
+@a2aClient({
+  serverUrl: "http://analysis-cluster:3000/a2a",
+  agentName: "Data Processor",
+  
+  // Connection options
+  timeout: 30000,         // 30 second timeout
+  retries: 3,             // Retry failed requests
+  keepAlive: true,        // Persistent connections
+  
+  // Authentication
+  authentication: {
+    type: "bearer",
+    token: process.env.A2A_TOKEN
+  },
+  
+  // Load balancing
+  failover: {
+    servers: [
+      "http://backup1:3000/a2a",
+      "http://backup2:3000/a2a"
+    ],
+    strategy: "priority"   // Try in order
+  },
+  
+  // Caching
+  cache: {
+    enabled: true,
+    ttl: 300000           // 5 minute cache
+  }
+})
+```
+
+## Distributed Team Patterns
+
+### Multi-Region Team
+```typescript
+// US West Coast agents
+@a2aClient({ 
+  serverUrl: "http://us-west.company.com:3000/a2a",
+  agentName: "Research Specialist" 
+})
+class USWestResearcher extends Agent {}
+
+// EU agents  
+@a2aClient({
+  serverUrl: "http://eu.company.com:3000/a2a", 
+  agentName: "Data Analyst"
+})
+class EUAnalyst extends Agent {}
+
+// Local coordinator
+@agent(managerConfig)
+class GlobalCoordinator extends Agent {}
+
+// Distributed team
+const globalTeam = forge
+  .createTeam("GlobalCoordinator")
+  .addAgent(new USWestResearcher())
+  .addAgent(new EUAnalyst());
+
+await globalTeam.run("Analyze global market trends by region");
+```
+
+### Specialized Hardware Distribution
+```typescript
+// GPU-accelerated agent on ML server
+@a2aClient({
+  serverUrl: "http://gpu-cluster:3000/a2a",
+  agentName: "ML Processor"
+})
+class MLAgent extends Agent {}
+
+// High-memory agent on data server
+@a2aClient({
+  serverUrl: "http://bigdata-server:3000/a2a", 
+  agentName: "Big Data Analyst"
+})
+class BigDataAgent extends Agent {}
+
+// Standard agent locally
+@agent(config)
+class OrchestratorAgent extends Agent {}
+
+const hybridTeam = forge
+  .createTeam("OrchestratorAgent")
+  .addAgent(new MLAgent())      // Uses GPU resources
+  .addAgent(new BigDataAgent()); // Uses high-memory resources
+```
+
+## Security and Authentication
+
+### Token-Based Authentication
+```typescript
+// Server with authentication
+@a2aServer({
+  port: 3000,
+  authentication: {
+    type: "bearer",
+    tokens: [
+      process.env.ADMIN_TOKEN,
+      process.env.CLIENT_TOKEN
+    ]
+  }
+})
+@forge()
+class SecureServer {}
+
+// Client with authentication
+@a2aClient({
+  serverUrl: "http://secure-server:3000/a2a",
+  agentName: "Trusted Agent",
+  authentication: {
+    type: "bearer", 
+    token: process.env.CLIENT_TOKEN
+  }
+})
+class AuthenticatedClient extends Agent {}
+```
+
+### Network Security
+```typescript
+// TLS/SSL configuration
+@a2aServer({
+  port: 3443,
+  tls: {
+    enabled: true,
+    cert: "./certs/server.crt",
+    key: "./certs/server.key"
+  }
+})
+@forge()
+class SecureTLSServer {}
+
+// Client connecting to TLS server
+@a2aClient({
+  serverUrl: "https://secure-server:3443/a2a",
+  tls: {
+    rejectUnauthorized: true,
+    ca: "./certs/ca.crt"
+  }
+})
+class SecureClient extends Agent {}
+```
+
+## High Availability Patterns
+
+### Load Balancing
+```typescript
+@a2aClient({
+  serverUrl: "http://primary-server:3000/a2a",
+  agentName: "Worker Agent",
+  
+  // Multiple servers for load distribution
+  loadBalancing: {
+    servers: [
+      "http://server1:3000/a2a",
+      "http://server2:3000/a2a", 
+      "http://server3:3000/a2a"
+    ],
+    strategy: "round-robin",
+    healthCheck: true
+  }
+})
+class LoadBalancedAgent extends Agent {}
+```
+
+### Failover Configuration
+```typescript
+@a2aClient({
+  serverUrl: "http://primary:3000/a2a",
+  agentName: "Critical Agent",
+  
+  failover: {
+    servers: [
+      "http://backup1:3000/a2a",
+      "http://backup2:3000/a2a"
+    ],
+    strategy: "priority",
+    retryDelay: 5000,      // 5 second delay between retries
+    maxFailovers: 3        // Maximum failover attempts
+  }
+})
+class HighAvailabilityAgent extends Agent {}
+```
+
+## Monitoring and Observability
+
+### Health Checks
+```typescript
+@a2aServer({
+  port: 3000,
+  monitoring: {
+    enabled: true,
+    healthCheckPath: "/health",
+    metricsPath: "/metrics",
+    includeAgentMetrics: true
+  }
+})
+@forge()
+class MonitoredServer {}
+
+// Check server health
+const health = await fetch("http://server:3000/health");
+const status = await health.json();
+console.log("Server status:", status);
+```
+
+### Performance Metrics
+```typescript
+// Monitor A2A performance
+import { globalEventEmitter, AgentForgeEvents } from "agent-forge";
+
+globalEventEmitter.on(AgentForgeEvents.A2A_REQUEST, (event) => {
+  console.log(`A2A Request: ${event.agentName} - ${event.duration}ms`);
+});
+
+globalEventEmitter.on(AgentForgeEvents.A2A_ERROR, (event) => {
+  console.error(`A2A Error: ${event.agentName} - ${event.error}`);
+});
+```
+
+## Docker Deployment
+
+### Server Container
+```dockerfile
+# Dockerfile for A2A server
+FROM node:18-alpine
+
+WORKDIR /app
+COPY package*.json ./
+RUN npm install
+
+COPY . .
+RUN npm run build
+
+EXPOSE 3000
+CMD ["node", "dist/server.js"]
+```
+
+### Docker Compose Setup
+```yaml
+# docker-compose.yml
+version: '3.8'
+services:
+  analysis-server:
+    build: .
+    ports:
+      - "3001:3000"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - A2A_TOKEN=${A2A_TOKEN}
+    
+  research-server:
+    build: .
+    ports:
+      - "3002:3000"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - A2A_TOKEN=${A2A_TOKEN}
+  
+  coordinator:
+    build: .
+    depends_on:
+      - analysis-server
+      - research-server
+    environment:
+      - ANALYSIS_SERVER=http://analysis-server:3000/a2a
+      - RESEARCH_SERVER=http://research-server:3000/a2a
+```
+
+## Best Practices
+
+### Network Design
+- **Minimize Latency**: Place related agents on nearby servers
+- **Security**: Use authentication and TLS for production
+- **Redundancy**: Implement failover for critical agents
+
+### Error Handling
+```typescript
+try {
+  const result = await remoteAgent.run("Complex task");
+  console.log(result.output);
+} catch (error) {
+  if (error.code === 'A2A_CONNECTION_ERROR') {
+    console.log("Remote agent unavailable, using fallback");
+    // Implement fallback logic
+  } else {
+    throw error;
+  }
+}
+```
+
+### Resource Management
+- **Connection Pooling**: Reuse connections for efficiency
+- **Timeout Configuration**: Set appropriate timeouts
+- **Rate Limiting**: Prevent overwhelming remote servers
+
+## Troubleshooting
+
+### Connection Issues
+```
+Error: A2A connection failed
+```
+- Verify server is running and accessible
+- Check network connectivity and firewall rules
+- Validate authentication tokens
+
+### Performance Problems
+- **High Latency**: Check network connection quality
+- **Timeouts**: Increase timeout values or optimize agent performance
+- **Resource Exhaustion**: Monitor server resources and scale as needed
+
+## Next Steps
+
+- [A2A Security](./a2a-security.mdx) - Advanced security patterns
+- [Container Orchestration](./container-orchestration.mdx) - Kubernetes deployment
+- [A2A Monitoring](./a2a-monitoring.mdx) - Advanced monitoring and alerting 

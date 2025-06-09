@@ -1,0 +1,637 @@
+---
+title: EventEmitter
+description: Framework-wide event system for agent communication and monitoring
+---
+
+# EventEmitter
+
+The Agent Forge event system provides a powerful way to monitor and react to framework events. It enables real-time communication between agents, monitoring of LLM interactions, and custom event handling.
+
+## Global Event Emitter
+
+Agent Forge includes a global event emitter that coordinates framework-wide events:
+
+```typescript
+import { globalEventEmitter, AgentForgeEvents } from "agent-forge";
+```
+
+## Event Types
+
+### AgentForgeEvents
+
+Pre-defined event constants for framework events:
+
+```typescript
+enum AgentForgeEvents {
+  // Agent Events
+  AGENT_COMMUNICATION = "agent_communication",
+  AGENT_RUN_START = "agent_run_start",
+  AGENT_RUN_COMPLETE = "agent_run_complete",
+  
+  // LLM Events
+  LLM_STREAM_CHUNK = "llm_stream_chunk",
+  LLM_STREAM_COMPLETE = "llm_stream_complete",
+  LLM_REQUEST = "llm_request",
+  LLM_RESPONSE = "llm_response",
+  
+  // Team Events
+  TEAM_TASK_COMPLETE = "team_task_complete",
+  TEAM_TASK_START = "team_task_start",
+  TEAM_RUN_COMPLETE = "team_run_complete",
+  
+  // Workflow Events
+  WORKFLOW_STEP_COMPLETE = "workflow_step_complete",
+  WORKFLOW_STEP_START = "workflow_step_start",
+  
+  // Tool Events
+  TOOL_EXECUTION_START = "tool_execution_start",
+  TOOL_EXECUTION_COMPLETE = "tool_execution_complete",
+  
+  // Framework Events
+  FRAMEWORK_READY = "framework_ready",
+  FRAMEWORK_SHUTDOWN = "framework_shutdown"
+}
+```
+
+## Basic Usage
+
+### Listening to Events
+```typescript
+import { globalEventEmitter, AgentForgeEvents } from "agent-forge";
+
+// Listen to agent communications
+globalEventEmitter.on(AgentForgeEvents.AGENT_COMMUNICATION, (event) => {
+  console.log(`🤖 ${event.sender}: ${event.message}`);
+});
+
+// Listen to LLM streaming
+globalEventEmitter.on(AgentForgeEvents.LLM_STREAM_CHUNK, (event) => {
+  process.stdout.write(event.chunk);
+});
+
+// Listen to team task completions
+globalEventEmitter.on(AgentForgeEvents.TEAM_TASK_COMPLETE, (event) => {
+  console.log(`Task completed: ${event.taskId} by ${event.agentName}`);
+});
+```
+
+### Emitting Custom Events
+```typescript
+// Emit custom events
+globalEventEmitter.emit("custom_event", {
+  type: "user_action",
+  data: { action: "button_click", timestamp: Date.now() }
+});
+
+// Emit with typed data
+globalEventEmitter.emit(AgentForgeEvents.AGENT_COMMUNICATION, {
+  sender: "CustomAgent",
+  receiver: "User",
+  message: "Task completed successfully",
+  timestamp: Date.now()
+});
+```
+
+## Event Data Structures
+
+### Agent Communication Event
+```typescript
+interface AgentCommunicationEvent {
+  sender: string;
+  receiver?: string;
+  message: string;
+  timestamp: number;
+  metadata?: Record<string, any>;
+}
+```
+
+### LLM Stream Event
+```typescript
+interface LLMStreamEvent {
+  agentName: string;
+  chunk: string;
+  isDelta: boolean;
+  isComplete: boolean;
+  timestamp: number;
+  metadata?: {
+    model?: string;
+    tokenCount?: number;
+    totalTokens?: number;
+  };
+}
+```
+
+### Team Task Event
+```typescript
+interface TeamTaskEvent {
+  taskId: string;
+  agentName: string;
+  status: "started" | "completed" | "failed";
+  result?: any;
+  error?: string;
+  duration?: number;
+  timestamp: number;
+}
+```
+
+### Tool Execution Event
+```typescript
+interface ToolExecutionEvent {
+  toolName: string;
+  agentName: string;
+  parameters: Record<string, any>;
+  result?: any;
+  error?: string;
+  duration: number;
+  timestamp: number;
+}
+```
+
+## Advanced Usage
+
+### Event Monitoring Dashboard
+```typescript
+import { globalEventEmitter, AgentForgeEvents } from "agent-forge";
+
+class EventMonitor {
+  private eventCounts = new Map<string, number>();
+  private lastActivity = Date.now();
+  
+  constructor() {
+    this.setupListeners();
+    this.startPeriodicReporting();
+  }
+  
+  private setupListeners(): void {
+    const events = Object.values(AgentForgeEvents);
+    
+    events.forEach(eventType => {
+      globalEventEmitter.on(eventType, (data) => {
+        this.recordEvent(eventType, data);
+      });
+    });
+  }
+  
+  private recordEvent(eventType: string, data: any): void {
+    const count = this.eventCounts.get(eventType) || 0;
+    this.eventCounts.set(eventType, count + 1);
+    this.lastActivity = Date.now();
+    
+    // Log important events
+    if (eventType === AgentForgeEvents.AGENT_COMMUNICATION) {
+      console.log(`📡 ${data.sender}: ${data.message}`);
+    }
+  }
+  
+  private startPeriodicReporting(): void {
+    setInterval(() => {
+      this.printReport();
+    }, 10000); // Every 10 seconds
+  }
+  
+  private printReport(): void {
+    console.log("\n📊 Event Activity Report:");
+    console.log(`Last activity: ${new Date(this.lastActivity).toLocaleTimeString()}`);
+    
+    for (const [eventType, count] of this.eventCounts.entries()) {
+      console.log(`  ${eventType}: ${count} events`);
+    }
+    
+    console.log(""); // Empty line
+  }
+  
+  getStats() {
+    return {
+      eventCounts: Object.fromEntries(this.eventCounts),
+      lastActivity: this.lastActivity,
+      totalEvents: Array.from(this.eventCounts.values()).reduce((sum, count) => sum + count, 0)
+    };
+  }
+}
+
+// Usage
+const monitor = new EventMonitor();
+```
+
+### Real-time Agent Communication Logger
+```typescript
+class AgentCommunicationLogger {
+  private logs: AgentCommunicationEvent[] = [];
+  private maxLogs = 1000;
+  
+  constructor() {
+    globalEventEmitter.on(AgentForgeEvents.AGENT_COMMUNICATION, (event) => {
+      this.logCommunication(event);
+    });
+  }
+  
+  private logCommunication(event: AgentCommunicationEvent): void {
+    this.logs.push(event);
+    
+    // Keep only the most recent logs
+    if (this.logs.length > this.maxLogs) {
+      this.logs.shift();
+    }
+    
+    // Format and display
+    const timestamp = new Date(event.timestamp).toLocaleTimeString();
+    const receiver = event.receiver ? ` → ${event.receiver}` : "";
+    console.log(`[${timestamp}] ${event.sender}${receiver}: ${event.message}`);
+  }
+  
+  getCommunicationHistory(agentName?: string): AgentCommunicationEvent[] {
+    if (!agentName) return [...this.logs];
+    
+    return this.logs.filter(log => 
+      log.sender === agentName || log.receiver === agentName
+    );
+  }
+  
+  exportLogs(): string {
+    return JSON.stringify(this.logs, null, 2);
+  }
+  
+  clearLogs(): void {
+    this.logs = [];
+  }
+}
+```
+
+### Custom Event Types
+```typescript
+// Define custom event types
+interface CustomEvents {
+  user_interaction: {
+    userId: string;
+    action: string;
+    timestamp: number;
+  };
+  
+  performance_alert: {
+    metric: string;
+    value: number;
+    threshold: number;
+    severity: "warning" | "error";
+  };
+  
+  system_health: {
+    cpuUsage: number;
+    memoryUsage: number;
+    activeAgents: number;
+  };
+}
+
+// Type-safe event emitter wrapper
+class TypedEventEmitter {
+  emit<K extends keyof CustomEvents>(
+    event: K,
+    data: CustomEvents[K]
+  ): void {
+    globalEventEmitter.emit(event as string, data);
+  }
+  
+  on<K extends keyof CustomEvents>(
+    event: K,
+    listener: (data: CustomEvents[K]) => void
+  ): void {
+    globalEventEmitter.on(event as string, listener);
+  }
+  
+  off<K extends keyof CustomEvents>(
+    event: K,
+    listener: (data: CustomEvents[K]) => void
+  ): void {
+    globalEventEmitter.off(event as string, listener);
+  }
+}
+
+// Usage
+const typedEmitter = new TypedEventEmitter();
+
+typedEmitter.on("user_interaction", (data) => {
+  console.log(`User ${data.userId} performed: ${data.action}`);
+});
+
+typedEmitter.emit("performance_alert", {
+  metric: "response_time",
+  value: 5000,
+  threshold: 3000,
+  severity: "warning"
+});
+```
+
+## Event Filtering and Processing
+
+### Event Filter
+```typescript
+class EventFilter {
+  private filters = new Map<string, (data: any) => boolean>();
+  
+  addFilter(eventType: string, filter: (data: any) => boolean): void {
+    this.filters.set(eventType, filter);
+  }
+  
+  setupFilteredListening(): void {
+    const events = Object.values(AgentForgeEvents);
+    
+    events.forEach(eventType => {
+      globalEventEmitter.on(eventType, (data) => {
+        const filter = this.filters.get(eventType);
+        if (!filter || filter(data)) {
+          this.processEvent(eventType, data);
+        }
+      });
+    });
+  }
+  
+  private processEvent(eventType: string, data: any): void {
+    console.log(`Filtered event: ${eventType}`, data);
+  }
+}
+
+// Usage
+const filter = new EventFilter();
+
+// Only log errors and warnings
+filter.addFilter(AgentForgeEvents.AGENT_COMMUNICATION, (data) => {
+  return data.message.includes("error") || data.message.includes("warning");
+});
+
+// Only log slow tool executions
+filter.addFilter(AgentForgeEvents.TOOL_EXECUTION_COMPLETE, (data) => {
+  return data.duration > 1000; // More than 1 second
+});
+
+filter.setupFilteredListening();
+```
+
+### Event Aggregator
+```typescript
+class EventAggregator {
+  private eventBuffer = new Map<string, any[]>();
+  private bufferSize = 10;
+  private flushInterval = 5000; // 5 seconds
+  
+  constructor() {
+    this.setupBuffering();
+    this.startFlushing();
+  }
+  
+  private setupBuffering(): void {
+    const events = Object.values(AgentForgeEvents);
+    
+    events.forEach(eventType => {
+      globalEventEmitter.on(eventType, (data) => {
+        this.bufferEvent(eventType, data);
+      });
+    });
+  }
+  
+  private bufferEvent(eventType: string, data: any): void {
+    if (!this.eventBuffer.has(eventType)) {
+      this.eventBuffer.set(eventType, []);
+    }
+    
+    const buffer = this.eventBuffer.get(eventType)!;
+    buffer.push({ ...data, bufferedAt: Date.now() });
+    
+    // Flush if buffer is full
+    if (buffer.length >= this.bufferSize) {
+      this.flushBuffer(eventType);
+    }
+  }
+  
+  private startFlushing(): void {
+    setInterval(() => {
+      for (const eventType of this.eventBuffer.keys()) {
+        this.flushBuffer(eventType);
+      }
+    }, this.flushInterval);
+  }
+  
+  private flushBuffer(eventType: string): void {
+    const buffer = this.eventBuffer.get(eventType);
+    if (!buffer || buffer.length === 0) return;
+    
+    console.log(`📦 Flushing ${buffer.length} ${eventType} events`);
+    
+    // Process batched events
+    this.processBatch(eventType, buffer);
+    
+    // Clear buffer
+    this.eventBuffer.set(eventType, []);
+  }
+  
+  private processBatch(eventType: string, events: any[]): void {
+    // Example: Calculate statistics
+    if (eventType === AgentForgeEvents.LLM_STREAM_CHUNK) {
+      const totalChunks = events.length;
+      const avgChunkSize = events.reduce((sum, e) => sum + e.chunk.length, 0) / totalChunks;
+      console.log(`LLM Streaming Stats: ${totalChunks} chunks, avg size: ${avgChunkSize.toFixed(1)} chars`);
+    }
+    
+    if (eventType === AgentForgeEvents.TOOL_EXECUTION_COMPLETE) {
+      const avgDuration = events.reduce((sum, e) => sum + e.duration, 0) / events.length;
+      const toolCounts = events.reduce((counts, e) => {
+        counts[e.toolName] = (counts[e.toolName] || 0) + 1;
+        return counts;
+      }, {} as Record<string, number>);
+      
+      console.log(`Tool Execution Stats: avg duration ${avgDuration.toFixed(0)}ms`);
+      console.log("Tool usage:", toolCounts);
+    }
+  }
+}
+```
+
+## Integration with Team Monitoring
+
+### Team Performance Monitor
+```typescript
+class TeamPerformanceMonitor {
+  private teamMetrics = new Map<string, {
+    startTime: number;
+    tasks: Array<{ agentName: string; duration: number; success: boolean }>;
+    communications: number;
+  }>();
+  
+  constructor() {
+    this.setupTeamMonitoring();
+  }
+  
+  private setupTeamMonitoring(): void {
+    globalEventEmitter.on(AgentForgeEvents.TEAM_TASK_START, (event) => {
+      this.initializeTeamRun(event.taskId);
+    });
+    
+    globalEventEmitter.on(AgentForgeEvents.TEAM_TASK_COMPLETE, (event) => {
+      this.recordTaskCompletion(event);
+    });
+    
+    globalEventEmitter.on(AgentForgeEvents.AGENT_COMMUNICATION, (event) => {
+      this.recordCommunication(event);
+    });
+    
+    globalEventEmitter.on(AgentForgeEvents.TEAM_RUN_COMPLETE, (event) => {
+      this.finalizeTeamRun(event.taskId);
+    });
+  }
+  
+  private initializeTeamRun(taskId: string): void {
+    this.teamMetrics.set(taskId, {
+      startTime: Date.now(),
+      tasks: [],
+      communications: 0
+    });
+  }
+  
+  private recordTaskCompletion(event: TeamTaskEvent): void {
+    const metrics = this.teamMetrics.get(event.taskId);
+    if (!metrics) return;
+    
+    metrics.tasks.push({
+      agentName: event.agentName,
+      duration: event.duration || 0,
+      success: event.status === "completed"
+    });
+  }
+  
+  private recordCommunication(event: AgentCommunicationEvent): void {
+    // Count communications for all active teams
+    for (const metrics of this.teamMetrics.values()) {
+      metrics.communications++;
+    }
+  }
+  
+  private finalizeTeamRun(taskId: string): void {
+    const metrics = this.teamMetrics.get(taskId);
+    if (!metrics) return;
+    
+    const totalDuration = Date.now() - metrics.startTime;
+    const successRate = metrics.tasks.filter(t => t.success).length / metrics.tasks.length;
+    const avgTaskDuration = metrics.tasks.reduce((sum, t) => sum + t.duration, 0) / metrics.tasks.length;
+    
+    console.log(`\n🏁 Team Run Complete: ${taskId}`);
+    console.log(`   Total duration: ${totalDuration}ms`);
+    console.log(`   Success rate: ${(successRate * 100).toFixed(1)}%`);
+    console.log(`   Average task duration: ${avgTaskDuration.toFixed(0)}ms`);
+    console.log(`   Communications: ${metrics.communications}`);
+    console.log(`   Agents involved: ${new Set(metrics.tasks.map(t => t.agentName)).size}`);
+    
+    // Clean up
+    this.teamMetrics.delete(taskId);
+  }
+}
+```
+
+## Error Handling and Debugging
+
+### Event Error Handler
+```typescript
+class EventErrorHandler {
+  constructor() {
+    // Handle event emitter errors
+    globalEventEmitter.on('error', (error) => {
+      console.error('Event system error:', error);
+      this.logError(error);
+    });
+    
+    // Monitor for unusual event patterns
+    this.setupAnomalyDetection();
+  }
+  
+  private logError(error: Error): void {
+    const errorLog = {
+      timestamp: Date.now(),
+      message: error.message,
+      stack: error.stack,
+      type: 'event_system_error'
+    };
+    
+    // Log to file or external service
+    console.log('Error logged:', errorLog);
+  }
+  
+  private setupAnomalyDetection(): void {
+    const eventCounts = new Map<string, number>();
+    
+    // Reset counts every minute
+    setInterval(() => {
+      for (const [eventType, count] of eventCounts.entries()) {
+        if (count > 100) { // Threshold for concern
+          console.warn(`⚠️  High event frequency: ${eventType} (${count} events/min)`);
+        }
+      }
+      eventCounts.clear();
+    }, 60000);
+    
+    // Count events
+    const events = Object.values(AgentForgeEvents);
+    events.forEach(eventType => {
+      globalEventEmitter.on(eventType, () => {
+        const current = eventCounts.get(eventType) || 0;
+        eventCounts.set(eventType, current + 1);
+      });
+    });
+  }
+}
+```
+
+## Best Practices
+
+### Memory Management
+```typescript
+class ManagedEventListener {
+  private listeners: Array<{ event: string; listener: Function }> = [];
+  
+  on(event: string, listener: Function): void {
+    globalEventEmitter.on(event, listener);
+    this.listeners.push({ event, listener });
+  }
+  
+  cleanup(): void {
+    this.listeners.forEach(({ event, listener }) => {
+      globalEventEmitter.off(event, listener);
+    });
+    this.listeners = [];
+  }
+}
+
+// Use in components that need cleanup
+class TemporaryMonitor {
+  private eventListener = new ManagedEventListener();
+  
+  start(): void {
+    this.eventListener.on(AgentForgeEvents.AGENT_COMMUNICATION, (data) => {
+      console.log("Temporary monitoring:", data);
+    });
+  }
+  
+  stop(): void {
+    this.eventListener.cleanup();
+  }
+}
+```
+
+### Performance Optimization
+```typescript
+// Debounced event handling
+function debounce<T extends (...args: any[]) => void>(
+  func: T,
+  delay: number
+): (...args: Parameters<T>) => void {
+  let timeoutId: NodeJS.Timeout;
+  
+  return (...args: Parameters<T>) => {
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => func(...args), delay);
+  };
+}
+
+// Usage
+const debouncedHandler = debounce((data) => {
+  console.log("Debounced event:", data);
+}, 1000);
+
+globalEventEmitter.on(AgentForgeEvents.LLM_STREAM_CHUNK, debouncedHandler);
+``` 

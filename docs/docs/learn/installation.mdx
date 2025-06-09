@@ -4,12 +4,13 @@ sidebar_position: 2
 
 # Installation
 
-Getting Agent Forge set up in your project is straightforward. You can install it using your preferred Node.js package manager, Yarn or npm.
+Getting Agent Forge set up in your project is straightforward. You can install it using your preferred Node.js package manager, and we'll show you how to configure TypeScript for the decorator-based architecture.
 
 ## Prerequisites
 
-*   **Node.js:** Agent Forge requires Node.js. We recommend using version 18.x or higher. You can download it from [nodejs.org](https://nodejs.org/).
-*   **Package Manager:** You'll need either Yarn (version 1.x or newer) or npm (usually comes with Node.js).
+*   **Node.js:** Agent Forge requires Node.js version 18.x or higher. You can download it from [nodejs.org](https://nodejs.org/).
+*   **Package Manager:** You'll need either Yarn, npm, or pnpm.
+*   **TypeScript:** Agent Forge requires TypeScript 5.0+ for decorator support and metadata reflection.
 
 ## Installing Agent Forge
 
@@ -33,53 +34,271 @@ npm install agent-forge
 pnpm add agent-forge
 ```
 
-This will add `agent-forge` to your project's dependencies.
+## TypeScript Configuration
 
-## Setting up Environment Variables (Recommended)
+Agent Forge uses TypeScript decorators extensively for its modern architecture. You'll need to configure your `tsconfig.json` to enable experimental decorator support and metadata reflection.
 
-Many AI agents require API keys for Large Language Models (LLMs) or other services. Agent Forge often uses environment variables to configure these.
+Create or update your `tsconfig.json` file:
+
+```json
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "CommonJS",
+    "lib": ["ES2022"],
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "declaration": true,
+    "outDir": "./dist",
+    "rootDir": "./src"
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
+}
+```
+
+**Critical configuration options for Agent Forge:**
+- `experimentalDecorators: true` - Enables decorator syntax (`@agent`, `@tool`, etc.)
+- `emitDecoratorMetadata: true` - Required for runtime decorator functionality and reflection
+- `target: "ES2022"` - Ensures modern JavaScript features are supported
+
+### Environment Setup
+
+Agent Forge's decorator system works with standard TypeScript decorators - no additional polyfills are required.
+
+## Environment Variables Setup
+
+Agent Forge agents require API keys for Large Language Models (LLMs) and other services. Use environment variables to keep your keys secure.
 
 **⚠️ Security Note:** Never hardcode API keys directly in your source code. Always use environment variables to keep your keys secure and prevent them from being accidentally committed to version control.
 
-It's a good practice to use a `.env` file to manage your API keys and other sensitive information. Install the `dotenv` package if you haven't already:
+### Using a .env file
 
-### Using Yarn
-```bash
-yarn add dotenv
-```
+Install the `dotenv` package to manage environment variables:
 
-### Using npm
 ```bash
+# Using npm
 npm install dotenv
+
+# Using yarn
+yarn add dotenv
+
+# Using pnpm
+pnpm add dotenv
 ```
 
-Then, create a `.env` file in the root of your project:
+Create a `.env` file in your project root:
 
 ```env
-# .env file
-OPENAI_API_KEY="your_openai_api_key_here"
-# Add other API keys or configurations as needed
-# ANTHROPIC_API_KEY="your_anthropic_api_key_here"
+# LLM Configuration
+LLM_PROVIDER=openai
+LLM_API_KEY=your_openai_api_key_here
+LLM_API_MODEL=gpt-4
+
+# Optional: Other API keys
+SEARX_INSTANCE_URL=https://searx.space
+BRAVE_API_KEY=your_brave_api_key_here
+SEC_API_KEY=your_sec_api_key_here
+
+# Optional: RAG Configuration
+CHROMA_URL=http://localhost:8000
+
+# Optional: A2A Configuration
+A2A_SERVER_PORT=3000
+A2A_CLIENT_URL=http://localhost:3000/a2a
 ```
 
-**Important:** Remember to add `.env` to your `.gitignore` file to prevent committing your API keys to version control.
+**Important:** Add `.env` to your `.gitignore` file to prevent committing secrets:
 
 ```gitignore
 # .gitignore
 .env
+node_modules/
+dist/
 ```
 
-In your application code (usually at the entry point, like `index.ts` or `app.ts`), you can then load these environment variables:
+### Loading Environment Variables
+
+In your main application file, load the environment variables:
 
 ```typescript
-import dotenv from 'dotenv';
+import * as dotenv from "dotenv";
+
+// Load environment variables from .env file
 dotenv.config();
 
-// Your Agent Forge application logic starts here
+// Your Agent Forge application code starts here
+```
+
+## Project Structure
+
+Here's a recommended project structure for Agent Forge applications using the decorator architecture:
+
+```
+my-agent-project/
+├── src/
+│   ├── agents/
+│   │   ├── research-agent.ts
+│   │   ├── writer-agent.ts
+│   │   └── manager-agent.ts
+│   ├── tools/
+│   │   └── custom-tool.ts
+│   ├── plugins/
+│   │   └── custom-plugin.ts
+│   └── app.ts                 # Main application with @forge decorator
+├── .env
+├── .gitignore
+├── package.json
+└── tsconfig.json
+```
+
+## Development Tools
+
+For the best development experience, we recommend:
+
+### Using ts-node for Development
+
+Install `ts-node` to run TypeScript files directly:
+
+```bash
+npm install --save-dev ts-node @types/node
+```
+
+Then you can run your Agent Forge applications directly:
+
+```bash
+npx ts-node src/app.ts
+```
+
+### IDE Configuration
+
+For Visual Studio Code, we recommend these extensions:
+- **TypeScript Hero** - For better import management
+- **Prettier** - For code formatting
+- **ESLint** - For code linting
+- **TypeScript Importer** - For automatic import suggestions
+
+### Debugging Support
+
+Enable debugging in VS Code by creating `.vscode/launch.json`:
+
+```json
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Debug Agent Forge App",
+      "program": "${workspaceFolder}/src/app.ts",
+      "runtimeArgs": ["-r", "ts-node/register"],
+      "sourceMaps": true,
+      "env": {
+        "NODE_ENV": "development"
+      }
+    }
+  ]
+}
+```
+
+## Verification
+
+Create a simple test file to verify your installation with the new decorator architecture:
+
+```typescript
+// test-installation.ts
+import * as dotenv from "dotenv";
+import { agent, llmProvider, forge, readyForge, Agent, AgentForge, LLMProvider } from "agent-forge";
+
+dotenv.config();
+
+@agent({
+  name: "Test Agent",
+  role: "Test Assistant",
+  description: "A simple agent to test the installation",
+  objective: "Respond to basic queries",
+  model: process.env.LLM_API_MODEL || "gpt-3.5-turbo",
+  temperature: 0.7
+})
+class TestAgent extends Agent {}
+
+@llmProvider(process.env.LLM_PROVIDER as LLMProvider, {
+  apiKey: process.env.LLM_API_KEY
+})
+@forge()
+class TestApp {
+  static forge: AgentForge;
+
+  static async run() {
+    try {
+      await readyForge(TestApp, [TestAgent]);
+      
+      console.log("🚀 Agent Forge initialized successfully!");
+      console.log("📝 Available agents:", TestApp.forge.getAgents().map(a => a.name));
+      
+      const result = await TestApp.forge.runAgent("Test Agent", "Hello, are you working?");
+      console.log("✅ Agent Response:", result.output);
+      console.log("⏱️  Execution Time:", result.metadata.executionTime, "ms");
+      
+    } catch (error) {
+      console.error("❌ Error:", error);
+    } finally {
+      process.exit(0);
+    }
+  }
+}
+
+TestApp.run().catch(console.error);
+```
+
+Run the test:
+
+```bash
+npx ts-node test-installation.ts
+```
+
+If everything is set up correctly, you should see output similar to:
+
+```
+🚀 Agent Forge initialized successfully!
+📝 Available agents: [ 'Test Agent' ]
+✅ Agent Response: Hello! Yes, I'm working correctly. Agent Forge is properly configured and ready to help you build AI applications.
+⏱️  Execution Time: 1245 ms
+```
+
+## Common Issues
+
+### "experimentalDecorators" Error
+If you see decorator-related errors, ensure your `tsconfig.json` has both:
+```json
+{
+  "compilerOptions": {
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true
+  }
+}
+```
+
+### Import Errors
+Ensure you're importing from the correct path:
+```typescript
+import { Agent, AgentForge } from "agent-forge";
+```
+
+### Environment Variables Not Loading
+Ensure `dotenv.config()` is called before using environment variables:
+```typescript
+import * as dotenv from "dotenv";
+dotenv.config(); // Call this early
 ```
 
 ## Next Steps
 
-With Agent Forge installed and your environment potentially configured, you're ready to build your first agent!
+With Agent Forge installed and configured, you're ready to build your first agent!
 
-Head over to the [Building Your First Agent](./your-first-agent.mdx) tutorial. 
+Head over to the [Building Your First Agent](./your-first-agent.mdx) tutorial to get started with the decorator-based architecture. 

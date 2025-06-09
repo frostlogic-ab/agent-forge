@@ -5,7 +5,7 @@ import Layout from "@theme/Layout";
 import clsx from "clsx";
 import React from "react";
 
-import Svg from "@site/static/img/agent-forge-diagram.svg?react";
+import Svg from "@site/static/img/agent-forge.webp";
 import styles from "./index.module.css";
 
 function HomepageHeader() {
@@ -18,11 +18,12 @@ function HomepageHeader() {
           <p className="hero__subtitle">{siteConfig.tagline}</p>
 
           <p className={styles.heroIntro}>
-            Agent Forge is a comprehensive TypeScript framework for creating
-            sophisticated AI agents. Define agents using simple YAML, integrate
-            with leading LLM providers, leverage a rich tool ecosystem, and
-            orchestrate complex workflows or collaborative agent teams. Start
-            forging your intelligent agents today!
+            Agent Forge is a modern TypeScript framework for building AI agent
+            systems using a powerful decorator-based architecture. Define agents
+            with simple decorators, integrate seamlessly with LLM providers, add
+            capabilities with tool decorators, and orchestrate complex
+            multi-agent workflows. Experience the future of declarative AI
+            development!
           </p>
 
           <div className={styles.buttons}>
@@ -30,20 +31,15 @@ function HomepageHeader() {
               className="button button--secondary button--lg"
               to="/docs/learn/intro"
             >
-              Get Started - 5min Tutorial 🚀
-            </Link>
-            <Link
-              className="button button--info button--lg"
-              to="/docs/reference/intro"
-            >
-              Explore Core Concepts 🔍
+              Get Started
             </Link>
           </div>
         </div>
 
         <div className={styles.heroRight}>
-          <Svg
+          <img
             className={styles.heroImage}
+            src={Svg}
             alt="Agent Forge Architecture Diagram"
           />
         </div>
@@ -55,8 +51,8 @@ function HomepageHeader() {
 export default function Home() {
   return (
     <Layout
-      title="Build AI Agents with Ease"
-      description="Agent Forge is a TypeScript framework for creating, orchestrating, and deploying AI agents with LLM integration."
+      title="Build AI Agents with Modern TypeScript"
+      description="Agent Forge is a decorator-driven TypeScript framework for creating, orchestrating, and deploying AI agents with seamless LLM integration."
     >
       <HomepageHeader />
       <main>

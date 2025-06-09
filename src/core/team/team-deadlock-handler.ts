@@ -1,19 +1,26 @@
 import type { AgentResult, Task } from "../../types";
 import type { Agent } from "../agent";
+import type { TeamRunLogger } from "./team-run-logger";
 
 export class TeamDeadlockHandler {
   private manager: Agent;
   private verbose: boolean;
   private logVerbose: (message: string, icon?: string) => void;
+  private teamRunLogger?: TeamRunLogger;
 
+  /**
+   * @param teamRunLogger Optional logger for timeline visualization
+   */
   constructor(
     manager: Agent,
     logVerbose: (message: string, icon?: string) => void,
-    verbose = false
+    verbose = false,
+    teamRunLogger?: TeamRunLogger
   ) {
     this.manager = manager;
     this.logVerbose = logVerbose;
     this.verbose = verbose;
+    this.teamRunLogger = teamRunLogger;
   }
 
   public async handlePotentialDeadlock(
@@ -52,6 +59,16 @@ Please analyze the 'Current task status' CAREFULLY. Provide revised instructions
 IMPORTANT: If you choose option 5, start your message with "FINAL RESPONSE:" and provide a complete answer to the original task using ONLY confirmed information from COMPLETED TASKS.
 `;
 
+    if (this.teamRunLogger) {
+      this.teamRunLogger.log({
+        type: "DeadlockDetected",
+        actor: "System",
+        summary: "Potential deadlock detected, requesting manager guidance",
+        details: { deadlockedPrompt },
+        timestamp: Date.now(),
+      });
+    }
+
     const deadlockResult = await this.manager.run(deadlockedPrompt);
     conversationHistory.push(
       `Manager (Deadlock Resolution): ${deadlockResult.output}`
@@ -60,6 +77,15 @@ IMPORTANT: If you choose option 5, start your message with "FINAL RESPONSE:" and
       this.logVerbose(
         `\n👨‍💼 Manager (Deadlock Resolution):\n${deadlockResult.output}\n`
       );
+    }
+    if (this.teamRunLogger) {
+      this.teamRunLogger.log({
+        type: "ManagerDeadlockResponse",
+        actor: this.manager.name,
+        summary: "Manager response to deadlock",
+        details: { response: deadlockResult.output },
+        timestamp: Date.now(),
+      });
     }
     return deadlockResult;
   }

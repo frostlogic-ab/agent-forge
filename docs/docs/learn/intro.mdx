@@ -2,27 +2,107 @@
 sidebar_position: 1
 ---
 
-# Welcome to Agent Forge Learning
+# Welcome to Agent Forge
 
-Welcome to the **Agent Forge** documentation! This section is designed to help you learn everything you need to know to build powerful and sophisticated AI agents using our framework.
+Welcome to **Agent Forge** – a powerful TypeScript framework designed to simplify the creation, orchestration, and deployment of AI agents using a modern decorator-based architecture.
 
-Agent Forge is a TypeScript-based framework that simplifies the development, orchestration, and management of AI agents integrated with Large Language Models (LLMs). Whether you're a seasoned AI developer or just starting, our goal is to provide you with clear, concise, and practical guidance.
+Agent Forge enables developers to build sophisticated AI systems through declarative patterns that make complex agent orchestration as simple as adding decorators to classes.
 
 ## What You'll Learn
 
 In this "Learn" section, we'll cover:
 
-*   **Getting Started:** How to install Agent Forge and build your very first agent.
-*   **Core Concepts:** Deep dives into the fundamental building blocks like Agents, Tools, LLM integrations, and configuration.
-*   **Practical Examples:** Step-by-step tutorials based on real-world use cases, showcasing how to leverage Agent Forge for various tasks.
-*   **Advanced Topics:** Techniques for building more complex agentic workflows, multi-agent systems, and custom extensions.
+*   **Getting Started:** How to install Agent Forge and create your first agent using decorators
+*   **Core Concepts:** Deep dives into the decorator-based architecture, agent classes, tools, and orchestration patterns
+*   **Practical Examples:** Step-by-step tutorials showing real-world applications
+*   **Advanced Topics:** Complex multi-agent systems, A2A communication, RAG integration, and plugin development
+
+## Why Agent Forge?
+
+### 🎯 **Decorator-Driven Development**
+Define agents, tools, and configurations using simple, intuitive decorators:
+
+```typescript
+@agent({
+  name: "Research Assistant",
+  role: "Research Specialist",
+  description: "An AI agent that specializes in research and analysis",
+  objective: "Find accurate and relevant information on any topic",
+  model: "gpt-4",
+  temperature: 0.7
+})
+class ResearchAgent extends Agent {}
+```
+
+### 🔧 **Effortless Tool Integration**
+Add capabilities to your agents with zero boilerplate:
+
+```typescript
+@tool(WebSearchTool)
+@tool(CalculatorTool)
+@agent({ /* config */ })
+class AssistantAgent extends Agent {}
+```
+
+### 🌐 **Built-in Agent-to-Agent Communication**
+Enable distributed agent systems with simple decorators:
+
+```typescript
+@a2aClient({ serverUrl: "http://localhost:3000/a2a" })
+class RemoteAgent extends Agent {}
+
+@a2aServer({ port: 3000 })
+class ServerAgent extends Agent {}
+```
+
+### 📚 **Seamless RAG Integration**
+Add knowledge base capabilities instantly:
+
+```typescript
+@RAGChromaDb({
+  collectionName: "knowledge_base",
+  chromaUrl: "http://localhost:8000",
+  topK: 5
+})
+@agent({ /* config */ })
+class KnowledgeAgent extends Agent {}
+```
+
+### 🔄 **Powerful Orchestration**
+Create teams and workflows that coordinate multiple agents:
+
+```typescript
+@llmProvider("openai", { apiKey: process.env.OPENAI_API_KEY })
+@forge()
+class MyApplication {
+  static forge: AgentForge;
+
+  static async run() {
+    await readyForge(MyApplication, [ManagerAgent, ResearchAgent, WriterAgent]);
+    
+    const team = MyApplication.forge
+      .createTeam("ManagerAgent")
+      .addAgent(MyApplication.forge.getAgent("ResearchAgent")!)
+      .addAgent(MyApplication.forge.getAgent("WriterAgent")!);
+      
+    const result = await team.run("Create a comprehensive report on AI trends");
+  }
+}
+```
+
+### ⚡ **Advanced Features Out of the Box**
+- **Rate Limiting:** Built-in API rate limiting with `@RateLimiter`
+- **Visualization:** Execution timeline tracking with `@Visualizer`
+- **Plugins:** Extensible plugin system with `@plugin`
+- **MCP Integration:** Model Context Protocol support with `@MCP`
+- **Error Handling:** Robust error handling and recovery mechanisms
 
 ## Prerequisites
 
 Before you dive in, we recommend having a basic understanding of:
 
 *   Node.js and npm/yarn
-*   TypeScript (though many examples can be understood with JavaScript knowledge)
+*   TypeScript (especially decorators)
 *   General concepts of AI and Large Language Models (LLMs)
 
 ## Let's Get Building!

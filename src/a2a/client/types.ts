@@ -1,7 +1,8 @@
 export interface A2AClientOptions {
   serverUrl: string; // Base URL of the A2A agent server (e.g., "http://localhost:41241/a2a")
   fetch?: typeof fetch; // Optional custom fetch implementation (for Node.js or specific environments)
-  // Optional: custom logger, default request headers, etc.
+  taskStatusRetries?: number; // Number of retries to get task status
+  taskStatusRetryDelay?: number; // Delay between retries in milliseconds
 }
 
 export interface A2AClientSubscription {

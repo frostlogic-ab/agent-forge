@@ -214,6 +214,16 @@ export interface TeamRunOptions {
    * Only applicable when stream is true
    */
   enableConsoleStream?: boolean;
+
+  /**
+   * Maximum number of turns to run
+   */
+  maxTurns?: number;
+
+  /**
+   * Maximum execution time in milliseconds (default: 2 minutes)
+   */
+  maxExecutionTime?: number;
 }
 
 /**
@@ -228,4 +238,17 @@ export interface Task {
   result?: string;
   startTime?: number;
   endTime?: number;
+}
+
+export interface RateLimiterConfig {
+  rateLimitPerSecond?: number;
+  rateLimitPerMinute?: number;
+  toolSpecificLimits?: {
+    [toolNamePattern: string]: {
+      rateLimitPerSecond?: number;
+      rateLimitPerMinute?: number;
+    };
+  };
+  verbose?: boolean;
+  cacheTTL?: number;
 }

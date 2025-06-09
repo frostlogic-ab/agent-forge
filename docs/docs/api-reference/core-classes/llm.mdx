@@ -1,0 +1,623 @@
+---
+id: llm
+title: LLM
+---
+
+# LLM
+
+The `LLM` class provides a unified interface for working with various language model providers. It abstracts the differences between providers like OpenAI, Anthropic, Google, Azure, and others through the Token.js library.
+
+## Static Factory Method
+
+### create()
+Create an LLM instance with the specified provider and configuration.
+
+```typescript
+static async create(provider: LLMProvider, config: ConfigOptions): Promise<LLM>
+```
+
+**Parameters:**
+- `provider`: The LLM provider name (e.g., "openai", "anthropic", "google")
+- `config`: Provider-specific configuration options
+
+**LLMProvider Types:**
+```typescript
+type LLMProvider = 
+  | "openai" 
+  | "anthropic" 
+  | "google" 
+  | "azure" 
+  | "groq" 
+  | "ollama" 
+  | "cohere"
+  | "together"
+  | "perplexity"
+  // ... and more
+```
+
+**ConfigOptions:**
+```typescript
+interface ConfigOptions {
+  apiKey?: string;           // API key for the provider
+  baseUrl?: string;          // Custom base URL
+  organizationId?: string;   // Organization ID (OpenAI)
+  maxRetries?: number;       // Maximum retry attempts
+  timeout?: number;          // Request timeout in milliseconds
+  // Provider-specific options...
+}
+```
+
+## Methods
+
+### Core LLM Operations
+
+#### chat()
+Send a chat completion request.
+
+```typescript
+async chat(params: ChatCompletionParams): Promise<LLMResponse>
+```
+
+**ChatCompletionParams:**
+```typescript
+interface ChatCompletionParams {
+  messages: ChatCompletionMessageParam[];
+  model?: string;
+  temperature?: number;
+  maxTokens?: number;
+  topP?: number;
+  stream?: false;  // For non-streaming
+  tools?: ChatCompletionTool[];
+  // ... other provider-specific options
+}
+```
+
+#### chatStream()
+Send a streaming chat completion request.
+
+```typescript
+async chatStream(params: ChatStreamingParams & {
+  onChunk: (chunk: CompletionResponseChunk) => void;
+}): Promise<LLMResponse>
+```
+
+#### complete()
+Send a text completion request (for providers that support it).
+
+```typescript
+async complete(params: CompletionParams): Promise<LLMResponse>
+```
+
+### Response Types
+
+#### LLMResponse
+```typescript
+interface LLMResponse {
+  content: string;                    // Generated text content
+  model: string;                      // Model used for generation
+  tokenUsage?: {
+    completion: number;               // Completion tokens used
+    prompt: number;                   // Prompt tokens used  
+    total: number;                    // Total tokens used
+  };
+  toolCalls?: LLMResponseToolCall[];  // Tool calls made by the model
+}
+```
+
+#### LLMResponseToolCall
+```typescript
+interface LLMResponseToolCall {
+  id: string;                         // Unique call ID
+  toolName: string;                   // Name of the tool called
+  parameters: Record<string, any>;    // Parameters passed to tool
+}
+```
+
+### Event System
+
+#### getEventEmitter()
+Get the event emitter for LLM events.
+
+```typescript
+getEventEmitter(): EventEmitter
+```
+
+**Available Events:**
+- `streamChunk`: Emitted for each streaming response chunk
+- `requestStart`: Emitted when a request starts
+- `requestComplete`: Emitted when a request completes
+- `error`: Emitted on request errors
+
+## Usage Examples
+
+### Basic LLM Setup
+
+```typescript
+import { LLM } from "agent-forge";
+
+// Create LLM instance
+const llm = await LLM.create("openai", {
+  apiKey: process.env.OPENAI_API_KEY,
+  maxRetries: 3,
+  timeout: 30000
+});
+
+// Basic chat completion
+const response = await llm.chat({
+  messages: [
+    { role: "user", content: "What is artificial intelligence?" }
+  ],
+  model: "gpt-4",
+  temperature: 0.7,
+  maxTokens: 500
+});
+
+console.log(response.content);
+console.log(`Used ${response.tokenUsage?.total} tokens`);
+```
+
+### Streaming Responses
+
+```typescript
+const llm = await LLM.create("openai", {
+  apiKey: process.env.OPENAI_API_KEY
+});
+
+// Handle streaming response
+const response = await llm.chatStream({
+  messages: [
+    { role: "user", content: "Write a story about a robot." }
+  ],
+  model: "gpt-4",
+  temperature: 0.8,
+  onChunk: (chunk) => {
+    if (chunk.content) {
+      process.stdout.write(chunk.content);
+    }
+  }
+});
+
+console.log("\n\nFinal response:", response.content);
+```
+
+### Multiple Providers
+
+```typescript
+// OpenAI
+const openaiLLM = await LLM.create("openai", {
+  apiKey: process.env.OPENAI_API_KEY
+});
+
+// Anthropic
+const anthropicLLM = await LLM.create("anthropic", {
+  apiKey: process.env.ANTHROPIC_API_KEY
+});
+
+// Google 
+const googleLLM = await LLM.create("google", {
+  apiKey: process.env.GOOGLE_API_KEY
+});
+
+// Azure OpenAI
+const azureLLM = await LLM.create("azure", {
+  apiKey: process.env.AZURE_OPENAI_API_KEY,
+  baseUrl: "https://your-resource.openai.azure.com/",
+  // Azure-specific configuration
+});
+
+// Use them interchangeably
+const providers = [openaiLLM, anthropicLLM, googleLLM];
+for (const provider of providers) {
+  const response = await provider.chat({
+    messages: [{ role: "user", content: "Hello!" }],
+    model: "gpt-4" // Each provider maps to appropriate model
+  });
+  console.log(`Response: ${response.content}`);
+}
+```
+
+### Tool Integration
+
+```typescript
+const llm = await LLM.create("openai", {
+  apiKey: process.env.OPENAI_API_KEY
+});
+
+// Define tools for the LLM
+const tools = [
+  {
+    type: "function",
+    function: {
+      name: "calculate",
+      description: "Perform mathematical calculations",
+      parameters: {
+        type: "object",
+        properties: {
+          expression: {
+            type: "string",
+            description: "Mathematical expression to evaluate"
+          }
+        },
+        required: ["expression"]
+      }
+    }
+  }
+];
+
+const response = await llm.chat({
+  messages: [
+    { role: "user", content: "What is 25 * 4 + 10?" }
+  ],
+  model: "gpt-4",
+  tools: tools
+});
+
+// Check if model made tool calls
+if (response.toolCalls && response.toolCalls.length > 0) {
+  for (const toolCall of response.toolCalls) {
+    console.log(`Tool called: ${toolCall.toolName}`);
+    console.log(`Parameters:`, toolCall.parameters);
+    
+    // Execute tool and send result back
+    // (This is typically handled automatically by Agent class)
+  }
+}
+```
+
+### Advanced Configuration
+
+```typescript
+// Provider-specific advanced configuration
+const advancedLLM = await LLM.create("openai", {
+  apiKey: process.env.OPENAI_API_KEY,
+  organizationId: process.env.OPENAI_ORG_ID,
+  baseUrl: "https://api.openai.com/v1", // Custom base URL
+  maxRetries: 5,                         // Retry failed requests
+  timeout: 60000,                        // 60 second timeout
+  // Additional Token.js options...
+});
+
+// Complex chat with all options
+const response = await advancedLLM.chat({
+  messages: [
+    { role: "system", content: "You are a helpful assistant." },
+    { role: "user", content: "Explain quantum computing." }
+  ],
+  model: "gpt-4",
+  temperature: 0.7,
+  maxTokens: 1000,
+  topP: 0.9,
+  frequencyPenalty: 0.1,
+  presencePenalty: 0.1,
+  stopSequences: ["END", "STOP"]
+});
+```
+
+## Event Handling
+
+### Listening to LLM Events
+
+```typescript
+const llm = await LLM.create("openai", {
+  apiKey: process.env.OPENAI_API_KEY
+});
+
+const eventEmitter = llm.getEventEmitter();
+
+// Listen for streaming chunks
+eventEmitter.on('streamChunk', (chunk) => {
+  console.log('Received chunk:', chunk.content);
+});
+
+// Listen for request completion
+eventEmitter.on('requestComplete', (response) => {
+  console.log('Request completed:', response.tokenUsage);
+});
+
+// Listen for errors
+eventEmitter.on('error', (error) => {
+  console.error('LLM Error:', error);
+});
+
+// Make streaming request
+const response = await llm.chatStream({
+  messages: [{ role: "user", content: "Tell me a joke." }],
+  model: "gpt-4",
+  onChunk: (chunk) => {
+    // This will also trigger the streamChunk event
+  }
+});
+```
+
+## Provider-Specific Examples
+
+### OpenAI Configuration
+
+```typescript
+const openai = await LLM.create("openai", {
+  apiKey: process.env.OPENAI_API_KEY,
+  organizationId: process.env.OPENAI_ORG_ID, // Optional
+  maxRetries: 3,
+  timeout: 30000
+});
+
+// Use OpenAI-specific models
+const response = await openai.chat({
+  messages: [{ role: "user", content: "Hello!" }],
+  model: "gpt-4-turbo-preview", // Latest GPT-4
+  temperature: 0.7
+});
+```
+
+### Anthropic Configuration
+
+```typescript
+const anthropic = await LLM.create("anthropic", {
+  apiKey: process.env.ANTHROPIC_API_KEY,
+  maxRetries: 3
+});
+
+// Use Claude models
+const response = await anthropic.chat({
+  messages: [{ role: "user", content: "Explain machine learning." }],
+  model: "claude-3-opus-20240229",
+  temperature: 0.5,
+  maxTokens: 1000
+});
+```
+
+### Google (Gemini) Configuration
+
+```typescript
+const google = await LLM.create("google", {
+  apiKey: process.env.GOOGLE_API_KEY
+});
+
+// Use Gemini models
+const response = await google.chat({
+  messages: [{ role: "user", content: "What's the weather like?" }],
+  model: "gemini-pro",
+  temperature: 0.8
+});
+```
+
+### Azure OpenAI Configuration
+
+```typescript
+const azure = await LLM.create("azure", {
+  apiKey: process.env.AZURE_OPENAI_API_KEY,
+  baseUrl: "https://your-resource.openai.azure.com/",
+  // Azure uses deployment names instead of model names
+});
+
+const response = await azure.chat({
+  messages: [{ role: "user", content: "Hello Azure!" }],
+  model: "your-gpt-4-deployment-name",
+  temperature: 0.7
+});
+```
+
+### Local Models (Ollama)
+
+```typescript
+const ollama = await LLM.create("ollama", {
+  baseUrl: "http://localhost:11434", // Ollama default
+});
+
+// Use local models
+const response = await ollama.chat({
+  messages: [{ role: "user", content: "Hello local model!" }],
+  model: "llama2", // Must be installed in Ollama
+  temperature: 0.7
+});
+```
+
+## Error Handling
+
+```typescript
+try {
+  const llm = await LLM.create("openai", {
+    apiKey: "invalid-key"
+  });
+  
+  const response = await llm.chat({
+    messages: [{ role: "user", content: "Hello!" }],
+    model: "gpt-4"
+  });
+} catch (error) {
+  if (error instanceof Error) {
+    console.error("LLM Error:", error.message);
+    
+    // Handle specific error types
+    if (error.message.includes("authentication")) {
+      console.log("Invalid API key");
+    } else if (error.message.includes("rate limit")) {
+      console.log("Rate limit exceeded");
+    } else if (error.message.includes("quota")) {
+      console.log("Quota exceeded");
+    }
+  }
+}
+```
+
+## Integration with Agent Forge
+
+### With Agents
+
+```typescript
+import { Agent } from "agent-forge";
+
+// Create LLM
+const llm = await LLM.create("openai", {
+  apiKey: process.env.OPENAI_API_KEY
+});
+
+// Create agent with LLM
+const agent = new Agent({
+  name: "Assistant",
+  role: "Helpful Assistant",
+  description: "A general-purpose assistant",
+  objective: "Help users with their questions",
+  model: "gpt-4"
+}, [], llm); // Pass LLM as third parameter
+
+// Or set LLM after creation
+agent.setLLMProvider(llm);
+```
+
+### With Decorators
+
+```typescript
+import { llmProvider, forge, agent, Agent } from "agent-forge";
+
+@llmProvider("openai", { apiKey: process.env.OPENAI_API_KEY })
+@forge()
+class MyApp {
+  static forge: AgentForge;
+  
+  static async run() {
+    // LLM is automatically configured for all agents
+    const agent = new MyAgent();
+    const result = await agent.run("Hello!");
+  }
+}
+
+@agent({
+  name: "Assistant",
+  role: "Helper",
+  description: "A helpful assistant",
+  objective: "Assist users",
+  model: "gpt-4"
+})
+class MyAgent extends Agent {}
+```
+
+## Best Practices
+
+### 1. API Key Security
+```typescript
+// Good: Use environment variables
+const llm = await LLM.create("openai", {
+  apiKey: process.env.OPENAI_API_KEY
+});
+
+// Avoid: Hard-coding keys
+const llm = await LLM.create("openai", {
+  apiKey: "sk-..." // Never do this!
+});
+```
+
+### 2. Error Handling and Retries
+```typescript
+const llm = await LLM.create("openai", {
+  apiKey: process.env.OPENAI_API_KEY,
+  maxRetries: 3,        // Automatic retries
+  timeout: 30000        // Prevent hanging requests
+});
+
+// Add application-level retry logic for critical operations
+const makeRequest = async (retries = 3) => {
+  for (let i = 0; i < retries; i++) {
+    try {
+      return await llm.chat({
+        messages: [{ role: "user", content: "Important request" }],
+        model: "gpt-4"
+      });
+    } catch (error) {
+      if (i === retries - 1) throw error;
+      await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
+    }
+  }
+};
+```
+
+### 3. Resource Management
+```typescript
+// Reuse LLM instances instead of creating new ones
+class LLMManager {
+  private static instances = new Map<string, LLM>();
+  
+  static async getInstance(provider: string, config: any): Promise<LLM> {
+    const key = `${provider}:${JSON.stringify(config)}`;
+    
+    if (!this.instances.has(key)) {
+      const llm = await LLM.create(provider as any, config);
+      this.instances.set(key, llm);
+    }
+    
+    return this.instances.get(key)!;
+  }
+}
+```
+
+### 4. Token Management
+```typescript
+// Monitor token usage
+const response = await llm.chat({
+  messages: [{ role: "user", content: "Long prompt..." }],
+  model: "gpt-4"
+});
+
+if (response.tokenUsage) {
+  console.log(`Tokens used: ${response.tokenUsage.total}`);
+  
+  // Warn about high usage
+  if (response.tokenUsage.total > 3000) {
+    console.warn("High token usage detected");
+  }
+}
+```
+
+## Troubleshooting
+
+### Common Issues
+
+**Authentication Errors:**
+```typescript
+// Check API key validity
+try {
+  await llm.chat({
+    messages: [{ role: "user", content: "Test" }],
+    model: "gpt-4"
+  });
+} catch (error) {
+  if (error.message.includes("authentication")) {
+    console.log("Check your API key and ensure it's valid");
+  }
+}
+```
+
+**Rate Limiting:**
+```typescript
+// Handle rate limits gracefully
+const chatWithBackoff = async (llm: LLM, messages: any[]) => {
+  try {
+    return await llm.chat({ messages, model: "gpt-4" });
+  } catch (error) {
+    if (error.message.includes("rate limit")) {
+      console.log("Rate limited, waiting before retry...");
+      await new Promise(resolve => setTimeout(resolve, 5000));
+      return await llm.chat({ messages, model: "gpt-4" });
+    }
+    throw error;
+  }
+};
+```
+
+**Model Availability:**
+```typescript
+// Check if model is available for provider
+const safeChat = async (llm: LLM, messages: any[], preferredModel: string) => {
+  try {
+    return await llm.chat({ messages, model: preferredModel });
+  } catch (error) {
+    if (error.message.includes("model")) {
+      console.log(`Model ${preferredModel} not available, falling back...`);
+      return await llm.chat({ messages, model: "gpt-3.5-turbo" });
+    }
+    throw error;
+  }
+};
+```
+
+See also: [Agent](./agent), [AgentForge](./agent-forge), [LLM Providers Guide](../../learn/fundamentals/llm-providers) 

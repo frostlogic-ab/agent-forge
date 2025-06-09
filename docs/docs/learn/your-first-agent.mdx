@@ -2,81 +2,345 @@
 sidebar_position: 3
 ---
 
-# Building Your First Agent Programmatically
+# Building Your First Agent
 
-This tutorial will guide you through creating and running a basic AI agent by instantiating the `Agent` class directly using Agent Forge.
+This tutorial will guide you through creating and running your first AI agent using Agent Forge's decorator-based architecture. You'll learn how to define agents with decorators, configure LLM providers, and orchestrate agent execution.
 
 ## Prerequisites
 
-*   Agent Forge installed (see [Installation](./installation.mdx)).
-*   An LLM API Key (e.g., OpenAI) set up. You can set this as an environment variable (e.g., `OPENAI_API_KEY`). See the [Installation guide](./installation.mdx) for more on environment variables.
+*   Agent Forge installed (see [Installation](./installation.mdx))
+*   An LLM API Key (e.g., OpenAI) set up in your environment variables
+*   TypeScript configured with decorator support
 
-## Step 1: Create Agent Forge Instance & LLM Provider
+## Step 1: Set Up Your Project
 
-First, you need to initialize an `LLM` provider and then an `AgentForge` instance. The `LLM` class acts as a wrapper around different Large Language Model providers, offering a unified interface.
+First, create a new file for your agent application:
 
 ```typescript
-// myFirstAgent.ts
-import { AgentForge, LLM, Agent } from "agent-forge";
-import dotenv from 'dotenv';
+// my-first-agent.ts
+import * as dotenv from "dotenv";
+import { 
+  agent, 
+  llmProvider, 
+  forge, 
+  readyForge, 
+  Agent, 
+  AgentForge, 
+  LLMProvider 
+} from "agent-forge";
 
-dotenv.config(); // Load environment variables from .env file
+// Load environment variables
+dotenv.config();
+```
 
-async function main() {
-  // Create an LLM provider
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
-    // It's good practice to handle the absence of an API key.
-    // For a production app, you might throw an error or use a default behavior.
-    console.error("Error: OPENAI_API_KEY is not set. Please set it in your .env file or directly.");
-    return;
-  }
+## Step 2: Define Your Agent with the @agent Decorator
 
-  const llmProvider = new LLM("openai", {
-    apiKey,
-  });
+Agent Forge uses decorators to define agent configurations declaratively. Here's how to create a simple research agent:
 
-  // Create the AgentForge instance (optional for direct agent instantiation if not using other Forge features like YAML loading or global tool registration)
-  const forge = new AgentForge(llmProvider);
-  // console.log("AgentForge instance and LLM provider created.");
+```typescript
+@agent({
+  name: "ResearchAssistant",
+  role: "Research Specialist",
+  description: "An AI agent that specializes in research and information gathering",
+  objective: "Find accurate and relevant information on any given topic",
+  model: process.env.LLM_API_MODEL || "gpt-4",
+  temperature: 0.7
+})
+class ResearchAgent extends Agent {}
+```
 
-  // Define and Instantiate Your Agent
-  const researchAgent = new Agent({
-    name: "ResearchAgentProgrammatic",
-    role: "Research Assistant",
-    description: "An agent that helps with online research, created programmatically.",
-    objective: "Find accurate and relevant information based on user queries.",
-    model: "gpt-4", // Or your preferred model like gpt-3.5-turbo. Ensure compatibility with your API key.
-    temperature: 0.7,
-    llm: llmProvider, // Assign the LLM provider directly
-    tools: [
-      // Example: If you have a WebSearchTool class instance, you could add it here:
-      // new WebSearchTool() 
-      // For this first example, we are not adding specific tools to keep it simple.
-    ],
-  });
-  // console.log(`Agent '${researchAgent.name}' created programmatically.`);
-  
-  // Run Your Agent
-  // console.log("Running agent...");
-  try {
-    const result = await researchAgent.run("What are the latest developments in AI?");
-    console.log("\nAgent Execution Result:", result);
-  } catch (error) {
-    console.error("Error running agent:", error);
+**Understanding the @agent decorator:**
+
+- `name`: Unique identifier for your agent - used to reference it in your application
+- `role`: The agent's primary function or persona - influences how it responds
+- `description`: What the agent does - provides context for the LLM
+- `objective`: The agent's specific goal - guides the agent's behavior
+- `model`: Which LLM model to use (e.g., "gpt-4", "gpt-3.5-turbo", "claude-3-opus")
+- `temperature`: Controls creativity (0.0 = focused and deterministic, 1.0 = creative and random)
+
+## Step 3: Configure Your Application with @llmProvider and @forge
+
+Create the main application class that will manage your agents using the decorator pattern:
+
+```typescript
+@llmProvider(process.env.LLM_PROVIDER as LLMProvider, {
+  apiKey: process.env.LLM_API_KEY
+})
+@forge()
+class MyFirstAgentApp {
+  static forge: AgentForge;
+
+  static async run() {
+    // Initialize the framework with your agent classes
+    await readyForge(MyFirstAgentApp, [ResearchAgent]);
+    
+    console.log("🚀 Agent Forge initialized!");
+    console.log("📝 Available agents:", MyFirstAgentApp.forge.getAgents().map(a => a.name));
+    
+    // Run your agent
+    const result = await MyFirstAgentApp.forge.runAgent(
+      "ResearchAssistant",
+      "What are the latest developments in quantum computing?"
+    );
+    
+    console.log("\n✅ Agent execution completed!");
+    console.log("📄 Response:", result.output);
+    console.log("⏱️  Execution Time:", result.metadata.executionTime, "ms");
+    console.log("🎫 Tokens Used:", result.metadata.tokenUsage?.total || "N/A");
+    
+    process.exit(0);
   }
 }
 
-main().catch(console.error);
+// Start the application
+MyFirstAgentApp.run().catch(console.error);
 ```
 
-This example shows how to create a functional agent by directly instantiating and configuring the `Agent` class. The next section, "YAML-Defined Agents," will show how to achieve similar configurations using external YAML files for better organization.
+**Understanding the decorators:**
+
+- `@llmProvider`: Configures the LLM provider and credentials for all agents
+- `@forge()`: Creates the main AgentForge instance and makes it available as a static property
+- `readyForge()`: Initializes agent classes and registers them with the forge
+
+## Step 4: Complete Working Example
+
+Here's the complete, runnable example with error handling and enhanced output:
+
+```typescript
+// my-first-agent.ts
+import * as dotenv from "dotenv";
+import { 
+  agent, 
+  llmProvider, 
+  forge, 
+  readyForge, 
+  Agent, 
+  AgentForge, 
+  LLMProvider 
+} from "agent-forge";
+
+dotenv.config();
+
+@agent({
+  name: "ResearchAssistant",
+  role: "Research Specialist", 
+  description: "An AI agent that specializes in research and information gathering",
+  objective: "Find accurate and relevant information on any given topic",
+  model: process.env.LLM_API_MODEL || "gpt-4",
+  temperature: 0.7
+})
+class ResearchAgent extends Agent {}
+
+@llmProvider(process.env.LLM_PROVIDER as LLMProvider, {
+  apiKey: process.env.LLM_API_KEY
+})
+@forge()
+class MyFirstAgentApp {
+  static forge: AgentForge;
+
+  static async run() {
+    try {
+      console.log("🔧 Initializing Agent Forge...");
+      
+      // Initialize the framework with your agent classes
+      await readyForge(MyFirstAgentApp, [ResearchAgent]);
+      
+      console.log("🚀 Agent Forge initialized successfully!");
+      console.log("📝 Available agents:", MyFirstAgentApp.forge.getAgents().map(a => a.name));
+      
+      // Run your agent with a research query
+      console.log("\n🔍 Starting research task...");
+      const result = await MyFirstAgentApp.forge.runAgent(
+        "ResearchAssistant",
+        "What are the latest developments in quantum computing?"
+      );
+      
+      console.log("\n✅ Agent execution completed!");
+      console.log("📄 Response:", result.output);
+      console.log("⏱️  Execution Time:", result.metadata.executionTime, "ms");
+      console.log("🎫 Tokens Used:", result.metadata.tokenUsage?.total || "N/A");
+      
+      // Demonstrate agent metadata access
+      const agent = MyFirstAgentApp.forge.getAgent("ResearchAssistant");
+      if (agent) {
+        console.log("\n🤖 Agent Details:");
+        console.log("   Name:", agent.name);
+        console.log("   Role:", agent.role);
+        console.log("   Model:", agent.model);
+      }
+      
+    } catch (error) {
+      console.error("❌ Error:", error);
+      if (error instanceof Error) {
+        console.error("Details:", error.message);
+      }
+    } finally {
+      process.exit(0);
+    }
+  }
+}
+
+MyFirstAgentApp.run();
+```
+
+## Step 5: Run Your Agent
+
+Execute your agent with ts-node:
+
+```bash
+npx ts-node my-first-agent.ts
+```
+
+You should see output similar to:
+
+```
+🔧 Initializing Agent Forge...
+🚀 Agent Forge initialized successfully!
+📝 Available agents: [ 'ResearchAssistant' ]
+
+🔍 Starting research task...
+
+✅ Agent execution completed!
+📄 Response: Quantum computing has seen significant advancements recently, including improved quantum error correction, developments in quantum supremacy demonstrations, and progress in quantum networking protocols...
+⏱️  Execution Time: 2341 ms
+🎫 Tokens Used: 156
+
+🤖 Agent Details:
+   Name: ResearchAssistant
+   Role: Research Specialist
+   Model: gpt-4
+```
+
+## Understanding the Decorator Architecture
+
+### @agent Decorator Deep Dive
+
+The `@agent` decorator is the core of agent definition in Agent Forge:
+
+```typescript
+@agent({
+  name: "MyAgent",           // Required: Unique identifier
+  role: "Assistant",         // Required: Defines the agent's persona
+  description: "...",        // Required: What the agent does
+  objective: "...",          // Required: The agent's goal
+  model: "gpt-4",           // Required: LLM model to use
+  temperature: 0.7,         // Optional: Creativity level (default: 0.7)
+  maxTokens: 2000          // Optional: Maximum response tokens
+})
+class MyAgent extends Agent {}
+```
+
+### @llmProvider Decorator
+
+Configures the LLM provider for all agents in your application:
+
+```typescript
+@llmProvider("openai", {
+  apiKey: process.env.OPENAI_API_KEY,
+  // Optional provider-specific settings
+  organizationId: process.env.OPENAI_ORG_ID,
+  baseUrl: process.env.CUSTOM_API_URL
+})
+```
+
+**Supported providers include:**
+- `"openai"` - OpenAI GPT models
+- `"anthropic"` - Claude models  
+- `"google"` - Gemini models
+- `"azure-openai"` - Azure OpenAI Service
+- And many more via the token.js library
+
+### @forge Decorator
+
+Creates the main AgentForge instance that manages all agents:
+
+```typescript
+@forge()
+class MyApp {
+  static forge: AgentForge; // Automatically populated by the decorator
+}
+```
+
+### readyForge Function
+
+Initializes agent classes and makes them available to the forge:
+
+```typescript
+await readyForge(MyApp, [AgentClass1, AgentClass2, AgentClass3]);
+```
+
+This function:
+- Instantiates each agent class with its decorator configuration
+- Registers agents with the forge instance
+- Sets up the execution environment
+
+## Adding Tools to Your Agent
+
+You can enhance your agent with tools using the `@tool` decorator:
+
+```typescript
+import { tool, WebSearchTool } from "agent-forge";
+
+@tool(WebSearchTool)
+@agent({
+  name: "EnhancedResearcher",
+  role: "Web-Enhanced Research Specialist",
+  description: "A research agent with web search capabilities",
+  objective: "Find the most current and accurate information using web search",
+  model: "gpt-4",
+  temperature: 0.6
+})
+class EnhancedResearchAgent extends Agent {}
+```
+
+## Error Handling Best Practices
+
+Always wrap your agent execution in try-catch blocks:
+
+```typescript
+static async run() {
+  try {
+    await readyForge(MyApp, [MyAgent]);
+    const result = await MyApp.forge.runAgent("MyAgent", "task");
+    console.log(result.output);
+  } catch (error) {
+    if (error instanceof Error) {
+      console.error("Agent execution failed:", error.message);
+    } else {
+      console.error("Unknown error:", error);
+    }
+  }
+}
+```
+
+## Environment Variable Configuration
+
+Create a `.env` file with your configuration:
+
+```env
+LLM_PROVIDER=openai
+LLM_API_KEY=your_openai_api_key_here
+LLM_API_MODEL=gpt-4
+```
+
+And reference them in your decorators:
+
+```typescript
+@llmProvider(process.env.LLM_PROVIDER as LLMProvider, {
+  apiKey: process.env.LLM_API_KEY
+})
+@agent({
+  model: process.env.LLM_API_MODEL || "gpt-3.5-turbo"
+})
+```
 
 ## Next Steps
 
-Now that you've built a basic agent programmatically, you can explore:
+Now that you've built your first agent with decorators, explore these next topics:
 
-*   Defining agents using [YAML Configuration](./core-concepts/yaml-defined-agents.mdx).
-*   Defining and using [Custom Tools](./core-concepts/tools-ecosystem.mdx).
-*   Setting up more complex [Execution Patterns (Workflows & Teams)](./core-concepts/execution-patterns.mdx).
-*   Understanding [LLM Integrations](./core-concepts/llm-integration.mdx) in more detail. 
+*   **[Decorator-Based Agent Definition](./core-concepts/yaml-defined-agents.mdx)** - Learn about advanced decorator patterns
+*   **[Tools Integration](./core-concepts/tools-ecosystem.mdx)** - Add capabilities like web search, calculations, and more
+*   **[Execution Patterns](./core-concepts/execution-patterns.mdx)** - Create workflows and teams
+*   **[Advanced Features](./advanced/rate-limiting.mdx)** - Rate limiting, streaming, and production considerations
+
+Try creating multiple agents with different roles and coordinating them in teams and workflows! 

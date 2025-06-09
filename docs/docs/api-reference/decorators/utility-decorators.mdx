@@ -1,0 +1,418 @@
+---
+title: Utility Decorators
+description: Performance and development utility decorators
+---
+
+# Utility Decorators
+
+Utility decorators provide performance optimization, debugging, and development assistance features for Agent Forge applications.
+
+## @Visualizer
+
+Enables automatic generation of interactive HTML timelines for team runs, providing visual insights into agent interactions and performance.
+
+### Syntax
+```typescript
+@Visualizer()
+@llmProvider(provider, config)
+@forge()
+class MyTeam {
+  static forge: AgentForge;
+}
+```
+
+### Features
+
+- **Interactive Timeline**: Visual representation of team execution flow
+- **Task Cards**: Detailed task information with status tracking
+- **Performance Metrics**: Execution times, success rates, and statistics
+- **Agent Communication**: Visual mapping of agent interactions
+- **Automatic Export**: Generates `team-run-timeline.html` file
+
+### Examples
+
+#### Basic Team Visualization
+```typescript
+@Visualizer()
+@llmProvider("openai", { apiKey: process.env.OPENAI_API_KEY })
+@forge()
+class VisualizedTeam {
+  static forge: AgentForge;
+  
+  static async run() {
+    const agentClasses = [ManagerAgent, ResearcherAgent, WriterAgent];
+    await readyForge(VisualizedTeam, agentClasses);
+    
+    // Timeline will be automatically generated
+    return this.forge.runTeam(
+      "ManagerAgent",
+      ["ResearcherAgent", "WriterAgent"], 
+      "Create a market analysis report"
+    );
+  }
+}
+```
+
+#### Complex Team with Visualization
+```typescript
+@tool(WebSearchTool)
+@Visualizer()
+@RateLimiter({ rateLimitPerSecond: 2 })
+@llmProvider("openai", { apiKey: process.env.OPENAI_API_KEY })
+@forge()
+class ComplexVisualizedTeam {
+  static forge: AgentForge;
+  
+  static async run() {
+    const agentClasses = [
+      ProjectManager,
+      ResearchSpecialist,
+      DataAnalyst,
+      ContentWriter,
+      QualityReviewer
+    ];
+    
+    await readyForge(ComplexVisualizedTeam, agentClasses);
+    
+    const result = await this.forge.runTeam(
+      "ProjectManager",
+      ["ResearchSpecialist", "DataAnalyst", "ContentWriter", "QualityReviewer"],
+      "Conduct comprehensive analysis of renewable energy market trends",
+      {
+        verbose: true,
+        stream: true
+      }
+    );
+    
+    // Timeline saved to team-run-timeline.html
+    console.log("Timeline generated: team-run-timeline.html");
+    return result;
+  }
+}
+```
+
+### Generated Timeline Features
+
+#### Visual Elements
+- **Task Cards**: Interactive cards showing task details, status, and timing
+- **Agent Nodes**: Visual representation of each agent and their roles
+- **Progress Bars**: Real-time progress indicators for running tasks
+- **Status Colors**: Color-coded status indicators (pending, running, completed, failed)
+- **Dependency Lines**: Visual connections showing task dependencies
+
+#### Interactive Features
+- **Hover Details**: Detailed information on hover
+- **Expandable Sections**: Click to expand task details
+- **Timeline Scrubbing**: Navigate through execution timeline
+- **Filter Options**: Filter by agent, status, or time range
+- **Export Options**: Export timeline data or images
+
+#### Performance Metrics
+```html
+<!-- Generated in timeline HTML -->
+<div class="stats-section">
+  <div class="stat-card">
+    <h3>Total Execution Time</h3>
+    <p>2m 34s</p>
+  </div>
+  <div class="stat-card">
+    <h3>Tasks Completed</h3>
+    <p>8/8</p>
+  </div>
+  <div class="stat-card">
+    <h3>Success Rate</h3>
+    <p>100%</p>
+  </div>
+</div>
+```
+
+### Timeline File Output
+
+The visualizer generates a self-contained HTML file:
+
+```
+project/
+├── team-run-timeline.html  ← Generated visualization
+├── src/
+│   └── your-team.ts
+└── package.json
+```
+
+### Customization Options
+
+#### Custom File Path
+```typescript
+// After team run completes
+import { writeTeamRunTimelineHtmlToFile } from "agent-forge";
+
+const events = team.getTeamRunLogger()?.getEvents() || [];
+await writeTeamRunTimelineHtmlToFile(events, "custom-timeline.html");
+```
+
+#### Manual Timeline Generation
+```typescript
+import { generateTeamRunTimelineHtml } from "agent-forge";
+
+const team = new MyTeam();
+const logger = team.getTeamRunLogger();
+
+if (logger) {
+  const events = logger.getEvents();
+  const html = generateTeamRunTimelineHtml(events);
+  
+  // Custom processing of HTML
+  const customHtml = html.replace(/DefaultTitle/, "My Custom Timeline");
+  
+  fs.writeFileSync("custom-timeline.html", customHtml);
+}
+```
+
+---
+
+## @RateLimiter
+
+Applies rate limiting to LLM calls and tool executions to prevent API abuse and manage costs.
+
+### Syntax
+```typescript
+@RateLimiter(config: RateLimiterConfig)
+@llmProvider(provider, config)
+@forge()
+class MyRateLimitedApp {}
+```
+
+### Parameters
+
+#### RateLimiterConfig
+| Property | Type | Description |
+|----------|------|-------------|
+| `rateLimitPerSecond` | `number` | Maximum calls per second |
+| `rateLimitPerMinute` | `number` | Maximum calls per minute |
+| `verbose` | `boolean` | Enable rate limiting logs |
+| `cacheTTL` | `number` | Cache TTL for tool results (ms) |
+| `toolSpecificLimits` | `Record<string, RateLimit>` | Per-tool rate limits |
+
+#### ToolSpecificLimits
+```typescript
+interface ToolSpecificLimit {
+  rateLimitPerSecond?: number;
+  rateLimitPerMinute?: number;
+}
+```
+
+### Examples
+
+#### Basic Rate Limiting
+```typescript
+@RateLimiter({
+  rateLimitPerSecond: 2,
+  rateLimitPerMinute: 100,
+  verbose: true
+})
+@llmProvider("openai", { apiKey: process.env.OPENAI_API_KEY })
+@forge()
+class RateLimitedTeam {
+  static forge: AgentForge;
+}
+```
+
+#### Advanced Rate Limiting with Tool-Specific Limits
+```typescript
+@RateLimiter({
+  rateLimitPerSecond: 3,
+  rateLimitPerMinute: 150,
+  verbose: true,
+  cacheTTL: 300000, // 5 minutes
+  toolSpecificLimits: {
+    "WebSearchTool": {
+      rateLimitPerSecond: 0.5, // Very conservative for web search
+      rateLimitPerMinute: 20
+    },
+    "CalculatorTool": {
+      rateLimitPerSecond: 10, // Fast for local calculations
+      rateLimitPerMinute: 500
+    },
+    "expensive_api": {
+      rateLimitPerSecond: 0.1, // Very slow for expensive APIs
+      rateLimitPerMinute: 5
+    }
+  }
+})
+@llmProvider("openai", { apiKey: process.env.OPENAI_API_KEY })
+@forge()
+class AdvancedRateLimitedTeam {
+  static forge: AgentForge;
+}
+```
+
+#### Production Rate Limiting
+```typescript
+@RateLimiter({
+  rateLimitPerSecond: 1,
+  rateLimitPerMinute: 40, // Stay well under API limits
+  verbose: false, // Disable verbose logging in production
+  cacheTTL: 600000, // 10 minute cache
+  toolSpecificLimits: {
+    "WebSearchTool": {
+      rateLimitPerSecond: 0.2,
+      rateLimitPerMinute: 10
+    },
+    "WebPageContentTool": {
+      rateLimitPerSecond: 0.3,
+      rateLimitPerMinute: 15
+    }
+  }
+})
+@llmProvider("openai", { apiKey: process.env.OPENAI_API_KEY })
+@forge()
+class ProductionTeam {
+  static forge: AgentForge;
+}
+```
+
+### Rate Limiter Behavior
+
+#### LLM Call Rate Limiting
+```typescript
+// All LLM calls are automatically rate limited
+const result = await agent.run("Analyze this data"); // Waits for rate limit
+```
+
+#### Tool Call Rate Limiting
+```typescript
+// Tools with specific limits are automatically throttled
+@tool(WebSearchTool) // Uses toolSpecificLimits["WebSearchTool"]
+@agent(config)
+class SearchAgent extends Agent {}
+```
+
+#### Verbose Logging Output
+```
+[RateLimiter] Waiting for token (WebSearchTool): 1.5s remaining
+[RateLimiter] Token acquired for WebSearchTool
+[RateLimiter] Current usage: 2/10 per minute for WebSearchTool
+```
+
+### Caching Integration
+
+Rate limiting includes automatic caching for tool results:
+
+```typescript
+@RateLimiter({
+  cacheTTL: 300000, // 5 minutes
+  rateLimitPerSecond: 1
+})
+@tool(WebSearchTool)
+@agent(config)
+class CachedSearchAgent extends Agent {}
+
+// First call: hits API and caches result
+await agent.run("Search for AI news");
+
+// Second call within 5 minutes: returns cached result, no API call
+await agent.run("Search for AI news"); // Cache hit!
+```
+
+### Combined Utility Decorators
+
+```typescript
+@Visualizer() // Generate timeline
+@RateLimiter({
+  rateLimitPerSecond: 1,
+  rateLimitPerMinute: 50,
+  verbose: true,
+  toolSpecificLimits: {
+    "WebSearchTool": {
+      rateLimitPerSecond: 0.3,
+      rateLimitPerMinute: 15
+    }
+  }
+})
+@tool(WebSearchTool)
+@llmProvider("openai", { apiKey: process.env.OPENAI_API_KEY })
+@forge()
+class OptimizedTeam {
+  static forge: AgentForge;
+  
+  static async run() {
+    const agentClasses = [ManagerAgent, ResearcherAgent];
+    await readyForge(OptimizedTeam, agentClasses);
+    
+    const result = await this.forge.runTeam(
+      "ManagerAgent",
+      ["ResearcherAgent"],
+      "Research latest AI developments",
+      {
+        verbose: true, // Show team communication
+        stream: true   // Enable streaming
+      }
+    );
+    
+    console.log("✅ Team run completed");
+    console.log("📊 Timeline: team-run-timeline.html");
+    console.log("🔄 Rate limiting applied throughout execution");
+    
+    return result;
+  }
+}
+```
+
+### Best Practices
+
+#### Rate Limiting Strategy
+- **Conservative Limits**: Start with conservative limits and increase as needed
+- **Tool-Specific**: Use different limits for different tool types
+- **Production vs Development**: Use stricter limits in production
+- **Monitoring**: Enable verbose logging during development
+
+#### Performance Optimization
+- **Caching**: Use caching for expensive or repeated operations
+- **Batch Operations**: Group related operations when possible
+- **Fallback Strategies**: Have backup plans when rate limits are hit
+
+#### Visualization Usage
+- **Development**: Use visualization during development to understand team behavior
+- **Debugging**: Generate timelines when debugging complex team interactions
+- **Documentation**: Use generated timelines to document team workflows
+- **Optimization**: Analyze timelines to identify performance bottlenecks
+
+### Monitoring and Debugging
+
+#### Rate Limiter Status
+```typescript
+// Access rate limiter instance (if needed for debugging)
+const forge = MyTeam.forge;
+const llmProvider = forge.getDefaultLLMProvider();
+const rateLimiter = (llmProvider as any).__rateLimiter;
+
+if (rateLimiter) {
+  console.log("Rate limiter active");
+  // rateLimiter provides internal monitoring capabilities
+}
+```
+
+#### Timeline Analysis
+```typescript
+// Access team run events for analysis
+@Visualizer()
+@forge()
+class AnalyzableTeam {
+  static forge: AgentForge;
+  
+  static async analyzeRun() {
+    const team = this.forge.createTeam("Manager", "AnalysisTeam");
+    const logger = team.getTeamRunLogger();
+    
+    if (logger) {
+      const events = logger.getEvents();
+      
+      // Analyze execution patterns
+      const taskEvents = events.filter(e => e.type.includes("task"));
+      const avgExecutionTime = taskEvents.reduce((sum, e) => 
+        sum + (e.details.duration || 0), 0) / taskEvents.length;
+      
+      console.log(`Average task execution: ${avgExecutionTime}ms`);
+    }
+  }
+}
+``` 

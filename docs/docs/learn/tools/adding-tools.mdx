@@ -1,0 +1,318 @@
+---
+id: adding-tools
+title: Adding Tools to Agents
+sidebar_position: 1
+---
+
+# Adding Tools to Agents
+
+Tools extend your agents' capabilities beyond just text generation. They allow agents to interact with the web, perform calculations, access databases, and much more.
+
+## Built-in Tools
+
+Agent Forge includes several built-in tools:
+
+- **WebSearchTool** - Search the web for information
+- **WebPageContentTool** - Extract content from web pages
+- **CalculatorTool** - Perform mathematical calculations
+- **RAGTool** - Query knowledge bases (via @RAGChromaDb decorator)
+
+## Adding Tools with @tool Decorator
+
+Use the `@tool` decorator to add tools to your agents:
+
+```typescript
+import { Agent, agent, tool, WebSearchTool } from "agent-forge";
+
+@tool(WebSearchTool)
+@agent({
+  name: "Research Assistant",
+  role: "Information Researcher",
+  description: "Searches and analyzes web content",
+  objective: "Find accurate, up-to-date information",
+  model: "gpt-4",
+  temperature: 0.4
+})
+class ResearchAgent extends Agent {}
+```
+
+## Multiple Tools
+
+Add multiple tools by stacking `@tool` decorators:
+
+```typescript
+import { WebSearchTool, WebPageContentTool } from "agent-forge";
+
+@tool(WebSearchTool)
+@tool(WebPageContentTool)
+@agent({
+  name: "Web Researcher",
+  role: "Web Content Analyst", 
+  description: "Searches web and analyzes page content",
+  objective: "Provide comprehensive web-based research",
+  model: "gpt-4",
+  temperature: 0.3
+})
+class WebAnalyst extends Agent {}
+```
+
+## Using Tools in Practice
+
+Once tools are added, agents can use them automatically:
+
+```typescript
+const researcher = new ResearchAgent();
+
+// Agent will automatically use WebSearchTool when needed
+const result = await researcher.run(
+  "What are the latest developments in AI safety research?"
+);
+
+console.log(result.output);
+// The agent searched the web and compiled recent information
+
+// Check which tools were used
+if (result.metadata.toolCalls) {
+  result.metadata.toolCalls.forEach(call => {
+    console.log(`Used ${call.toolName} with result: ${call.result}`);
+  });
+}
+```
+
+## Built-in Tool Examples
+
+### Web Search Tool
+```typescript
+@tool(WebSearchTool)
+@agent(config)
+class SearchAgent extends Agent {}
+
+const agent = new SearchAgent();
+await agent.run("Find the latest news about renewable energy");
+// Agent searches the web and summarizes findings
+```
+
+### Web Page Content Tool
+```typescript
+@tool(WebPageContentTool)
+@agent(config)  
+class ContentAgent extends Agent {}
+
+const agent = new ContentAgent();
+await agent.run("Analyze the content of https://example.com");
+// Agent fetches and analyzes page content
+```
+
+### Combined Web Tools
+```typescript
+@tool(WebSearchTool)
+@tool(WebPageContentTool)
+@agent(config)
+class WebExpertAgent extends Agent {}
+
+const agent = new WebExpertAgent();
+await agent.run("Research electric vehicle market trends and analyze Tesla's latest investor report");
+// Agent searches for trends, finds Tesla's report, extracts content, and analyzes both
+```
+
+## Creating Custom Tools
+
+Create your own tools by extending the `Tool` class:
+
+```typescript
+import { Tool, ToolParameter } from "agent-forge";
+
+class WeatherTool extends Tool {
+  constructor() {
+    super(
+      "weather_lookup",
+      "Get current weather for a location",
+      [
+        {
+          name: "location",
+          type: "string", 
+          description: "City name or location",
+          required: true
+        }
+      ],
+      "object"
+    );
+  }
+
+  protected async run(params: { location: string }): Promise<any> {
+    // Mock weather API call
+    const weather = {
+      location: params.location,
+      temperature: "22°C",
+      condition: "Sunny",
+      humidity: "45%"
+    };
+    
+    return {
+      success: true,
+      data: weather,
+      message: `Current weather in ${params.location}`
+    };
+  }
+}
+
+// Use custom tool
+@tool(WeatherTool)
+@agent(config)
+class WeatherAgent extends Agent {}
+
+const agent = new WeatherAgent();
+await agent.run("What's the weather like in New York?");
+```
+
+## Tool Configuration
+
+Some tools accept configuration options:
+
+```typescript
+// Tools can be configured if they support it
+@tool(WebSearchTool) // Uses default configuration
+@agent(config)
+class SimpleSearchAgent extends Agent {}
+```
+
+## Model Context Protocol (MCP)
+
+Connect to external MCP servers for additional tools:
+
+```typescript
+import { MCP, MCPProtocolType } from "agent-forge";
+
+@MCP(MCPProtocolType.STDIO, {
+  command: "mcp-server-filesystem",
+  args: ["--root", "/path/to/files"]
+})
+@agent(config)
+class FileAgent extends Agent {}
+
+// Now the agent has access to file system tools from the MCP server
+const agent = new FileAgent();
+await agent.run("List the files in the documents folder");
+```
+
+## Tool Error Handling
+
+Tools may fail - agents handle this gracefully:
+
+```typescript
+const agent = new ResearchAgent();
+
+try {
+  const result = await agent.run("Search for information about XYZ");
+  
+  if (result.metadata.toolCalls) {
+    const failedCalls = result.metadata.toolCalls.filter(call => 
+      call.result?.error
+    );
+    
+    if (failedCalls.length > 0) {
+      console.log("Some tool calls failed:", failedCalls);
+    }
+  }
+} catch (error) {
+  console.error("Agent execution failed:", error);
+}
+```
+
+## Rate Limiting Tools
+
+Control tool usage with rate limiting:
+
+```typescript
+@RateLimiter({
+  rateLimitPerSecond: 1,
+  toolSpecificLimits: {
+    "web_search": {
+      rateLimitPerSecond: 0.5, // Slower for web search
+      rateLimitPerMinute: 10
+    }
+  }
+})
+@tool(WebSearchTool)
+@agent(config)
+class RateLimitedAgent extends Agent {}
+```
+
+## Best Practices
+
+### Choose Appropriate Tools
+Only add tools that align with your agent's purpose:
+
+```typescript
+// ✅ Good - Tools match agent's role
+@tool(WebSearchTool)
+@tool(WebPageContentTool)
+@agent({
+  name: "Research Assistant",
+  role: "Information Researcher", 
+  description: "Finds and analyzes web information",
+  objective: "Provide accurate research results",
+  model: "gpt-4"
+})
+
+// ❌ Unclear - Why does a calculator need web tools?
+@tool(WebSearchTool)
+@agent({
+  name: "Calculator",
+  role: "Math Assistant",
+  description: "Performs calculations", 
+  objective: "Solve math problems",
+  model: "gpt-4"
+})
+```
+
+### Tool Instruction
+Give agents clear instructions about tool usage:
+
+```typescript
+const result = await agent.run(`
+  Research the latest AI trends and provide a summary. 
+  Make sure to search for recent information from reliable sources.
+`);
+```
+
+### Monitor Tool Usage
+Track which tools are being used:
+
+```typescript
+const result = await agent.run("Research quantum computing");
+
+console.log("Tools used:");
+result.metadata.toolCalls?.forEach(call => {
+  console.log(`- ${call.toolName}: ${call.parameters}`);
+});
+```
+
+## Tool Troubleshooting
+
+### Tool Not Available
+```
+Error: Tool 'web_search' not found
+```
+- Ensure you've added the `@tool(WebSearchTool)` decorator
+- Check that the tool is imported correctly
+
+### Tool Rate Limited
+```
+Warning: Tool call rate limited
+```
+- Add `@RateLimiter` decorator to control usage
+- Consider reducing tool usage frequency
+
+### Tool Execution Failed
+```
+Tool execution failed: Network timeout
+```
+- Tools may fail due to external dependencies
+- Agents will continue with available information
+
+## Next Steps
+
+- [Custom Tools](./custom-tools.mdx) - Build your own tools
+- [MCP Integration](./mcp-integration.mdx) - Connect external tool servers  
+- [Tool Security](../advanced/tool-security.mdx) - Secure tool usage 

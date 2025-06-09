@@ -1,0 +1,534 @@
+---
+title: RateLimiter
+description: Intelligent rate limiting for API calls and resource management
+---
+
+# RateLimiter
+
+The `RateLimiter` class provides intelligent rate limiting capabilities for API calls, tool executions, and other resource-intensive operations. It implements token bucket algorithms to ensure smooth operation while respecting rate limits.
+
+## Constructor
+
+### Syntax
+```typescript
+new RateLimiter(config: RateLimiterConfig)
+```
+
+### Parameters
+
+#### RateLimiterConfig
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `callsPerSecond` | `number` | `1` | Maximum calls per second |
+| `callsPerMinute` | `number` | `60` | Maximum calls per minute |
+| `burst` | `number` | `callsPerSecond * 2` | Maximum burst size |
+| `verbose` | `boolean` | `false` | Enable verbose logging |
+| `cacheTTL` | `number` | `0` | Cache TTL in milliseconds (0 = no cache) |
+
+## Methods
+
+### waitForToken()
+
+Waits for a rate limiting token before proceeding with an operation.
+
+```typescript
+async waitForToken(): Promise<void>
+```
+
+#### Usage
+```typescript
+const limiter = new RateLimiter({ callsPerSecond: 2 });
+
+await limiter.waitForToken();
+// Safe to make API call
+const result = await makeAPICall();
+```
+
+### getCurrentUsage()
+
+Returns current rate limiting usage statistics.
+
+```typescript
+getCurrentUsage(): RateLimiterUsage
+```
+
+#### Return Type
+```typescript
+interface RateLimiterUsage {
+  tokensPerSecond: number;
+  tokensPerMinute: number;
+  lastRefill: number;
+  burstTokens: number;
+}
+```
+
+#### Usage
+```typescript
+const usage = limiter.getCurrentUsage();
+console.log(`Tokens per second: ${usage.tokensPerSecond}`);
+console.log(`Tokens per minute: ${usage.tokensPerMinute}`);
+```
+
+### reset()
+
+Resets the rate limiter to its initial state.
+
+```typescript
+reset(): void
+```
+
+#### Usage
+```typescript
+limiter.reset(); // Clear all tokens and reset counters
+```
+
+## Basic Examples
+
+### Simple Rate Limiting
+```typescript
+import { RateLimiter } from "agent-forge";
+
+const limiter = new RateLimiter({
+  callsPerSecond: 1,
+  callsPerMinute: 50,
+  verbose: true
+});
+
+async function makeRateLimitedCall() {
+  await limiter.waitForToken();
+  
+  try {
+    const response = await fetch("https://api.example.com/data");
+    return await response.json();
+  } catch (error) {
+    console.error("API call failed:", error);
+    throw error;
+  }
+}
+```
+
+### Burst Support
+```typescript
+const limiter = new RateLimiter({
+  callsPerSecond: 2,
+  callsPerMinute: 100,
+  burst: 5 // Allow up to 5 rapid calls
+});
+
+// Can make up to 5 calls rapidly, then throttles to 2/second
+for (let i = 0; i < 10; i++) {
+  await limiter.waitForToken();
+  console.log(`Call ${i + 1} at ${new Date().toISOString()}`);
+}
+```
+
+### With Caching
+```typescript
+const limiter = new RateLimiter({
+  callsPerSecond: 1,
+  cacheTTL: 300000 // 5 minutes
+});
+
+async function cachedAPICall(query: string) {
+  await limiter.waitForToken();
+  
+  // RateLimiter can integrate with caching systems
+  const cacheKey = `api_call_${query}`;
+  const cached = getFromCache(cacheKey);
+  
+  if (cached) {
+    console.log("Cache hit - no API call needed");
+    return cached;
+  }
+  
+  const result = await makeAPICall(query);
+  setCache(cacheKey, result, limiter.cacheTTL);
+  return result;
+}
+```
+
+## Advanced Usage
+
+### Multiple Rate Limiters
+```typescript
+class APIManager {
+  private openaiLimiter = new RateLimiter({
+    callsPerSecond: 3,
+    callsPerMinute: 150,
+    verbose: true
+  });
+  
+  private searchLimiter = new RateLimiter({
+    callsPerSecond: 0.5, // Very conservative for search
+    callsPerMinute: 20,
+    verbose: true
+  });
+  
+  async callOpenAI(prompt: string) {
+    await this.openaiLimiter.waitForToken();
+    // OpenAI API call
+  }
+  
+  async searchWeb(query: string) {
+    await this.searchLimiter.waitForToken();
+    // Web search API call
+  }
+}
+```
+
+### Dynamic Rate Limiting
+```typescript
+class AdaptiveRateLimiter {
+  private limiter: RateLimiter;
+  private consecutiveErrors = 0;
+  
+  constructor(baseConfig: RateLimiterConfig) {
+    this.limiter = new RateLimiter(baseConfig);
+  }
+  
+  async waitForToken(): Promise<void> {
+    // Implement exponential backoff on errors
+    if (this.consecutiveErrors > 0) {
+      const delay = Math.min(5000, 1000 * Math.pow(2, this.consecutiveErrors - 1));
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+    
+    await this.limiter.waitForToken();
+  }
+  
+  onSuccess(): void {
+    this.consecutiveErrors = 0;
+  }
+  
+  onError(): void {
+    this.consecutiveErrors++;
+    console.log(`Error count: ${this.consecutiveErrors}, next delay: ${this.getNextDelay()}ms`);
+  }
+  
+  private getNextDelay(): number {
+    return Math.min(5000, 1000 * Math.pow(2, this.consecutiveErrors - 1));
+  }
+}
+```
+
+### Integration with Retry Logic
+```typescript
+import { RateLimiter } from "agent-forge";
+
+class ResilientAPIClient {
+  private limiter = new RateLimiter({
+    callsPerSecond: 2,
+    callsPerMinute: 100,
+    verbose: true
+  });
+  
+  async makeCallWithRetry<T>(
+    apiCall: () => Promise<T>,
+    maxRetries: number = 3
+  ): Promise<T> {
+    let lastError: Error;
+    
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        await this.limiter.waitForToken();
+        const result = await apiCall();
+        
+        // Reset rate limiter on success if using adaptive limiting
+        if (attempt > 0) {
+          console.log(`API call succeeded on attempt ${attempt + 1}`);
+        }
+        
+        return result;
+      } catch (error) {
+        lastError = error as Error;
+        
+        if (attempt < maxRetries) {
+          const delay = 1000 * Math.pow(2, attempt); // Exponential backoff
+          console.log(`Attempt ${attempt + 1} failed, retrying in ${delay}ms`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      }
+    }
+    
+    throw lastError!;
+  }
+}
+
+// Usage
+const client = new ResilientAPIClient();
+
+const result = await client.makeCallWithRetry(async () => {
+  const response = await fetch("https://api.example.com/data");
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+  }
+  return response.json();
+});
+```
+
+## Performance Monitoring
+
+### Usage Statistics
+```typescript
+class MonitoredRateLimiter {
+  private limiter: RateLimiter;
+  private stats = {
+    totalCalls: 0,
+    totalWaitTime: 0,
+    maxWaitTime: 0,
+    lastResetTime: Date.now()
+  };
+  
+  constructor(config: RateLimiterConfig) {
+    this.limiter = new RateLimiter({ ...config, verbose: true });
+  }
+  
+  async waitForToken(): Promise<void> {
+    const startTime = Date.now();
+    await this.limiter.waitForToken();
+    const waitTime = Date.now() - startTime;
+    
+    this.stats.totalCalls++;
+    this.stats.totalWaitTime += waitTime;
+    this.stats.maxWaitTime = Math.max(this.stats.maxWaitTime, waitTime);
+  }
+  
+  getStatistics() {
+    const runtime = Date.now() - this.stats.lastResetTime;
+    return {
+      totalCalls: this.stats.totalCalls,
+      averageWaitTime: this.stats.totalWaitTime / this.stats.totalCalls,
+      maxWaitTime: this.stats.maxWaitTime,
+      callsPerSecond: this.stats.totalCalls / (runtime / 1000),
+      usage: this.limiter.getCurrentUsage()
+    };
+  }
+  
+  resetStats(): void {
+    this.stats = {
+      totalCalls: 0,
+      totalWaitTime: 0,
+      maxWaitTime: 0,
+      lastResetTime: Date.now()
+    };
+  }
+}
+```
+
+### Real-time Monitoring
+```typescript
+class RealTimeMonitor {
+  private limiter = new RateLimiter({
+    callsPerSecond: 2,
+    verbose: true
+  });
+  
+  private callLog: Array<{ timestamp: number; waitTime: number }> = [];
+  
+  async monitoredCall<T>(operation: () => Promise<T>): Promise<T> {
+    const startWait = Date.now();
+    await this.limiter.waitForToken();
+    const waitTime = Date.now() - startWait;
+    
+    const startCall = Date.now();
+    try {
+      const result = await operation();
+      const callTime = Date.now() - startCall;
+      
+      this.logCall(startWait, waitTime, callTime, true);
+      return result;
+    } catch (error) {
+      const callTime = Date.now() - startCall;
+      this.logCall(startWait, waitTime, callTime, false);
+      throw error;
+    }
+  }
+  
+  private logCall(timestamp: number, waitTime: number, callTime: number, success: boolean): void {
+    this.callLog.push({ timestamp, waitTime });
+    
+    // Keep only last 100 calls
+    if (this.callLog.length > 100) {
+      this.callLog.shift();
+    }
+    
+    console.log(
+      `🕒 Wait: ${waitTime}ms | ⚡ Call: ${callTime}ms | ${success ? '✅' : '❌'} | Queue: ${this.getQueueSize()}`
+    );
+  }
+  
+  private getQueueSize(): number {
+    const usage = this.limiter.getCurrentUsage();
+    return Math.max(0, 1 - usage.tokensPerSecond); // Estimate queue size
+  }
+  
+  getRecentPerformance() {
+    const recent = this.callLog.slice(-10);
+    if (recent.length === 0) return null;
+    
+    const avgWaitTime = recent.reduce((sum, call) => sum + call.waitTime, 0) / recent.length;
+    const maxWaitTime = Math.max(...recent.map(call => call.waitTime));
+    
+    return { avgWaitTime, maxWaitTime, recentCalls: recent.length };
+  }
+}
+```
+
+## Testing and Development
+
+### Mock Rate Limiter
+```typescript
+class MockRateLimiter {
+  constructor(private delay: number = 0) {}
+  
+  async waitForToken(): Promise<void> {
+    if (this.delay > 0) {
+      await new Promise(resolve => setTimeout(resolve, this.delay));
+    }
+    // No actual rate limiting in tests
+  }
+  
+  getCurrentUsage() {
+    return {
+      tokensPerSecond: 1,
+      tokensPerMinute: 60,
+      lastRefill: Date.now(),
+      burstTokens: 2
+    };
+  }
+  
+  reset(): void {
+    // No-op for testing
+  }
+}
+
+// Use in tests
+describe("API calls with rate limiting", () => {
+  let originalLimiter: RateLimiter;
+  
+  beforeEach(() => {
+    originalLimiter = apiClient.rateLimiter;
+    apiClient.rateLimiter = new MockRateLimiter();
+  });
+  
+  afterEach(() => {
+    apiClient.rateLimiter = originalLimiter;
+  });
+  
+  it("should make API calls without delay", async () => {
+    const startTime = Date.now();
+    await apiClient.makeCall();
+    const endTime = Date.now();
+    
+    expect(endTime - startTime).toBeLessThan(100); // Fast in tests
+  });
+});
+```
+
+### Rate Limit Testing
+```typescript
+import { RateLimiter } from "agent-forge";
+
+async function testRateLimiterAccuracy() {
+  const limiter = new RateLimiter({
+    callsPerSecond: 2,
+    verbose: true
+  });
+  
+  const calls: number[] = [];
+  const startTime = Date.now();
+  
+  // Make 10 calls and measure timing
+  for (let i = 0; i < 10; i++) {
+    await limiter.waitForToken();
+    calls.push(Date.now() - startTime);
+    console.log(`Call ${i + 1} at ${calls[i]}ms`);
+  }
+  
+  // Verify rate limiting accuracy
+  for (let i = 1; i < calls.length; i++) {
+    const timeDiff = calls[i] - calls[i - 1];
+    const expectedMin = 500; // 2 calls per second = 500ms between calls
+    
+    if (timeDiff < expectedMin - 50) { // Allow 50ms tolerance
+      console.warn(`Call ${i + 1} was too fast: ${timeDiff}ms (expected >= ${expectedMin}ms)`);
+    }
+  }
+  
+  const totalTime = calls[calls.length - 1];
+  const expectedTime = (calls.length - 1) * 500; // Account for burst
+  console.log(`Total time: ${totalTime}ms (expected: ~${expectedTime}ms)`);
+}
+```
+
+## Best Practices
+
+### Production Configuration
+```typescript
+// Conservative settings for production
+const productionLimiter = new RateLimiter({
+  callsPerSecond: 1,    // Conservative rate
+  callsPerMinute: 40,   // Well under API limits
+  burst: 2,             // Small burst allowance
+  verbose: false,       // Disable verbose logging
+  cacheTTL: 300000     // 5-minute cache
+});
+```
+
+### Development Configuration
+```typescript
+// More permissive for development
+const developmentLimiter = new RateLimiter({
+  callsPerSecond: 3,    // Faster for testing
+  callsPerMinute: 150,  // Higher limit
+  burst: 5,             // Larger burst for testing
+  verbose: true,        // Enable logging
+  cacheTTL: 60000      // 1-minute cache
+});
+```
+
+### Error Handling
+```typescript
+async function robustAPICall(limiter: RateLimiter, operation: () => Promise<any>) {
+  try {
+    await limiter.waitForToken();
+    return await operation();
+  } catch (error) {
+    if (error.message.includes('rate limit')) {
+      console.log("Rate limit exceeded, waiting before retry...");
+      await new Promise(resolve => setTimeout(resolve, 5000));
+      return robustAPICall(limiter, operation);
+    }
+    throw error;
+  }
+}
+```
+
+### Memory Management
+```typescript
+class ManagedRateLimiter {
+  private limiter: RateLimiter;
+  private cleanupInterval: NodeJS.Timeout;
+  
+  constructor(config: RateLimiterConfig) {
+    this.limiter = new RateLimiter(config);
+    
+    // Periodic cleanup
+    this.cleanupInterval = setInterval(() => {
+      // Reset if idle for too long
+      const usage = this.limiter.getCurrentUsage();
+      if (Date.now() - usage.lastRefill > 300000) { // 5 minutes
+        this.limiter.reset();
+      }
+    }, 60000); // Check every minute
+  }
+  
+  async waitForToken(): Promise<void> {
+    return this.limiter.waitForToken();
+  }
+  
+  destroy(): void {
+    clearInterval(this.cleanupInterval);
+  }
+}
+``` 

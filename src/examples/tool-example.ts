@@ -3,12 +3,15 @@ import {
   AgentForge,
   Agent,
   ToolCall,
-  LLM,
+  agent,
+  llmProvider,
+  forge,
+  tool,
+  readyForge,
+  LLMProvider,
 } from "../index";
-import { WebSearchTool } from "../tools/web-search-tool";
 import { Tool } from "../tools/tool";
 import { ToolParameter } from "../types";
-import { LLMProvider } from "../types";
 
 // Load environment variables from .env file at the project root
 dotenv.config();
@@ -112,60 +115,35 @@ class WeatherTool extends Tool {
   }
 }
 
-// LLM Configuration moved to top level
-const provider = (process.env.LLM_PROVIDER as LLMProvider) || "openai";
-const apiKey = process.env.LLM_API_KEY;
-const model = process.env.LLM_API_MODEL!;
+// Assistant agent with tools using decorators
+@tool(CalculatorTool)
+@tool(WeatherTool)
+@agent({
+  name: "Assistant",
+  role: "Helpful Assistant",
+  description:
+    "A helpful assistant that can do calculations, and check the weather.",
+  objective:
+    "Help the user with their questions using the available tools when appropriate.",
+  model: process.env.LLM_API_MODEL!,
+  temperature: 0.7,
+})
+class AssistantAgent extends Agent {}
 
-if (!apiKey) {
-  console.error(
-      `Error: LLM_API_KEY environment variable not set. ` +
-      "Please create a .env file in the project root (from .env.sample) " +
-      "and add your LLM_API_KEY (and optionally LLM_PROVIDER, LLM_MODEL)."
-  );
-  process.exit(1);
-}
+@llmProvider(process.env.LLM_PROVIDER as LLMProvider, {
+  apiKey: process.env.LLM_API_KEY,
+})
+@forge()
+class ToolExample {
+  static forge: AgentForge;
 
-async function main() {
-  try {
-    // Create an LLM provider
-    const llmProvider = new LLM(provider, {
-      apiKey,
-    });
-
-    // Create the tools
-    const webSearchTool = new WebSearchTool();
-    const calculatorTool = new CalculatorTool();
-    const weatherTool = new WeatherTool();
-
-    // Create the Agent Forge instance
-    const forge = new AgentForge(llmProvider);
-
-    // Register the tools
-    forge.registerTools([webSearchTool, calculatorTool, weatherTool]);
-
-    // Create an assistant agent with tools
-    const assistantAgent = new Agent(
-      {
-        name: "Assistant",
-        role: "Helpful Assistant",
-        description:
-          "A helpful assistant that can search the web, do calculations, and check the weather.",
-        objective:
-          "Help the user with their questions using the available tools when appropriate.",
-        model: model,
-        temperature: 0.7,
-      },
-      [webSearchTool, calculatorTool, weatherTool],
-      llmProvider
-    );
-
-    // Register the agent
-    forge.registerAgent(assistantAgent);
+  static async run() {
+    const agentClasses = [AssistantAgent];
+    await readyForge(ToolExample, agentClasses);
 
     // Run the agent with different queries that would use different tools
     console.log("Running assistant agent with a calculation query...");
-    const calculationResult = await forge.runAgent(
+    const calculationResult = await ToolExample.forge.runAgent(
       "Assistant",
       "What is 527 * 192?"
     );
@@ -179,7 +157,7 @@ async function main() {
     );
 
     console.log("\n\nRunning assistant agent with a weather query...");
-    const weatherResult = await forge.runAgent(
+    const weatherResult = await ToolExample.forge.runAgent(
       "Assistant",
       "What's the weather like in Tokyo?"
     );
@@ -192,7 +170,7 @@ async function main() {
     );
 
     console.log("\n\nRunning assistant agent with a search query...");
-    const searchResult = await forge.runAgent(
+    const searchResult = await ToolExample.forge.runAgent(
       "Assistant",
       "What are the latest advancements in quantum computing?"
     );
@@ -207,7 +185,7 @@ async function main() {
     console.log(
       "\n\nRunning assistant agent with a complex query that might use multiple tools..."
     );
-    const complexResult = await forge.runAgent(
+    const complexResult = await ToolExample.forge.runAgent(
       "Assistant",
       "I'm planning a trip to New York. What's the weather like there, and what are the top 3 tourist attractions?"
     );
@@ -218,9 +196,9 @@ async function main() {
       complexResult.metadata.toolCalls?.map((tc: ToolCall) => tc.toolName) ||
         "None"
     );
-  } catch (error) {
-    console.error("Error:", error);
+
+    process.exit(0);
   }
 }
 
-main().catch(console.error);
+ToolExample.run().catch(console.error);
