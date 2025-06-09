@@ -1,7 +1,42 @@
 ---
+id: utilities
 title: Utilities Overview
-description: Core utilities and helper functions in Agent Forge
 ---
+
+# Utilities Overview
+
+Agent Forge provides several utility modules to enhance development experience and framework functionality.
+
+## Available Utilities
+
+### [Rate Limiter](./rate-limiter)
+Performance optimization utilities for managing API call rates and preventing quota exhaustion.
+
+### [Event System](./event-emitter)
+Framework event handling system for inter-component communication and lifecycle management.
+
+### [Streaming](./streaming)
+Utilities for handling streaming responses from LLM providers and real-time data processing.
+
+## Usage
+
+Utilities are typically used internally by the framework but can also be accessed directly for advanced use cases.
+
+```typescript
+import { EventEmitter } from "agent-forge";
+
+const eventEmitter = new EventEmitter();
+eventEmitter.on('custom-event', (data) => {
+  console.log('Event received:', data);
+});
+```
+
+## Best Practices
+
+- Use utilities to enhance rather than replace core functionality
+- Follow TypeScript best practices when extending utilities
+- Consider performance implications when using utilities in production
+- Refer to individual utility documentation for specific usage patterns
 
 # Utilities Reference
 

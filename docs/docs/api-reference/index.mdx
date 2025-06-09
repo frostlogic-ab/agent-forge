@@ -22,33 +22,32 @@ The fundamental building blocks of Agent Forge applications:
 ### 🎨 Decorators
 Powerful decorators for declarative configuration:
 
-- **[@agent](./decorators/agent)** - Agent configuration and metadata
-- **[@llmProvider](./decorators/llm-provider)** - LLM provider setup
-- **[@forge](./decorators/forge)** - AgentForge instance creation
-- **[@tool](./decorators/tool)** - Tool integration
-- **[@RAGChromaDb](./decorators/rag-chromadb)** - RAG integration with ChromaDB
-- **[@a2aClient/@a2aServer](./decorators/a2a)** - Distributed agent communication
-- **[@RateLimiter](./decorators/rate-limiter)** - API rate limiting
-- **[@Visualizer](./decorators/visualizer)** - Timeline visualization
-- **[@plugin](./decorators/plugin)** - Plugin system integration
+- **[@agent](./decorators/core-decorators#agent)** - Agent configuration and metadata
+- **[@llmProvider](./decorators/core-decorators#llmprovider)** - LLM provider setup
+- **[@forge](./decorators/core-decorators#forge)** - AgentForge instance creation
+- **[@tool](./decorators/tool-decorators#tool)** - Tool integration
+- **[@RAGChromaDb](./decorators/rag-decorators#ragchromadb)** - RAG integration with ChromaDB
+- **[@a2aClient/@a2aServer](./decorators/a2a-decorators)** - Distributed agent communication
+- **[@RateLimiter](./decorators/utility-decorators#ratelimiter)** - API rate limiting
+- **[@Visualizer](./decorators/utility-decorators#visualizer)** - Timeline visualization
+- **[@plugin](./decorators/plugin-decorators#plugin)** - Plugin system integration
 
 ### 🔧 Utilities
 Essential utilities and base classes:
 
-- **[Tool](./utilities/tool)** - Base class for creating custom tools
-- **[Plugin](./utilities/plugin)** - Base class for creating plugins
-- **[Types](./utilities/types)** - TypeScript interfaces and types
-- **[Event System](./utilities/events)** - Framework event handling
+- **[Rate Limiter](./utilities/rate-limiter)** - Rate limiting utilities
+- **[Event System](./utilities/event-emitter)** - Framework event handling
+- **[Streaming](./utilities/streaming)** - Streaming response utilities
 
 ## Getting Started
 
-If you're new to Agent Forge, start with the [Core Classes](./core-classes/) to understand the fundamental concepts, then explore the [Decorators](./decorators/) for declarative configuration patterns.
+If you're new to Agent Forge, start with the [Core Classes](./core-classes/agent) to understand the fundamental concepts, then explore the [Decorators](./decorators/) for declarative configuration patterns.
 
-For extending functionality, check out the [Utilities](./utilities/) section to learn about creating custom tools and plugins.
+For extending functionality, check out the [Utilities](./utilities/) section to learn about framework utilities.
 
 ## Code Examples
 
-Most API reference pages include practical code examples. You can also find complete working examples in the [Examples](../examples/) section of the documentation.
+Most API reference pages include practical code examples.
 
 ## TypeScript Support
 
@@ -56,4 +55,4 @@ Agent Forge is built with TypeScript and provides comprehensive type definitions
 
 ## Contributing
 
-Found an error in the documentation or want to improve it? Check out our [Contributing Guide](../learn/contributing) to learn how you can help make Agent Forge better. 
+Found an error in the documentation or want to improve it? Visit our [GitHub repository](https://github.com/frostlogic-ab/agent-forge) to report issues or contribute improvements. 
