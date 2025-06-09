@@ -1,0 +1,59 @@
+---
+id: api-reference
+title: API Reference
+sidebar_position: 1
+---
+
+# Agent Forge API Reference
+
+Welcome to the complete API reference for Agent Forge. This section provides detailed documentation for all classes, decorators, utilities, and types available in the framework.
+
+## Quick Navigation
+
+### 🏗️ Core Classes
+The fundamental building blocks of Agent Forge applications:
+
+- **[Agent](./core-classes/agent)** - Individual AI agents with specific roles and capabilities
+- **[AgentForge](./core-classes/agent-forge)** - Main framework orchestrator
+- **[Team](./core-classes/team)** - Coordinated groups of agents with a manager
+- **[Workflow](./core-classes/workflow)** - Sequential agent execution pipelines
+- **[LLM](./core-classes/llm)** - Language model abstraction layer
+
+### 🎨 Decorators
+Powerful decorators for declarative configuration:
+
+- **[@agent](./decorators/agent)** - Agent configuration and metadata
+- **[@llmProvider](./decorators/llm-provider)** - LLM provider setup
+- **[@forge](./decorators/forge)** - AgentForge instance creation
+- **[@tool](./decorators/tool)** - Tool integration
+- **[@RAGChromaDb](./decorators/rag-chromadb)** - RAG integration with ChromaDB
+- **[@a2aClient/@a2aServer](./decorators/a2a)** - Distributed agent communication
+- **[@RateLimiter](./decorators/rate-limiter)** - API rate limiting
+- **[@Visualizer](./decorators/visualizer)** - Timeline visualization
+- **[@plugin](./decorators/plugin)** - Plugin system integration
+
+### 🔧 Utilities
+Essential utilities and base classes:
+
+- **[Tool](./utilities/tool)** - Base class for creating custom tools
+- **[Plugin](./utilities/plugin)** - Base class for creating plugins
+- **[Types](./utilities/types)** - TypeScript interfaces and types
+- **[Event System](./utilities/events)** - Framework event handling
+
+## Getting Started
+
+If you're new to Agent Forge, start with the [Core Classes](./core-classes/) to understand the fundamental concepts, then explore the [Decorators](./decorators/) for declarative configuration patterns.
+
+For extending functionality, check out the [Utilities](./utilities/) section to learn about creating custom tools and plugins.
+
+## Code Examples
+
+Most API reference pages include practical code examples. You can also find complete working examples in the [Examples](../examples/) section of the documentation.
+
+## TypeScript Support
+
+Agent Forge is built with TypeScript and provides comprehensive type definitions. All APIs are fully typed, providing excellent IDE support and compile-time safety.
+
+## Contributing
+
+Found an error in the documentation or want to improve it? Check out our [Contributing Guide](../learn/contributing) to learn how you can help make Agent Forge better. 

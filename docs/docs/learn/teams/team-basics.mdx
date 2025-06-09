@@ -1,0 +1,339 @@
+---
+id: team-basics
+title: Team Basics
+sidebar_position: 1
+---
+
+# Team Basics
+
+Teams allow multiple agents to collaborate on complex tasks under the coordination of a manager agent. The manager breaks down tasks, assigns them to appropriate team members, and synthesizes the results.
+
+## Creating a Team
+
+Create a team by defining agent classes and using the `readyForge` function:
+
+```typescript
+import { Agent, agent, llmProvider, forge, readyForge } from "agent-forge";
+
+// Define team members
+@agent({
+  name: "Researcher",
+  role: "Research Specialist",
+  description: "Finds and analyzes information",
+  objective: "Provide accurate research results", 
+  model: "gpt-4",
+  temperature: 0.4
+})
+class ResearcherAgent extends Agent {}
+
+@agent({
+  name: "Writer", 
+  role: "Content Writer",
+  description: "Creates clear, engaging content",
+  objective: "Write compelling articles and summaries",
+  model: "gpt-4", 
+  temperature: 0.7
+})
+class WriterAgent extends Agent {}
+
+@agent({
+  name: "Manager",
+  role: "Team Manager", 
+  description: "Coordinates team efforts",
+  objective: "Effectively delegate tasks and synthesize results",
+  model: "gpt-4",
+  temperature: 0.6
+})
+class ManagerAgent extends Agent {}
+
+// Initialize the team
+@llmProvider("openai", { apiKey: process.env.OPENAI_API_KEY })
+@forge()
+class MyTeam {
+  static forge: AgentForge;
+  
+  static async run() {
+    // Create team members
+    const manager = new ManagerAgent();
+    const researcher = new ResearcherAgent(); 
+    const writer = new WriterAgent();
+    
+    // Create and run team
+    const team = this.forge
+      .createTeam("Manager")
+      .addAgent(researcher)
+      .addAgent(writer);
+      
+    const result = await team.run(
+      "Research renewable energy trends and write a summary article"
+    );
+    
+    console.log(result.output);
+  }
+}
+
+// Initialize and run
+await readyForge(MyTeam, [ManagerAgent, ResearcherAgent, WriterAgent]);
+await MyTeam.run();
+```
+
+## How Teams Work
+
+### 1. Task Delegation
+The manager agent analyzes the input and breaks it into subtasks:
+- Identifies which agents are best suited for each subtask
+- Creates specific instructions for each team member
+- Manages dependencies between tasks
+
+### 2. Parallel Execution  
+Team members work on their assigned tasks:
+- Agents can work in parallel when tasks are independent
+- Dependencies are automatically managed
+- Each agent brings their specialized capabilities
+
+### 3. Result Synthesis
+The manager combines individual results:
+- Reviews all agent outputs
+- Synthesizes information into a coherent response
+- Ensures the original objective is met
+
+## Team Configuration
+
+### Team Options
+```typescript
+const result = await team.run("Complex task", {
+  verbose: true,           // Enable detailed logging
+  stream: true,           // Enable real-time updates
+  rate_limit: 30,         // Limit API calls per minute
+  maxTurns: 5,           // Maximum conversation turns
+  maxExecutionTime: 60000 // 60 second timeout
+});
+```
+
+### Enabling Streaming
+Watch team coordination in real-time:
+
+```typescript
+import { globalEventEmitter, AgentForgeEvents } from "agent-forge";
+
+// Listen for team communications
+globalEventEmitter.on(AgentForgeEvents.AGENT_COMMUNICATION, (event) => {
+  console.log(`${event.sender}: ${event.message}`);
+});
+
+// Enable streaming
+const result = await team.run("Research task", { 
+  stream: true,
+  enableConsoleStream: true // Built-in console visualization
+});
+```
+
+## Team Roles and Specialization
+
+### Research Team
+```typescript
+@tool(WebSearchTool)
+@agent({
+  name: "Web Researcher",
+  role: "Web Research Specialist", 
+  description: "Searches and analyzes web content",
+  objective: "Find current, accurate information online",
+  model: "gpt-4",
+  temperature: 0.3
+})
+class WebResearcher extends Agent {}
+
+@tool(WebPageContentTool)
+@agent({
+  name: "Content Analyst",
+  role: "Content Analysis Expert",
+  description: "Analyzes and extracts insights from documents", 
+  objective: "Provide deep analysis of content",
+  model: "gpt-4",
+  temperature: 0.4
+})
+class ContentAnalyst extends Agent {}
+
+@agent({
+  name: "Research Manager",
+  role: "Research Team Lead",
+  description: "Coordinates research efforts",
+  objective: "Ensure comprehensive, accurate research",
+  model: "gpt-4", 
+  temperature: 0.5
+})
+class ResearchManager extends Agent {}
+```
+
+### Analysis Team
+```typescript
+@agent({
+  name: "Data Analyst", 
+  role: "Data Analysis Specialist",
+  description: "Analyzes data and identifies patterns",
+  objective: "Extract actionable insights from data",
+  model: "gpt-4",
+  temperature: 0.2
+})
+class DataAnalyst extends Agent {}
+
+@agent({
+  name: "Report Writer",
+  role: "Technical Writer", 
+  description: "Creates clear, professional reports",
+  objective: "Communicate findings effectively",
+  model: "gpt-4",
+  temperature: 0.6
+})
+class ReportWriter extends Agent {}
+```
+
+## Team Communication Patterns
+
+### Manager Instructions
+The manager provides specific, actionable instructions:
+
+```typescript
+// Manager automatically creates instructions like:
+// "Researcher: Search for the latest renewable energy statistics and market trends"
+// "Writer: Create a 500-word summary highlighting key findings and future outlook"
+```
+
+### Dependency Management
+Tasks can depend on other tasks:
+
+```typescript
+// Manager handles dependencies automatically:
+// 1. Researcher gathers information
+// 2. Analyst reviews research (depends on step 1)  
+// 3. Writer creates article (depends on steps 1 & 2)
+```
+
+## Error Handling and Recovery
+
+Teams handle failures gracefully:
+
+```typescript
+const result = await team.run("Complex research task", {
+  verbose: true // See detailed error information
+});
+
+// Check for any issues
+if (result.metadata.toolCalls?.some(call => call.result?.error)) {
+  console.log("Some tools failed, but team adapted");
+}
+```
+
+## Team Performance Monitoring
+
+### Execution Metrics
+```typescript
+const result = await team.run("Analysis task");
+
+console.log(`Team execution time: ${result.metadata.executionTime}ms`);
+console.log(`Tokens used: ${result.metadata.tokenUsage?.total}`);
+
+// Individual agent performance is tracked automatically
+```
+
+### Verbose Logging
+Enable detailed team coordination logs:
+
+```typescript
+const result = await team.run("Task", { 
+  verbose: true // Shows manager-agent communications
+});
+```
+
+## Best Practices
+
+### Clear Agent Roles
+Define specific, non-overlapping roles:
+
+```typescript
+// ✅ Good - Clear specialization
+@agent({
+  name: "Market Researcher",
+  role: "Market Research Specialist",
+  description: "Analyzes market trends and competitor data", 
+  objective: "Provide actionable market insights",
+  model: "gpt-4"
+})
+
+// ❌ Vague - Unclear differentiation
+@agent({
+  name: "Helper",
+  role: "Assistant",
+  description: "Helps with stuff",
+  objective: "Be helpful",
+  model: "gpt-4"  
+})
+```
+
+### Balanced Team Composition
+Include complementary skills:
+
+```typescript
+// Research + Analysis + Communication
+const team = forge
+  .createTeam("Manager")
+  .addAgent(new ResearcherAgent())   // Information gathering
+  .addAgent(new AnalystAgent())      // Data processing  
+  .addAgent(new WriterAgent());      // Communication
+```
+
+### Appropriate Manager
+Choose a capable model for the manager:
+
+```typescript
+@agent({
+  name: "Manager",
+  role: "Team Coordinator",
+  description: "Manages complex multi-agent workflows",
+  objective: "Coordinate team efforts for optimal results", 
+  model: "gpt-4", // Use capable model for coordination
+  temperature: 0.6 // Balanced creativity for task planning
+})
+class TeamManager extends Agent {}
+```
+
+### Task Clarity
+Provide clear, specific tasks:
+
+```typescript
+// ✅ Good - Specific and actionable
+await team.run(`
+  Research the current state of electric vehicle adoption in Europe.
+  Include market share data, government policies, and consumer trends.
+  Write a 1000-word executive summary with key findings.
+`);
+
+// ❌ Vague - Hard to plan and execute
+await team.run("Tell me about cars");
+```
+
+## Troubleshooting
+
+### Team Deadlocks
+If the team gets stuck:
+- The manager automatically detects deadlocks
+- Provides alternative task breakdowns
+- Can cancel or modify stalled tasks
+
+### Poor Coordination
+If tasks aren't being assigned well:
+- Check manager agent configuration
+- Ensure team members have clear, distinct roles
+- Verify the task is appropriate for team execution
+
+### Performance Issues
+If teams are slow:
+- Use rate limiting to control API usage
+- Consider simpler models for routine tasks
+- Optimize agent prompts and configurations
+
+## Next Steps
+
+- [Advanced Teams](./advanced-teams.mdx) - Complex team patterns
+- [Team Workflows](./team-workflows.mdx) - Structured team processes
+- [Team Monitoring](../advanced/team-monitoring.mdx) - Performance tracking 

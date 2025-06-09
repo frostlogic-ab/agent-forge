@@ -1,0 +1,136 @@
+---
+title: Decorators Overview
+description: Complete reference for all decorators available in Agent Forge
+---
+
+# Decorators Reference
+
+Agent Forge uses TypeScript decorators to provide a clean, declarative way to configure agents, tools, and framework features. This section provides comprehensive documentation for all available decorators.
+
+## Categories
+
+### Core Decorators
+Essential decorators for basic Agent Forge functionality:
+
+- **[@agent](./core-decorators#agent)** - Configure agent properties and behavior
+- **[@llmProvider](./core-decorators#llmprovider)** - Set LLM provider and configuration  
+- **[@forge](./core-decorators#forge)** - Create AgentForge instances with automatic setup
+
+### Tool Decorators
+Decorators for integrating tools with agents:
+
+- **[@tool](./tool-decorators#tool)** - Add tools to agent classes
+- **[@MCP](./tool-decorators#mcp)** - Integrate Model Context Protocol tools
+
+### A2A Decorators
+Agent-to-Agent protocol decorators for distributed systems:
+
+- **[@a2aClient](./a2a-decorators#a2aclient)** - Create remote agent clients
+- **[@a2aServer](./a2a-decorators#a2aserver)** - Expose agents as A2A servers
+
+### RAG Decorators
+Retrieval-Augmented Generation integration:
+
+- **[@RAGChromaDb](./rag-decorators#ragchromadb)** - Add document retrieval capabilities
+
+### Utility Decorators
+Performance and development utilities:
+
+- **[@Visualizer](./utility-decorators#visualizer)** - Generate team run timelines
+- **[@RateLimiter](./utility-decorators#ratelimiter)** - Apply rate limiting to LLM calls
+
+### Plugin Decorators
+Plugin system integration:
+
+- **[@plugin](./plugin-decorators#plugin)** - Register plugins with decorated classes
+
+## Usage Patterns
+
+### Basic Agent Setup
+```typescript
+@llmProvider("openai", { apiKey: process.env.OPENAI_API_KEY })
+@agent({
+  name: "MyAgent",
+  role: "Assistant", 
+  description: "A helpful assistant",
+  objective: "Help users with their tasks",
+  model: "gpt-4",
+  temperature: 0.7
+})
+class MyAgent extends Agent {}
+```
+
+### Team with Tools and Visualization
+```typescript
+@tool(WebSearchTool)
+@Visualizer()
+@RateLimiter({ rateLimitPerSecond: 2 })
+@llmProvider("openai", { apiKey: process.env.OPENAI_API_KEY })
+@forge()
+class MyTeam {
+  static forge: AgentForge;
+  
+  static async run() {
+    // Team implementation
+  }
+}
+```
+
+### Distributed Agent Network
+```typescript
+// Server
+@a2aServer({ port: 3001 })
+@llmProvider("openai", { apiKey: process.env.OPENAI_API_KEY })
+@agent({ name: "ServerAgent", ... })
+class ServerAgent extends Agent {}
+
+// Client
+@a2aClient({ serverUrl: "http://localhost:3001/a2a" })
+class RemoteAgent extends Agent {}
+```
+
+## TypeScript Configuration
+
+Agent Forge decorators require proper TypeScript configuration:
+
+```json
+{
+  "compilerOptions": {
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "target": "ES2020",
+    "strict": true
+  }
+}
+```
+
+## Decorator Order
+
+When using multiple decorators, order matters:
+
+1. **@plugin** - Register plugins first
+2. **@Visualizer** - Enable visualization features  
+3. **@RateLimiter** - Apply rate limiting
+4. **@tool/@MCP** - Add tools
+5. **@RAGChromaDb** - Add RAG capabilities
+6. **@a2aServer/@a2aClient** - A2A protocol setup
+7. **@llmProvider** - Set LLM provider (required for most decorators)
+8. **@agent** - Configure agent (for Agent classes)
+9. **@forge** - Create AgentForge instance (last)
+
+## Error Handling
+
+Common decorator-related errors and solutions:
+
+- **"LLM provider must be set"** - Add `@llmProvider` before other decorators
+- **"Can only be applied to classes extending Agent"** - Ensure your class extends the Agent base class
+- **"Decorator order"** - Follow the recommended decorator order above
+- **"experimentalDecorators not enabled"** - Update your TypeScript configuration
+
+## Best Practices
+
+1. **Consistent Ordering** - Always follow the same decorator order across your project
+2. **Environment Variables** - Use environment variables for API keys and configuration
+3. **Type Safety** - Leverage TypeScript's type checking with proper configurations
+4. **Error Boundaries** - Implement proper error handling around decorated classes
+5. **Testing** - Test decorated classes with proper mock implementations 

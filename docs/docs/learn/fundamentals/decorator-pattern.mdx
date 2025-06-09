@@ -1,0 +1,226 @@
+---
+id: decorator-pattern
+title: Understanding Decorators
+sidebar_position: 2
+---
+
+# Understanding Decorators
+
+Agent Forge's decorator pattern provides a clean, declarative way to configure and enhance your agents and applications. Decorators are applied to classes and modify their behavior without changing the class implementation.
+
+## Core Decorators
+
+### @agent - Agent Configuration
+Defines an agent's basic properties:
+
+```typescript
+@agent({
+  name: "Assistant",
+  role: "Helpful Assistant", 
+  description: "Provides assistance with various tasks",
+  objective: "Help users accomplish their goals",
+  model: "gpt-4",
+  temperature: 0.7
+})
+class MyAgent extends Agent {}
+```
+
+### @tool - Adding Capabilities
+Equips agents with tools they can use:
+
+```typescript
+@tool(WebSearchTool)
+@tool(CalculatorTool)
+@agent(config)
+class TooledAgent extends Agent {}
+```
+
+### @llmProvider - LLM Configuration
+Sets up the language model provider:
+
+```typescript
+@llmProvider("openai", { 
+  apiKey: process.env.OPENAI_API_KEY,
+  baseUrl: "https://api.openai.com/v1" 
+})
+@forge()
+class Application {}
+```
+
+### @forge - Application Initialization
+Bootstraps your Agent Forge application:
+
+```typescript
+@llmProvider("openai", { apiKey: process.env.OPENAI_API_KEY })
+@forge()
+class MyApp {
+  static forge: AgentForge;
+  
+  static async run() {
+    // Your application logic
+  }
+}
+```
+
+## Decorator Composition
+
+Decorators can be combined and will execute in the correct order:
+
+```typescript
+// Multiple decorators work together
+@tool(WebSearchTool)
+@tool(FileReaderTool)
+@RAGChromaDb({ collectionName: "knowledge_base" })
+@agent({
+  name: "Research Assistant",
+  role: "Researcher",
+  description: "Advanced research capabilities",
+  objective: "Conduct thorough research using multiple sources",
+  model: "gpt-4",
+  temperature: 0.3
+})
+class AdvancedResearcher extends Agent {}
+```
+
+## Advanced Decorators
+
+### @RAGChromaDb - Knowledge Integration
+Adds retrieval-augmented generation capabilities:
+
+```typescript
+@RAGChromaDb({
+  collectionName: "company_docs",
+  chromaUrl: "http://localhost:8000",
+  topK: 5,
+  similarityThreshold: 0.7
+})
+@agent(config)
+class KnowledgeAgent extends Agent {}
+```
+
+### @a2aClient / @a2aServer - Distributed Agents
+Enable agent-to-agent communication:
+
+```typescript
+// Client agent that connects to remote agents
+@a2aClient({ serverUrl: "http://localhost:3000/a2a" })
+@agent(config)  
+class RemoteAgent extends Agent {}
+
+// Server agent that exposes itself via A2A protocol
+@a2aServer({ port: 3000 })
+@agent(config)
+class ServerAgent extends Agent {}
+```
+
+### @RateLimiter - Performance Control
+Control API usage and costs:
+
+```typescript
+@RateLimiter({
+  rateLimitPerSecond: 2,
+  rateLimitPerMinute: 60,
+  verbose: true,
+  toolSpecificLimits: {
+    "WebSearchTool": {
+      rateLimitPerSecond: 0.5,
+      rateLimitPerMinute: 10
+    }
+  },
+  cacheTTL: 60000 // Cache results for 1 minute
+})
+@llmProvider("openai", { apiKey: process.env.OPENAI_API_KEY })
+@forge()
+class RateLimitedApp {}
+```
+
+### @Visualizer - Timeline Generation
+Enables automatic generation of interactive HTML timelines for team runs:
+
+```typescript
+@Visualizer()
+@llmProvider("openai", { apiKey: process.env.OPENAI_API_KEY })
+@forge()
+class VisualizedApp {
+  static forge: AgentForge;
+  
+  static async run() {
+    const team = this.forge.createTeam("Manager");
+    team.addAgent(new ResearchAgent());
+    team.addAgent(new AnalystAgent());
+    
+    // Timeline will be automatically generated
+    const result = await team.run("Analyze market trends", {
+      verbose: true,
+      stream: true
+    });
+    
+    // Creates: team-run-timeline.html
+    return result;
+  }
+}
+```
+
+**Timeline Features:**
+- **Task Cards**: Visual representation of each task with status and results
+- **Event Timeline**: Chronological view of all communications and actions
+- **Interactive UI**: Expandable sections with detailed information
+- **Performance Stats**: Execution times and token usage
+- **Automatic Export**: Generates `team-run-timeline.html` after team runs
+
+## TypeScript Configuration
+
+To use decorators, ensure your `tsconfig.json` includes:
+
+```json
+{
+  "compilerOptions": {
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "target": "ES2020",
+    "module": "commonjs"
+  }
+}
+```
+
+## Best Practices
+
+### Order Matters
+Apply decorators in this recommended order:
+
+```typescript
+// 1. Utility decorators (rate limiting, etc.)
+@RateLimiter({ rateLimitPerSecond: 1 })
+// 2. Data/knowledge decorators  
+@RAGChromaDb({ collectionName: "docs" })
+// 3. Tool decorators
+@tool(WebSearchTool)
+// 4. Core agent decorator (always last for agents)
+@agent({
+  name: "Research Agent",
+  role: "Researcher", 
+  description: "Conducts research with various tools",
+  objective: "Find accurate information",
+  model: "gpt-4"
+})
+class ResearchAgent extends Agent {}
+```
+
+### Separation of Concerns
+Keep configuration in decorators, logic in methods:
+
+```typescript
+@agent(config)
+class MyAgent extends Agent {
+  // Custom methods for agent-specific logic
+  async processData(data: string): Promise<string> {
+    return this.run(`Process this data: ${data}`);
+  }
+}
+```
+
+## Next Steps
+
+- [Agent Basics](../agents/agent-basics.mdx) - Learn about Agent classes
+- [Tool Integration](../tools/adding-tools.mdx) - Add capabilities to agents  
+- [LLM Providers](../fundamentals/llm-providers.mdx) - Configure language models 

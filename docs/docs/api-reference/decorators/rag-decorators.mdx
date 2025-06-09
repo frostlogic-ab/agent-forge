@@ -1,0 +1,408 @@
+---
+title: RAG Decorators
+description: Retrieval-Augmented Generation integration decorators
+---
+
+# RAG Decorators
+
+RAG (Retrieval-Augmented Generation) decorators provide seamless integration with vector databases and document retrieval systems, enabling agents to access and reason over large document collections.
+
+## @RAGChromaDb
+
+Adds ChromaDB-based document retrieval capabilities to an agent, automatically creating and configuring a RAG tool.
+
+### Syntax
+```typescript
+@RAGChromaDb(config: RAGChromaDbConfig)
+@agent(agentConfig)
+class MyRAGAgent extends Agent {}
+```
+
+### Parameters
+
+#### RAGChromaDbConfig
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `collectionName` | `string` | **Required** | ChromaDB collection name |
+| `chromaUrl` | `string` | `"http://localhost:8000"` | ChromaDB server URL |
+| `topK` | `number` | `5` | Number of top results to retrieve |
+| `similarityThreshold` | `number` | `0.0` | Minimum similarity score threshold |
+| `chunkSize` | `number` | `1000` | Document chunk size in characters |
+| `chunkOverlap` | `number` | `200` | Overlap between chunks |
+| `maxRetries` | `number` | `3` | Maximum retry attempts |
+| `timeout` | `number` | `30000` | Request timeout in milliseconds |
+
+### Examples
+
+#### Basic RAG Agent
+```typescript
+@RAGChromaDb({
+  collectionName: "company_docs",
+  topK: 3,
+  similarityThreshold: 0.7
+})
+@agent({
+  name: "KnowledgeAssistant",
+  role: "Knowledge Base Expert",
+  description: "Assistant with access to company documentation",
+  objective: "Provide accurate information from company knowledge base",
+  model: "gpt-4",
+  temperature: 0.3
+})
+class KnowledgeAssistant extends Agent {}
+```
+
+#### Advanced RAG Configuration
+```typescript
+@RAGChromaDb({
+  collectionName: "research_papers",
+  chromaUrl: "https://chroma.example.com:8000",
+  topK: 10,
+  similarityThreshold: 0.5,
+  chunkSize: 1500,
+  chunkOverlap: 300,
+  maxRetries: 5,
+  timeout: 60000
+})
+@agent({
+  name: "ResearchAssistant",
+  role: "Academic Researcher",
+  description: "Assistant specializing in academic research",
+  objective: "Find relevant academic information and insights",
+  model: "gpt-4-turbo",
+  temperature: 0.2
+})
+class ResearchAssistant extends Agent {}
+```
+
+#### Multi-Domain RAG Agent
+```typescript
+@RAGChromaDb({
+  collectionName: "technical_docs",
+  topK: 5,
+  similarityThreshold: 0.6
+})
+@tool(WebSearchTool)
+@agent({
+  name: "TechnicalExpert",
+  role: "Technical Documentation Expert",
+  description: "Expert with access to technical docs and web search",
+  objective: "Provide comprehensive technical guidance",
+  model: "gpt-4"
+})
+class TechnicalExpert extends Agent {}
+```
+
+### RAG Tool Functionality
+
+The `@RAGChromaDb` decorator automatically adds a RAG tool with the following capabilities:
+
+#### Search Documents
+```typescript
+// Automatically available to the agent
+const ragResults = await agent.searchDocuments({
+  query: "machine learning algorithms",
+  topK: 5,
+  similarityThreshold: 0.7
+});
+```
+
+#### Tool Parameters
+The RAG tool accepts these parameters from the LLM:
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `query` | `string` | Search query text |
+| `topK` | `number` | Number of results (optional) |
+| `similarityThreshold` | `number` | Minimum similarity (optional) |
+
+### Document Indexing
+
+Before using RAG capabilities, documents must be indexed in ChromaDB:
+
+#### Using DocumentIndexer
+```typescript
+import { DocumentIndexer } from "agent-forge";
+
+const indexer = new DocumentIndexer({
+  collectionName: "company_docs",
+  chromaUrl: "http://localhost:8000",
+  chunkSize: 1000,
+  chunkOverlap: 200
+});
+
+await indexer.initialize();
+
+// Index a single file
+await indexer.indexFile("./documents/policy.pdf");
+
+// Index a directory
+await indexer.indexDirectory("./documents", true);
+
+// Index text directly
+await indexer.indexText(
+  "Important company policy...",
+  "policy-manual.txt"
+);
+```
+
+#### Indexing Script Example
+```typescript
+// scripts/index-documents.ts
+import { DocumentIndexer } from "agent-forge";
+import path from "path";
+
+async function indexCompanyDocs() {
+  const indexer = new DocumentIndexer({
+    collectionName: "company_docs",
+    chromaUrl: process.env.CHROMA_URL || "http://localhost:8000"
+  });
+
+  await indexer.initialize();
+
+  const results = await indexer.indexDirectory(
+    path.join(process.cwd(), "documents"),
+    true // recursive
+  );
+
+  console.log(`Indexed ${results.documentsProcessed} documents`);
+  console.log(`Created ${results.chunksCreated} chunks`);
+  
+  if (results.errors.length > 0) {
+    console.error("Errors:", results.errors);
+  }
+
+  await indexer.close();
+}
+
+indexCompanyDocs().catch(console.error);
+```
+
+### Agent Methods
+
+The RAG decorator adds several methods to the agent:
+
+#### initializeRAGManually()
+```typescript
+const agent = new KnowledgeAssistant();
+await agent.initializeRAGManually(); // Force re-initialization
+```
+
+#### getRAGTool()
+```typescript
+const agent = new KnowledgeAssistant();
+const ragTool = agent.getRAGTool();
+console.log("RAG tool:", ragTool?.name);
+```
+
+#### getRAGConfig()
+```typescript
+const agent = new KnowledgeAssistant();
+const config = agent.getRAGConfig();
+console.log("Collection:", config.collectionName);
+```
+
+#### isRAGInitialized()
+```typescript
+const agent = new KnowledgeAssistant();
+if (agent.isRAGInitialized()) {
+  console.log("RAG is ready");
+}
+```
+
+#### getRAGCollectionInfo()
+```typescript
+const agent = new KnowledgeAssistant();
+const info = await agent.getRAGCollectionInfo();
+console.log("Documents in collection:", info.count);
+```
+
+#### closeRAG()
+```typescript
+const agent = new KnowledgeAssistant();
+await agent.closeRAG(); // Clean up resources
+```
+
+### Team with RAG Agents
+
+```typescript
+@RAGChromaDb({
+  collectionName: "technical_docs",
+  topK: 5
+})
+@agent({
+  name: "TechnicalSpecialist",
+  role: "Technical Expert",
+  description: "Technical documentation specialist",
+  objective: "Provide technical guidance from documentation",
+  model: "gpt-4"
+})
+class TechnicalSpecialist extends Agent {}
+
+@RAGChromaDb({
+  collectionName: "business_docs", 
+  topK: 3
+})
+@agent({
+  name: "BusinessAnalyst",
+  role: "Business Expert",
+  description: "Business documentation specialist",
+  objective: "Provide business insights from documentation",
+  model: "gpt-4"
+})
+class BusinessAnalyst extends Agent {}
+
+@agent({
+  name: "TeamManager",
+  role: "Coordination Manager", 
+  description: "Coordinates specialists with domain expertise",
+  objective: "Synthesize technical and business perspectives",
+  model: "gpt-4"
+})
+class TeamManager extends Agent {}
+
+@llmProvider("openai", { apiKey: process.env.OPENAI_API_KEY })
+@forge()
+class RAGTeam {
+  static forge: AgentForge;
+  
+  static async run() {
+    const agentClasses = [
+      TeamManager,
+      TechnicalSpecialist,
+      BusinessAnalyst
+    ];
+    
+    await readyForge(RAGTeam, agentClasses);
+    
+    return this.forge.runTeam(
+      "TeamManager",
+      ["TechnicalSpecialist", "BusinessAnalyst"],
+      "Analyze the feasibility of implementing microservices architecture"
+    );
+  }
+}
+```
+
+### ChromaDB Setup
+
+#### Docker Setup
+```bash
+# Start ChromaDB with Docker
+docker run -d \
+  --name chromadb \
+  -p 8000:8000 \
+  chromadb/chroma:latest
+```
+
+#### Docker Compose
+```yaml
+version: '3.8'
+services:
+  chromadb:
+    image: chromadb/chroma:latest
+    ports:
+      - "8000:8000"
+    volumes:
+      - chromadb_data:/chroma/chroma
+    environment:
+      - CHROMA_SERVER_HOST=0.0.0.0
+      - CHROMA_SERVER_PORT=8000
+
+  agent-app:
+    build: .
+    depends_on:
+      - chromadb
+    environment:
+      - CHROMA_URL=http://chromadb:8000
+
+volumes:
+  chromadb_data:
+```
+
+### Supported Document Formats
+
+The RAG system supports various document formats:
+
+- **Text**: `.txt`, `.md`, `.rtf`
+- **JSON**: `.json` with automatic text extraction
+- **CSV**: Converted to structured text
+- **HTML**: Content extraction with clean text output
+
+### Best Practices
+
+#### Collection Management
+- **Descriptive Names**: Use clear collection names like `"company_policies"` or `"technical_docs"`
+- **Separate Collections**: Use different collections for different document types
+- **Regular Updates**: Re-index documents when they change
+
+#### Chunk Configuration
+- **Technical Docs**: Use larger chunks (1500-2000 characters) for code and technical content
+- **General Content**: Use standard chunks (1000 characters) for regular text
+- **Overlap**: Maintain 15-20% overlap to preserve context across chunks
+
+#### Query Optimization
+- **Similarity Threshold**: Start with 0.7 and adjust based on results quality
+- **TopK Selection**: Use 3-5 for focused results, 10+ for comprehensive searches
+- **Query Specificity**: More specific queries yield better results
+
+#### Performance
+- **Indexing**: Index documents during setup, not runtime
+- **Caching**: ChromaDB handles caching automatically
+- **Resource Management**: Call `closeRAG()` when done to clean up connections
+
+### Error Handling
+
+#### Graceful Degradation
+```typescript
+@RAGChromaDb({
+  collectionName: "docs",
+  // RAG will gracefully fail if ChromaDB is unavailable
+})
+@tool(WebSearchTool) // Fallback to web search
+@agent({
+  name: "ResilientAgent",
+  role: "Information Assistant",
+  description: "Agent with RAG and fallback capabilities",
+  objective: "Find information with multiple sources",
+  model: "gpt-4"
+})
+class ResilientAgent extends Agent {}
+```
+
+#### Connection Issues
+If ChromaDB is unavailable:
+- Agent initialization continues without RAG
+- RAG tool is not added to the agent
+- Warning is logged but execution continues
+- Manual initialization can be retried later
+
+### Monitoring and Debugging
+
+#### Enable Verbose Logging
+```typescript
+@RAGChromaDb({
+  collectionName: "docs",
+  // Increase timeout for debugging
+  timeout: 60000
+})
+@agent({
+  name: "DebugAgent",
+  role: "Debug Assistant",
+  description: "Agent for debugging RAG issues",
+  objective: "Help debug RAG functionality",
+  model: "gpt-4"
+})
+class DebugAgent extends Agent {}
+```
+
+#### Check Collection Status
+```typescript
+const agent = new DebugAgent();
+if (agent.isRAGInitialized()) {
+  const info = await agent.getRAGCollectionInfo();
+  console.log("Collection info:", info);
+} else {
+  console.log("RAG not initialized - check ChromaDB connection");
+}
+``` 

@@ -1,0 +1,232 @@
+---
+id: llm-providers
+title: LLM Providers
+sidebar_position: 3
+---
+
+# LLM Providers
+
+Agent Forge supports multiple LLM providers through the `@llmProvider` decorator. This allows you to easily switch between different language models while keeping your agent code unchanged.
+
+## Supported Providers
+
+Agent Forge supports all providers available through the [Token.js](https://token.js.org) library:
+
+- **OpenAI** - GPT-4, GPT-3.5-turbo, etc.
+- **Anthropic** - Claude models
+- **Google** - Gemini models  
+- **Azure OpenAI** - Enterprise OpenAI
+- **Groq** - Fast inference
+- **Ollama** - Local models
+- **And many more...**
+
+## Basic Configuration
+
+Use the `@llmProvider` decorator to configure your LLM:
+
+```typescript
+@llmProvider("openai", {
+  apiKey: process.env.OPENAI_API_KEY
+})
+@forge()
+class MyApplication {
+  static forge: AgentForge;
+}
+```
+
+## Provider-Specific Examples
+
+### OpenAI
+```typescript
+@llmProvider("openai", {
+  apiKey: process.env.OPENAI_API_KEY,
+  baseUrl: "https://api.openai.com/v1", // Optional custom endpoint
+  organizationId: "org-123", // Optional organization
+  maxRetries: 3,
+  timeout: 30000
+})
+```
+
+### Anthropic Claude
+```typescript
+@llmProvider("anthropic", {
+  apiKey: process.env.ANTHROPIC_API_KEY,
+  maxRetries: 3,
+  timeout: 30000
+})
+```
+
+### Azure OpenAI
+```typescript
+@llmProvider("azure", {
+  apiKey: process.env.AZURE_OPENAI_API_KEY,
+  baseUrl: "https://your-resource.openai.azure.com",
+  apiVersion: "2024-02-15-preview"
+})
+```
+
+### Groq (Fast Inference)
+```typescript
+@llmProvider("groq", {
+  apiKey: process.env.GROQ_API_KEY
+})
+```
+
+### Ollama (Local Models)
+```typescript
+@llmProvider("ollama", {
+  baseUrl: "http://localhost:11434" // Default Ollama endpoint
+})
+```
+
+## Environment Variables
+
+Set up your environment variables in a `.env` file:
+
+```bash
+# OpenAI
+OPENAI_API_KEY=sk-...
+OPENAI_ORG_ID=org-...
+
+# Anthropic  
+ANTHROPIC_API_KEY=sk-ant-...
+
+# Azure
+AZURE_OPENAI_API_KEY=...
+AZURE_OPENAI_ENDPOINT=https://...
+
+# Groq
+GROQ_API_KEY=gsk_...
+
+# Default provider and model for agents
+LLM_PROVIDER=openai
+LLM_API_KEY=sk-...
+LLM_API_MODEL=gpt-4
+```
+
+## Model Selection
+
+Specify models in your agent configuration:
+
+```typescript
+@agent({
+  name: "Fast Assistant",
+  role: "Quick Helper",
+  description: "Provides fast responses",
+  objective: "Answer questions quickly",
+  model: "gpt-3.5-turbo", // Fast and cost-effective
+  temperature: 0.7
+})
+class FastAgent extends Agent {}
+
+@agent({
+  name: "Smart Assistant", 
+  role: "Advanced Helper",
+  description: "Provides detailed analysis",
+  objective: "Give thorough, accurate responses",
+  model: "gpt-4", // More capable but slower/costlier
+  temperature: 0.3
+})
+class SmartAgent extends Agent {}
+```
+
+## Dynamic Provider Configuration
+
+You can configure providers dynamically:
+
+```typescript
+const provider = process.env.LLM_PROVIDER as LLMProvider;
+const apiKey = process.env.LLM_API_KEY;
+
+@llmProvider(provider, { apiKey })
+@forge()
+class DynamicApp {
+  static forge: AgentForge;
+  
+  static async run() {
+    console.log(`Using provider: ${provider}`);
+    // Your application logic
+  }
+}
+```
+
+## Rate Limiting
+
+Control API usage with the `@RateLimiter` decorator:
+
+```typescript
+@RateLimiter({
+  rateLimitPerSecond: 2,   // 2 calls per second
+  rateLimitPerMinute: 100, // 100 calls per minute
+  verbose: true            // Log rate limiting
+})
+@llmProvider("openai", { apiKey: process.env.OPENAI_API_KEY })
+@forge()
+class RateLimitedApp {}
+```
+
+## Best Practices
+
+### Use Environment Variables
+Never hardcode API keys in your source code:
+
+```typescript
+// ✅ Good
+@llmProvider("openai", {
+  apiKey: process.env.OPENAI_API_KEY
+})
+
+// ❌ Bad - API key exposed in code
+@llmProvider("openai", {
+  apiKey: "sk-actual-api-key-here"
+})
+```
+
+### Choose Models Wisely
+Consider cost vs. capability trade-offs:
+
+- **Development/Testing**: Use faster, cheaper models like `gpt-3.5-turbo`
+- **Production**: Use more capable models like `gpt-4` for complex tasks
+- **Local Development**: Use Ollama for privacy and cost savings
+
+### Handle Errors Gracefully
+Configure timeouts and retries:
+
+```typescript
+@llmProvider("openai", {
+  apiKey: process.env.OPENAI_API_KEY,
+  maxRetries: 3,      // Retry failed requests
+  timeout: 30000      // 30 second timeout
+})
+```
+
+## Troubleshooting
+
+### Common Issues
+
+**Invalid API Key**
+```
+Error: Invalid API key provided
+```
+- Check your `.env` file has the correct API key
+- Ensure the environment variable is loaded with `dotenv.config()`
+
+**Rate Limit Exceeded**
+```
+Error: Rate limit exceeded
+```
+- Use the `@RateLimiter` decorator to control request frequency
+- Consider upgrading your API plan for higher limits
+
+**Model Not Found**
+```
+Error: Model 'gpt-5' not found
+```
+- Check the model name is correct for your provider
+- Verify the model is available with your API plan
+
+## Next Steps
+
+- [Agent Basics](../agents/agent-basics.mdx) - Learn about creating agents
+- [Rate Limiting](../advanced/rate-limiting.mdx) - Control API usage
+- [Environment Setup](../installation.mdx) - Configure your development environment 

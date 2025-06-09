@@ -10,7 +10,6 @@ import {
   readyForge,
   LLMProvider,
 } from "../index";
-import { WebSearchTool } from "../tools/web-search-tool";
 import { Tool } from "../tools/tool";
 import { ToolParameter } from "../types";
 
@@ -117,14 +116,13 @@ class WeatherTool extends Tool {
 }
 
 // Assistant agent with tools using decorators
-@tool(WebSearchTool)
 @tool(CalculatorTool)
 @tool(WeatherTool)
 @agent({
   name: "Assistant",
   role: "Helpful Assistant",
   description:
-    "A helpful assistant that can search the web, do calculations, and check the weather.",
+    "A helpful assistant that can do calculations, and check the weather.",
   objective:
     "Help the user with their questions using the available tools when appropriate.",
   model: process.env.LLM_API_MODEL!,

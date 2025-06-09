@@ -49,12 +49,7 @@ const config: Config = {
           // Remove this to remove the "edit this page" links.
           editUrl: "https://github.com/frostlogic-ab/agent-forge/tree/main/",
         },
-        blog: {
-          showReadingTime: true,
-          // Please change this to your repo.
-          // Remove this to remove the "edit this page" links.
-          editUrl: "https://github.com/frostlogic-ab/agent-forge/tree/main/",
-        },
+
         theme: {
           customCss: "./src/css/custom.css",
         },
@@ -80,11 +75,10 @@ const config: Config = {
         },
         {
           type: "docSidebar",
-          sidebarId: "referenceSidebar",
+          sidebarId: "apiSidebar",
           position: "left",
-          label: "Reference",
+          label: "API Reference",
         },
-        { to: "/blog", label: "Blog", position: "left" },
         {
           href: "https://github.com/frostlogic-ab/agent-forge",
           label: "GitHub",
@@ -100,11 +94,11 @@ const config: Config = {
           items: [
             {
               label: "Learn",
-              to: "/docs/learn/intro", // We'll create this page
+              to: "/docs/learn/fundamentals/what-is-agent-forge", // Updated to existing page
             },
             {
-              label: "Reference",
-              to: "/docs/reference/intro", // We'll create this page
+              label: "API Reference",
+              to: "/docs/api-reference",
             },
           ],
         },
@@ -129,10 +123,6 @@ const config: Config = {
         {
           title: "More",
           items: [
-            {
-              label: "Blog",
-              to: "/blog",
-            },
             {
               label: "GitHub",
               href: "https://github.com/frostlogic-ab/agent-forge",

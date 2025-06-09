@@ -38,31 +38,46 @@
 
 .heroContainer {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: center;
   max-width: 1200px;
   margin: 0 auto;
   padding: 0 1rem;
+  width: 100%;
+  min-height: 400px;
+  position: relative;
 }
 
 .heroLeft {
-  flex: 1;
+  width: calc(50% - 1rem);
   text-align: left;
   padding-right: 2rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  z-index: 2;
 }
 
 .heroRight {
   flex: 1;
   display: flex;
   justify-content: center;
-  align-items: center;
+  align-items: stretch;
+  position: absolute;
+  left: 50%;
+  top: -4rem;
+  bottom: -4rem;
+  width: 50vw;
+  padding: 0;
+  margin: 0;
 }
 
 .heroImage {
-  max-width: 90%;
-  height: auto;
-  border-radius: 8px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .buttons {
@@ -132,16 +147,39 @@
 @media screen and (max-width: 996px) {
   .heroBanner {
     padding: 2rem;
+    display: block;
   }
 
   .heroContainer {
     flex-direction: column;
+    flex: none;
   }
 
   .heroLeft {
     padding-right: 0;
     text-align: center;
     margin-bottom: 2rem;
+    width: 100%;
+  }
+
+  .heroRight {
+    position: relative;
+    width: 100%;
+    min-height: 300px;
+    top: auto;
+    bottom: auto;
+    left: auto;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .heroImage {
+    width: 90%;
+    height: auto;
+    object-fit: contain;
+    border-radius: 8px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
   }
 
   .buttons {

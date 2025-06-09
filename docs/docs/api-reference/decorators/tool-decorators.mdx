@@ -1,0 +1,381 @@
+---
+title: Tool Decorators
+description: Decorators for integrating tools with agents
+---
+
+# Tool Decorators
+
+Tool decorators provide seamless integration of tools and external capabilities with Agent Forge agents. These decorators automatically add tool functionality to agent classes.
+
+## @tool
+
+Adds tool classes to an agent, making them available for the agent to use during execution.
+
+### Syntax
+```typescript
+@tool(ToolClass)
+@tool(AnotherToolClass)
+@agent(config)
+class MyAgent extends Agent {}
+```
+
+### Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `ToolClass` | `new (...args: any[]) => Tool` | Tool class constructor |
+
+### Examples
+
+#### Single Tool
+```typescript
+import { WebSearchTool } from "agent-forge";
+
+@tool(WebSearchTool)
+@agent({
+  name: "ResearchAgent",
+  role: "Research Specialist",
+  description: "Agent with web search capabilities",
+  objective: "Find accurate information online",
+  model: "gpt-4"
+})
+class ResearchAgent extends Agent {}
+```
+
+#### Multiple Tools
+```typescript
+import { WebSearchTool, WebPageContentTool } from "agent-forge";
+
+@tool(WebSearchTool)
+@tool(WebPageContentTool)
+@agent({
+  name: "ComprehensiveAgent", 
+  role: "Research and Analysis Specialist",
+  description: "Agent with search and content analysis capabilities",
+  objective: "Conduct thorough web-based research",
+  model: "gpt-4"
+})
+class ComprehensiveAgent extends Agent {}
+```
+
+#### Custom Tool
+```typescript
+class CalculatorTool extends Tool {
+  constructor() {
+    super(
+      "Calculator",
+      "Perform mathematical calculations",
+      [
+        {
+          name: "expression",
+          type: "string", 
+          description: "Mathematical expression to evaluate",
+          required: true
+        }
+      ]
+    );
+  }
+  
+  protected async run(params: { expression: string }) {
+    // Tool implementation
+    return { result: eval(params.expression) };
+  }
+}
+
+@tool(CalculatorTool)
+@agent({
+  name: "MathAgent",
+  role: "Mathematics Assistant",
+  description: "Agent that can perform calculations",
+  objective: "Help with mathematical problems",
+  model: "gpt-4"
+})
+class MathAgent extends Agent {}
+```
+
+### Built-in Tools
+
+Agent Forge provides several built-in tools:
+
+#### WebSearchTool
+```typescript
+import { WebSearchTool } from "agent-forge";
+
+@tool(WebSearchTool)
+class SearchAgent extends Agent {}
+```
+- **Purpose**: Search the web using SearxNG instances
+- **Parameters**: `query` (string), `numResults` (number, optional)
+- **Returns**: Array of search results with titles, URLs, and snippets
+
+#### WebPageContentTool  
+```typescript
+import { WebPageContentTool } from "agent-forge";
+
+@tool(WebPageContentTool)
+class ContentAgent extends Agent {}
+```
+- **Purpose**: Extract content from web pages
+- **Parameters**: `url` (string), `extractMainContent` (boolean, optional)
+- **Returns**: Cleaned and structured page content
+
+### Creating Custom Tools
+
+To create custom tools, extend the `Tool` base class:
+
+```typescript
+import { Tool, ToolParameter } from "agent-forge";
+
+class WeatherTool extends Tool {
+  constructor() {
+    const parameters: ToolParameter[] = [
+      {
+        name: "location",
+        type: "string",
+        description: "City or location for weather",
+        required: true
+      },
+      {
+        name: "units",
+        type: "string", 
+        description: "Temperature units (celsius/fahrenheit)",
+        required: false,
+        default: "celsius"
+      }
+    ];
+    
+    super(
+      "Weather",
+      "Get current weather information",
+      parameters,
+      "Weather data including temperature and conditions"
+    );
+  }
+  
+  protected async run(params: { location: string; units?: string }) {
+    // Implement weather API call
+    return {
+      location: params.location,
+      temperature: "22°C",
+      condition: "Sunny"
+    };
+  }
+}
+```
+
+---
+
+## @MCP
+
+Integrates Model Context Protocol (MCP) tools from external servers, enabling agents to use tools from remote MCP-compliant services.
+
+### Syntax
+```typescript
+@MCP(protocol, config)
+@agent(config)
+class MyAgent extends Agent {}
+```
+
+### Parameters
+
+#### Protocol Types
+```typescript
+enum MCPProtocolType {
+  STDIO = "stdio",           // Local process communication
+  SSE = "sse",              // Server-Sent Events
+  STREAMABLE_HTTP = "streamable_http"  // HTTP streaming
+}
+```
+
+#### Configuration Objects
+
+##### MCPStdioConfig
+For local process communication:
+```typescript
+interface MCPStdioConfig {
+  command: string;           // Command to execute
+  args?: string[];          // Command arguments
+  env?: Record<string, string>;  // Environment variables
+  verbose?: boolean;        // Enable debug logging
+}
+```
+
+##### MCPSseConfig
+For Server-Sent Events:
+```typescript
+interface MCPSseConfig {
+  url: string;              // SSE endpoint URL
+  headers?: Record<string, string>;  // HTTP headers
+  verbose?: boolean;        // Enable debug logging
+}
+```
+
+##### MCPStreamableHttpConfig
+For HTTP streaming:
+```typescript
+interface MCPStreamableHttpConfig {
+  baseUrl: string | URL;    // Base URL for the service
+  headers?: Record<string, string>;  // HTTP headers
+  verbose?: boolean;        // Enable debug logging
+  timeout?: number;         // Request timeout
+}
+```
+
+### Examples
+
+#### Local MCP Server (STDIO)
+```typescript
+@MCP(MCPProtocolType.STDIO, {
+  command: "python",
+  args: ["-m", "my_mcp_server"],
+  verbose: true
+})
+@agent({
+  name: "LocalMCPAgent",
+  role: "Agent with Local Tools",
+  description: "Agent using local MCP tools",
+  objective: "Use specialized local tools",
+  model: "gpt-4"
+})
+class LocalMCPAgent extends Agent {}
+```
+
+#### Remote MCP Server (SSE)
+```typescript
+@MCP(MCPProtocolType.SSE, {
+  url: "https://api.example.com/mcp/events",
+  headers: {
+    "Authorization": "Bearer " + process.env.MCP_API_KEY
+  },
+  verbose: true
+})
+@agent({
+  name: "RemoteMCPAgent", 
+  role: "Agent with Remote Tools",
+  description: "Agent using remote MCP tools",
+  objective: "Access cloud-based tool services",
+  model: "gpt-4"
+})
+class RemoteMCPAgent extends Agent {}
+```
+
+#### HTTP Streaming MCP
+```typescript
+@MCP(MCPProtocolType.STREAMABLE_HTTP, {
+  baseUrl: "https://tools.example.com/api",
+  headers: {
+    "X-API-Key": process.env.TOOLS_API_KEY
+  },
+  timeout: 30000,
+  verbose: true
+})
+@agent({
+  name: "HTTPMCPAgent",
+  role: "Agent with HTTP Tools", 
+  description: "Agent using HTTP-based MCP tools",
+  objective: "Utilize web-based tool services",
+  model: "gpt-4"
+})
+class HTTPMCPAgent extends Agent {}
+```
+
+#### Multiple MCP Sources
+```typescript
+@MCP(MCPProtocolType.STDIO, {
+  command: "python",
+  args: ["-m", "local_tools"]
+})
+@MCP(MCPProtocolType.SSE, {
+  url: "https://api.remote-tools.com/mcp"
+})
+@agent({
+  name: "MultiMCPAgent",
+  role: "Multi-Tool Agent",
+  description: "Agent with tools from multiple MCP sources", 
+  objective: "Access diverse tool capabilities",
+  model: "gpt-4"
+})
+class MultiMCPAgent extends Agent {}
+```
+
+### Rate Limiting with MCP
+
+MCP tools can be rate limited using the `@RateLimiter` decorator:
+
+```typescript
+@RateLimiter({
+  rateLimitPerSecond: 2,
+  rateLimitPerMinute: 60,
+  toolSpecificLimits: {
+    "expensive_tool": {
+      rateLimitPerSecond: 0.5,
+      rateLimitPerMinute: 10
+    }
+  }
+})
+@MCP(MCPProtocolType.SSE, { url: "https://api.example.com/mcp" })
+@agent({
+  name: "RateLimitedMCPAgent",
+  role: "Rate Limited Agent",
+  description: "Agent with rate-limited MCP tools",
+  objective: "Use tools while respecting rate limits",
+  model: "gpt-4"
+})
+class RateLimitedMCPAgent extends Agent {}
+```
+
+### Best Practices
+
+#### Tool Selection
+- **Built-in First**: Use built-in tools when they meet your needs
+- **Custom for Specific**: Create custom tools for domain-specific functionality
+- **MCP for External**: Use MCP for integrating with external services
+
+#### Performance
+- **Caching**: Implement caching in custom tools for expensive operations
+- **Rate Limiting**: Apply appropriate rate limits to prevent API abuse
+- **Error Handling**: Implement robust error handling in tool implementations
+
+#### Security
+- **Input Validation**: Always validate tool parameters
+- **API Keys**: Use environment variables for sensitive credentials
+- **Sandboxing**: Consider sandboxing for tools that execute code
+
+#### Development
+- **Tool Testing**: Test tools independently before agent integration
+- **Documentation**: Document custom tool parameters and return values
+- **Logging**: Use verbose mode during development for debugging
+
+### Common Patterns
+
+#### Research Pipeline
+```typescript
+@tool(WebSearchTool)
+@tool(WebPageContentTool) 
+@agent({
+  name: "ResearchPipeline",
+  role: "Research Coordinator",
+  description: "Conducts comprehensive web research",
+  objective: "Gather and analyze web-based information",
+  model: "gpt-4"
+})
+class ResearchPipeline extends Agent {}
+```
+
+#### Data Analysis
+```typescript
+@tool(CalculatorTool)
+@tool(ChartTool)
+@MCP(MCPProtocolType.STDIO, {
+  command: "python",
+  args: ["-m", "data_analysis_tools"]
+})
+@agent({
+  name: "DataAnalyst",
+  role: "Data Analysis Specialist", 
+  description: "Performs data analysis and visualization",
+  objective: "Extract insights from data",
+  model: "gpt-4"
+})
+class DataAnalyst extends Agent {}
+``` 

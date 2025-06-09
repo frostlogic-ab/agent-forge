@@ -11,98 +11,98 @@ type FeatureItem = {
 
 const FeatureList: FeatureItem[] = [
   {
-    title: "YAML-Defined Agents",
+    title: "Decorator-Driven Architecture",
     Svg: require("@site/static/img/undraw_feature_yaml.svg").default,
-    tag: "Easy Configuration",
+    tag: "Modern TypeScript",
     description: (
       <>
-        Effortlessly define and configure your AI agents using simple,
-        human-readable YAML files. Focus on agent logic, not boilerplate code,
-        and get started quickly with a familiar format.
+        Build AI agents using modern TypeScript decorators. Simply annotate your
+        classes with @agent, @tool, and @llmProvider decorators for powerful,
+        declarative agent development with zero boilerplate.
       </>
     ),
   },
   {
-    title: "Flexible LLM Integration",
+    title: "Seamless LLM Integration",
     Svg: require("@site/static/img/undraw_feature_llm.svg").default,
     tag: "Provider Agnostic",
     description: (
       <>
-        Seamlessly connect with a variety of Large Language Model providers.
-        Agent Forge offers a unified interface, making it easy to switch or
-        experiment with different models and capabilities.
+        Connect with any LLM provider using the @llmProvider decorator. Supports
+        OpenAI, Anthropic, Azure, and custom providers with automatic dependency
+        injection and configuration management.
       </>
     ),
   },
   {
-    title: "Powerful Tool Ecosystem",
+    title: "Rich Tool Ecosystem",
     Svg: require("@site/static/img/undraw_feature_tools.svg").default,
     tag: "Extend Capabilities",
     description: (
       <>
-        Extend your agents' capabilities with custom tools or leverage a growing
-        library of pre-built tools. Enable agents to interact with external
-        APIs, data sources, and other services.
+        Add capabilities to agents with @tool decorators and MCP integration.
+        Access web search, file systems, databases, and custom APIs. Build
+        tool-enabled agents with just a decorator!
       </>
     ),
   },
   {
-    title: "Advanced Orchestration",
+    title: "Advanced Team Orchestration",
     Svg: require("@site/static/img/undraw_feature_orchestration.svg").default,
-    tag: "Teams & Workflows",
+    tag: "Multi-Agent Systems",
     description: (
       <>
-        Build sophisticated multi-agent systems. Define sequential workflows for
-        step-by-step task processing or create collaborative teams where agents
-        work together under a manager to tackle complex problems.
+        Create sophisticated multi-agent systems with teams and workflows.
+        Agents collaborate intelligently under manager coordination to solve
+        complex, multi-step problems efficiently.
       </>
     ),
   },
   {
-    title: "Model Context Protocol",
-    Svg: require("@site/static/img/undraw_feature_mcp.svg").default,
-    tag: "Standardized",
-    description: (
-      <>
-        Standardize agent-to-model communication with the Model Context
-        Protocol, ensuring efficient and structured context management for
-        optimal LLM performance and clarity.
-      </>
-    ),
-  },
-  {
-    title: "Streaming Support",
-    Svg: require("@site/static/img/undraw_feature_streaming.svg").default,
-    tag: "Real-time",
-    description: (
-      <>
-        Enable real-time streaming of LLM responses and agent interactions for a
-        more dynamic and responsive user experience. Monitor progress and get
-        results as they happen.
-      </>
-    ),
-  },
-  {
-    title: "Agent-to-Agent Communication",
+    title: "Distributed Agent Networks",
     Svg: require("@site/static/img/undraw_feature_a2a.svg").default,
     tag: "A2A Protocol",
     description: (
       <>
-        Enable seamless communication between different AI agents, locally or
-        across networks, using a robust JSON-RPC and Server-Sent Events (SSE)
-        protocol for real-time updates.
+        Build distributed agent systems with @a2aClient and @a2aServer
+        decorators. Enable agents to communicate across networks with built-in
+        authentication, load balancing, and fault tolerance.
       </>
     ),
   },
   {
-    title: "Comprehensive Logging",
-    Svg: require("@site/static/img/undraw_feature_logging.svg").default,
-    tag: "Debug & Analyze",
+    title: "Knowledge Base Integration",
+    Svg: require("@site/static/img/undraw_feature_mcp.svg").default,
+    tag: "RAG Powered",
     description: (
       <>
-        Gain deep insights into agent behavior with powerful logging features.
-        Easily debug and trace execution paths for individual agents and complex
-        team workflows.
+        Add retrieval-augmented generation with @RAGChromaDb decorators. Agents
+        automatically access document collections, embeddings, and knowledge
+        bases for informed, context-aware responses.
+      </>
+    ),
+  },
+  {
+    title: "Built-in Monitoring & Analytics",
+    Svg: require("@site/static/img/undraw_feature_streaming.svg").default,
+    tag: "Operational Excellence",
+    description: (
+      <>
+        Monitor agent performance with @Visualizer and @RateLimiter decorators.
+        Get real-time insights, cost tracking, performance metrics, and
+        interactive timeline visualizations out of the box.
+      </>
+    ),
+  },
+  {
+    title: "Plugin Architecture",
+    Svg: require("@site/static/img/undraw_feature_logging.svg").default,
+    tag: "Extensible Framework",
+    description: (
+      <>
+        Extend the framework with @plugin decorators for logging, security,
+        caching, and custom functionality. Create reusable cross-cutting
+        concerns that work across all agents automatically.
       </>
     ),
   },

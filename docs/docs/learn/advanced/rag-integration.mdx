@@ -1,0 +1,400 @@
+---
+id: rag-integration
+title: RAG Integration
+sidebar_position: 1
+---
+
+# RAG Integration (Retrieval-Augmented Generation)
+
+RAG enables your agents to access and query custom knowledge bases, making them experts on your specific data and documents.
+
+## What is RAG?
+
+RAG combines language models with external knowledge retrieval:
+
+1. **Documents** are chunked and embedded into a vector database
+2. **User queries** trigger similarity searches in the knowledge base  
+3. **Relevant context** is retrieved and provided to the agent
+4. **LLM generates** informed responses based on your data
+
+## Quick Start with @RAGChromaDb
+
+Use the `@RAGChromaDb` decorator to add knowledge base capabilities:
+
+```typescript
+import { Agent, agent, tool, RAGChromaDb } from "agent-forge";
+
+@RAGChromaDb({ 
+  collectionName: "company_docs",
+  chromaUrl: "http://localhost:8000" 
+})
+@agent({
+  name: "Knowledge Assistant",
+  role: "Company Information Expert",
+  description: "Answers questions using company knowledge base",
+  objective: "Provide accurate information from company documents",
+  model: "gpt-4",
+  temperature: 0.3
+})
+class KnowledgeAgent extends Agent {}
+
+// Agent now has access to the knowledge base
+const agent = new KnowledgeAgent();
+const result = await agent.run("What is our company policy on remote work?");
+```
+
+## Setting Up ChromaDB
+
+### Local Installation
+```bash
+# Install ChromaDB
+pip install chromadb
+
+# Start Chroma server
+chroma run --host localhost --port 8000
+```
+
+### Docker Setup
+```bash
+# Run ChromaDB in Docker
+docker run -p 8000:8000 chromadb/chroma:latest
+```
+
+### Configuration Options
+
+```typescript
+@RAGChromaDb({
+  collectionName: "knowledge_base",    // Collection name
+  chromaUrl: "http://localhost:8000",  // Chroma server URL
+  topK: 5,                            // Number of results to retrieve
+  similarityThreshold: 0.7,           // Minimum similarity score
+  chunkSize: 1000,                    // Document chunk size
+  chunkOverlap: 200,                  // Overlap between chunks
+  embeddingFunction: "openai",        // Embedding model
+  persistPath: "./chroma_data"        // Local persistence path
+})
+```
+
+## Document Indexing
+
+### Simple Indexing
+```typescript
+import { DocumentIndexer } from "agent-forge";
+
+const indexer = new DocumentIndexer({
+  collectionName: "company_docs",
+  chromaUrl: "http://localhost:8000"
+});
+
+// Index documents
+await indexer.indexDocument({
+  content: "Company remote work policy allows...",
+  metadata: { 
+    source: "hr-handbook.pdf",
+    section: "remote-work",
+    lastUpdated: "2024-01-15"
+  }
+});
+
+// Index multiple documents  
+await indexer.indexDocuments([
+  { content: "Product specs...", metadata: { type: "technical" } },
+  { content: "Sales process...", metadata: { type: "sales" } }
+]);
+```
+
+### Batch Indexing from Files
+```typescript
+import { readFileSync } from "fs";
+
+// Index PDF content
+const pdfContent = readFileSync("handbook.pdf", "utf-8");
+await indexer.indexDocument({
+  content: pdfContent,
+  metadata: { 
+    filename: "handbook.pdf",
+    department: "HR",
+    version: "v2.1"
+  }
+});
+
+// Index directory of documents
+const files = ["policy1.txt", "policy2.txt", "manual.md"];
+for (const file of files) {
+  const content = readFileSync(file, "utf-8");
+  await indexer.indexDocument({
+    content,
+    metadata: { 
+      filename: file,
+      indexed_at: new Date().toISOString()
+    }
+  });
+}
+```
+
+## Advanced RAG Patterns
+
+### Multiple Knowledge Bases
+```typescript
+@RAGChromaDb({ collectionName: "technical_docs" })
+@RAGChromaDb({ collectionName: "company_policies" })
+@agent(config)
+class ExpertAgent extends Agent {}
+
+// Agent can query both knowledge bases
+const agent = new ExpertAgent();
+await agent.run("Compare our technical architecture with HR policies");
+```
+
+### Domain-Specific Agents
+```typescript
+// HR Knowledge Agent
+@RAGChromaDb({ 
+  collectionName: "hr_documents",
+  topK: 3,
+  similarityThreshold: 0.8
+})
+@agent({
+  name: "HR Assistant",
+  role: "Human Resources Expert",
+  description: "Answers HR policy and procedure questions",
+  objective: "Provide accurate HR guidance from company policies",
+  model: "gpt-4",
+  temperature: 0.2
+})
+class HRAgent extends Agent {}
+
+// Technical Knowledge Agent  
+@RAGChromaDb({ 
+  collectionName: "tech_specs",
+  topK: 5,
+  similarityThreshold: 0.75
+})
+@agent({
+  name: "Tech Support",
+  role: "Technical Support Specialist", 
+  description: "Provides technical guidance and troubleshooting",
+  objective: "Solve technical issues using documentation",
+  model: "gpt-4",
+  temperature: 0.3
+})
+class TechAgent extends Agent {}
+```
+
+## Document Metadata and Filtering
+
+### Rich Metadata
+```typescript
+await indexer.indexDocument({
+  content: "Sales compensation structure...",
+  metadata: {
+    department: "Sales",
+    document_type: "compensation_plan", 
+    effective_date: "2024-01-01",
+    region: "North America",
+    access_level: "manager",
+    tags: ["compensation", "sales", "policy"]
+  }
+});
+```
+
+### Filtered Retrieval
+```typescript
+@RAGChromaDb({
+  collectionName: "company_docs",
+  filters: {
+    department: "Sales",        // Only sales documents
+    access_level: "public"      // Only public documents
+  }
+})
+@agent(config)
+class SalesAgent extends Agent {}
+```
+
+## Knowledge Base Management
+
+### Collection Management
+```typescript
+import { ChromaClient } from "agent-forge";
+
+const client = new ChromaClient("http://localhost:8000");
+
+// List collections
+const collections = await client.listCollections();
+
+// Create collection
+await client.createCollection("new_knowledge_base");
+
+// Delete collection
+await client.deleteCollection("old_knowledge_base");
+
+// Collection stats
+const stats = await client.getCollectionStats("company_docs");
+console.log(`Documents: ${stats.count}, Last updated: ${stats.lastModified}`);
+```
+
+### Document Updates
+```typescript
+// Update existing document
+await indexer.updateDocument("doc_id_123", {
+  content: "Updated policy content...",
+  metadata: { 
+    lastUpdated: new Date().toISOString(),
+    version: "v2.0"
+  }
+});
+
+// Delete documents
+await indexer.deleteDocument("doc_id_123");
+await indexer.deleteDocuments(["doc1", "doc2", "doc3"]);
+```
+
+## RAG Team Integration
+
+### Knowledge-Enhanced Teams
+```typescript
+// Research team with knowledge access
+@tool(WebSearchTool)
+@RAGChromaDb({ collectionName: "internal_research" })
+@agent(config)
+class KnowledgeResearcher extends Agent {}
+
+@RAGChromaDb({ collectionName: "company_reports" }) 
+@agent(config)
+class InternalAnalyst extends Agent {}
+
+@agent(config)
+class ResearchManager extends Agent {}
+
+// Team can combine web search + internal knowledge
+const team = forge
+  .createTeam("ResearchManager")
+  .addAgent(new KnowledgeResearcher())
+  .addAgent(new InternalAnalyst());
+
+await team.run("Research market trends and compare with our internal analysis");
+```
+
+## Performance Optimization
+
+### Chunk Size Optimization
+```typescript
+// For technical documents - smaller chunks
+@RAGChromaDb({
+  collectionName: "api_docs",
+  chunkSize: 500,     // Smaller for precise technical info
+  chunkOverlap: 100
+})
+
+// For narratives/policies - larger chunks  
+@RAGChromaDb({
+  collectionName: "policies",
+  chunkSize: 1500,    // Larger for context
+  chunkOverlap: 300
+})
+```
+
+### Similarity Tuning
+```typescript
+// High precision - only very relevant results
+@RAGChromaDb({
+  topK: 3,
+  similarityThreshold: 0.85
+})
+
+// High recall - more results, potentially relevant
+@RAGChromaDb({
+  topK: 10, 
+  similarityThreshold: 0.6
+})
+```
+
+## Security and Access Control
+
+### Access Levels
+```typescript
+// Public knowledge base
+@RAGChromaDb({ 
+  collectionName: "public_docs",
+  filters: { access_level: "public" }
+})
+@agent(config)
+class PublicAgent extends Agent {}
+
+// Internal knowledge base
+@RAGChromaDb({
+  collectionName: "internal_docs", 
+  filters: { 
+    access_level: "internal",
+    department: process.env.USER_DEPARTMENT 
+  }
+})
+@agent(config)
+class InternalAgent extends Agent {}
+```
+
+## Best Practices
+
+### Document Preparation
+- **Clean Text**: Remove formatting artifacts, normalize text
+- **Meaningful Chunks**: Ensure chunks contain complete thoughts
+- **Rich Metadata**: Add context that helps with filtering and ranking
+
+### Quality Control
+```typescript
+// Validate retrieval quality
+const result = await agent.run("Test question");
+console.log("Retrieved documents:", result.metadata.ragDocuments);
+
+// Monitor performance
+const metrics = await client.getCollectionStats("knowledge_base");
+console.log(`Query performance: ${metrics.avgQueryTime}ms`);
+```
+
+### Content Freshness
+```typescript
+// Regular updates
+const indexer = new DocumentIndexer({ collectionName: "live_docs" });
+
+// Add version metadata
+await indexer.indexDocument({
+  content: updatedContent,
+  metadata: {
+    version: "2.1",
+    lastUpdated: new Date().toISOString(),
+    supersedes: "2.0"
+  }
+});
+```
+
+## Troubleshooting
+
+### ChromaDB Connection Issues
+```
+Error: Could not connect to ChromaDB
+```
+- Verify ChromaDB is running: `curl http://localhost:8000/api/v1/heartbeat`
+- Check firewall settings
+- Ensure correct URL in configuration
+
+### Poor Retrieval Quality
+```typescript
+// Debug retrieval
+@RAGChromaDb({
+  collectionName: "docs",
+  topK: 10,               // Increase for debugging
+  similarityThreshold: 0.5, // Lower threshold
+  verbose: true            // Enable debug logging
+})
+```
+
+### Performance Issues
+- **Reduce chunk size** for faster indexing
+- **Increase similarity threshold** for fewer, more relevant results
+- **Use filtered queries** to reduce search space
+
+## Next Steps
+
+- [Advanced RAG Patterns](./advanced-rag.mdx) - Complex RAG configurations
+- [Document Processing](./document-processing.mdx) - Advanced document handling
+- [Vector Database Optimization](./vector-optimization.mdx) - Performance tuning 

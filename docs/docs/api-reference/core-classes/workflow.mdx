@@ -1,0 +1,549 @@
+---
+id: workflow
+title: Workflow
+---
+
+# Workflow
+
+The `Workflow` class enables sequential execution of agents in a pipeline. Each agent processes the output from the previous agent, creating a chain of specialized processing steps.
+
+## Constructor
+
+```typescript
+constructor(name = "Workflow", description = "A sequence of agents")
+```
+
+### Parameters
+
+- **`name`** (`string`, optional): Workflow name for identification
+- **`description`** (`string`, optional): Workflow description
+
+## Properties
+
+```typescript
+readonly name: string                // Workflow name
+readonly description: string         // Workflow description
+readonly steps: WorkflowStep[]      // Array of workflow steps
+```
+
+## Methods
+
+### Configuration
+
+#### setName()
+Set the workflow name.
+
+```typescript
+setName(name: string): Workflow
+```
+
+#### setDescription()
+Set the workflow description.
+
+```typescript
+setDescription(description: string): Workflow
+```
+
+#### getName()
+Get the workflow name.
+
+```typescript
+getName(): string
+```
+
+#### getDescription()
+Get the workflow description.
+
+```typescript
+getDescription(): string
+```
+
+### Step Management
+
+#### addStep()
+Add an agent as a workflow step.
+
+```typescript
+addStep(
+  agent: Agent,
+  inputTransform?: (input: string, previousResults: AgentResult[]) => string
+): Workflow
+```
+
+**Parameters:**
+- `agent`: The agent to add to the workflow
+- `inputTransform`: Optional function to transform input based on previous results
+
+#### getSteps()
+Get all workflow steps.
+
+```typescript
+getSteps(): WorkflowStep[]
+```
+
+**WorkflowStep Interface:**
+```typescript
+interface WorkflowStep {
+  agent: Agent;
+  inputTransform?: (input: string, previousResults: AgentResult[]) => string;
+}
+```
+
+### Execution
+
+#### run()
+Execute the workflow sequentially.
+
+```typescript
+async run(input: string, options?: WorkflowRunOptions): Promise<AgentResult>
+```
+
+**WorkflowRunOptions:**
+```typescript
+interface WorkflowRunOptions {
+  rate_limit?: number;           // API calls per minute limit
+  verbose?: boolean;             // Enable detailed logging
+  stream?: boolean;              // Enable streaming updates
+  enableConsoleStream?: boolean; // Enable console visualization
+}
+```
+
+### Utility Methods
+
+#### reset()
+Reset workflow state.
+
+```typescript
+reset(): void
+```
+
+## Usage Examples
+
+### Basic Sequential Workflow
+
+```typescript
+import { Agent, Workflow } from "agent-forge";
+
+// Create agents for different steps
+const researcher = new Agent({
+  name: "Researcher",
+  role: "Research Specialist", 
+  description: "Conducts thorough research on topics",
+  objective: "Find accurate and comprehensive information",
+  model: "gpt-4",
+  temperature: 0.3
+});
+
+const analyst = new Agent({
+  name: "Analyst",
+  role: "Data Analyst",
+  description: "Analyzes research data and identifies insights",
+  objective: "Provide meaningful analysis and recommendations", 
+  model: "gpt-4",
+  temperature: 0.4
+});
+
+const writer = new Agent({
+  name: "Writer",
+  role: "Content Writer",
+  description: "Creates clear, engaging written content",
+  objective: "Produce high-quality, readable content",
+  model: "gpt-4", 
+  temperature: 0.6
+});
+
+// Create workflow
+const researchWorkflow = new Workflow("Research Pipeline", "Research, analyze, and write")
+  .addStep(researcher)  // Step 1: Research
+  .addStep(analyst)     // Step 2: Analyze research
+  .addStep(writer);     // Step 3: Write report
+
+// Execute workflow
+const result = await researchWorkflow.run("Analyze the impact of AI on healthcare", {
+  verbose: true,
+  stream: true
+});
+
+console.log(result.output); // Final written report
+```
+
+### Advanced Workflow with Input Transformations
+
+```typescript
+const analysisWorkflow = new Workflow("Data Analysis Pipeline")
+  .addStep(researcher)
+  .addStep(analyst, (input, results) => {
+    // Transform input for analyst based on research results
+    return `Analyze this research data and provide insights: ${results[0].output}`;
+  })
+  .addStep(writer, (input, results) => {
+    // Combine research and analysis for writer
+    const research = results[0].output;
+    const analysis = results[1].output;
+    return `Create a comprehensive report using this research: ${research} and this analysis: ${analysis}`;
+  });
+
+const result = await analysisWorkflow.run("Study renewable energy trends");
+```
+
+### Workflow with Tool-Enabled Agents
+
+```typescript
+import { WebSearchTool, CalculatorTool, tool, agent } from "agent-forge";
+
+@tool(WebSearchTool)
+@agent({
+  name: "Web Researcher",
+  role: "Internet Research Specialist",
+  description: "Researches topics using web search",
+  objective: "Find current, accurate information online",
+  model: "gpt-4"
+})
+class WebResearcher extends Agent {}
+
+@tool(CalculatorTool)
+@agent({
+  name: "Data Analyst", 
+  role: "Quantitative Analyst",
+  description: "Performs calculations and data analysis",
+  objective: "Provide numerical insights and calculations",
+  model: "gpt-4"
+})
+class DataAnalyst extends Agent {}
+
+@agent({
+  name: "Report Writer",
+  role: "Technical Writer", 
+  description: "Creates professional reports and documentation",
+  objective: "Produce clear, well-structured reports",
+  model: "gpt-4"
+})
+class ReportWriter extends Agent {}
+
+// Create workflow with tool-enabled agents
+const webResearcher = new WebResearcher();
+const dataAnalyst = new DataAnalyst();
+const reportWriter = new ReportWriter();
+
+const marketAnalysisWorkflow = new Workflow("Market Analysis Workflow")
+  .addStep(webResearcher)
+  .addStep(dataAnalyst, (input, results) => {
+    return `Calculate market metrics and growth rates based on this research: ${results[0].output}`;
+  })
+  .addStep(reportWriter, (input, results) => {
+    return `Write a professional market analysis report using this research: ${results[0].output} and these calculations: ${results[1].output}`;
+  });
+
+const result = await marketAnalysisWorkflow.run("Analyze the electric vehicle market size and growth");
+```
+
+### Multi-Stage Processing Workflow
+
+```typescript
+// Create specialized agents for each stage
+const dataCollector = new Agent({
+  name: "Data Collector",
+  role: "Data Collection Specialist",
+  description: "Gathers raw data from various sources",
+  objective: "Collect comprehensive, relevant data",
+  model: "gpt-4"
+});
+
+const dataProcessor = new Agent({
+  name: "Data Processor", 
+  role: "Data Processing Expert",
+  description: "Cleans and processes raw data",
+  objective: "Transform raw data into structured format",
+  model: "gpt-4"
+});
+
+const patternAnalyst = new Agent({
+  name: "Pattern Analyst",
+  role: "Pattern Recognition Specialist", 
+  description: "Identifies patterns and trends in data",
+  objective: "Discover meaningful patterns and insights",
+  model: "gpt-4"
+});
+
+const insightGenerator = new Agent({
+  name: "Insight Generator",
+  role: "Strategic Insight Analyst",
+  description: "Generates actionable insights from patterns",
+  objective: "Create valuable business insights",
+  model: "gpt-4"
+});
+
+const recommendationEngine = new Agent({
+  name: "Recommendation Engine",
+  role: "Strategic Advisor",
+  description: "Creates specific recommendations based on insights", 
+  objective: "Provide clear, actionable recommendations",
+  model: "gpt-4"
+});
+
+// Multi-stage workflow
+const insightWorkflow = new Workflow("Business Insight Generation")
+  .addStep(dataCollector)
+  .addStep(dataProcessor, (input, results) => {
+    return `Process and structure this raw data: ${results[0].output}`;
+  })
+  .addStep(patternAnalyst, (input, results) => {
+    return `Analyze patterns in this processed data: ${results[1].output}`;
+  })
+  .addStep(insightGenerator, (input, results) => {
+    return `Generate business insights from these patterns: ${results[2].output}`;
+  })
+  .addStep(recommendationEngine, (input, results) => {
+    return `Create specific recommendations based on these insights: ${results[3].output}`;
+  });
+
+const result = await insightWorkflow.run("Analyze customer behavior patterns for e-commerce optimization");
+```
+
+## Workflow Patterns
+
+### 1. Linear Processing
+```typescript
+// Simple linear workflow
+const workflow = new Workflow("Linear Process")
+  .addStep(stepA)
+  .addStep(stepB)  
+  .addStep(stepC);
+```
+
+### 2. Progressive Refinement
+```typescript
+// Each step refines the previous output
+const refinementWorkflow = new Workflow("Progressive Refinement")
+  .addStep(draftGenerator)
+  .addStep(editor, (input, results) => {
+    return `Improve this draft: ${results[0].output}`;
+  })
+  .addStep(finalReviewer, (input, results) => {
+    return `Final review and polish: ${results[1].output}`;
+  });
+```
+
+### 3. Data Pipeline
+```typescript
+// Data processing pipeline
+const dataPipeline = new Workflow("Data Processing Pipeline")
+  .addStep(dataExtractor)
+  .addStep(dataTransformer, (input, results) => {
+    return `Transform this extracted data: ${results[0].output}`;
+  })
+  .addStep(dataLoader, (input, results) => {
+    return `Load this transformed data: ${results[1].output}`;
+  });
+```
+
+### 4. Multi-Perspective Analysis
+```typescript
+// Multiple analysis perspectives combined
+const multiPerspectiveWorkflow = new Workflow("Multi-Perspective Analysis")
+  .addStep(technicalAnalyst)
+  .addStep(businessAnalyst, (input, results) => {
+    return `Provide business perspective on: ${input}. Consider this technical analysis: ${results[0].output}`;
+  })
+  .addStep(riskAnalyst, (input, results) => {
+    const technical = results[0].output;
+    const business = results[1].output;
+    return `Assess risks considering: Technical: ${technical}, Business: ${business}`;
+  })
+  .addStep(strategicSynthesizer, (input, results) => {
+    return `Synthesize strategic recommendations from all perspectives: ${results.map(r => r.output).join(', ')}`;
+  });
+```
+
+## Advanced Features
+
+### Conditional Step Execution
+
+```typescript
+const conditionalWorkflow = new Workflow("Conditional Processing")
+  .addStep(initialAnalyzer)
+  .addStep(complexProcessor, (input, results) => {
+    const initialResult = results[0].output;
+    // Conditional logic based on previous results
+    if (initialResult.includes("complex")) {
+      return `Perform deep analysis: ${initialResult}`;
+    } else {
+      return `Perform basic analysis: ${initialResult}`;
+    }
+  });
+```
+
+### Error Handling and Recovery
+
+```typescript
+const robustWorkflow = new Workflow("Robust Processing");
+
+// Add error recovery logic
+robustWorkflow
+  .addStep(primaryProcessor)
+  .addStep(validator, (input, results) => {
+    const result = results[0].output;
+    return `Validate this output and fix any issues: ${result}`;
+  })
+  .addStep(finalProcessor, (input, results) => {
+    const validated = results[1].output;
+    return `Finalize processing: ${validated}`;
+  });
+
+// Execute with error handling
+try {
+  const result = await robustWorkflow.run(input, { verbose: true });
+} catch (error) {
+  console.error("Workflow failed:", error);
+  // Implement fallback logic
+}
+```
+
+### Performance Optimization
+
+```typescript
+// Optimize workflow for performance
+const optimizedResult = await workflow.run(input, {
+  rate_limit: 120,            // Increase rate limit if possible
+  verbose: false,             // Reduce logging overhead
+  stream: false,              // Disable streaming for batch processing
+  enableConsoleStream: false  // No console output
+});
+```
+
+## Integration Examples
+
+### With AgentForge
+
+```typescript
+import { AgentForge } from "agent-forge";
+
+const forge = new AgentForge(llm);
+
+// Register workflow agents
+await forge.registerAgents([researcher, analyst, writer]);
+
+// Use forge's workflow execution
+const result = await forge.runWorkflow(
+  ["Researcher", "Analyst", "Writer"],
+  "Complex analysis task",
+  { verbose: true }
+);
+```
+
+### With Teams
+
+```typescript
+import { Team, Workflow } from "agent-forge";
+
+// Hybrid: Team outputs feed into workflow
+const hybridProcess = new Workflow("Hybrid Team-Workflow")
+  .addStep(researchTeam)      // Team for collaborative research
+  .addStep(individualAnalyst)  // Individual detailed analysis
+  .addStep(reportingTeam);    // Team for collaborative reporting
+
+const result = await hybridProcess.run("Comprehensive market study");
+```
+
+## Best Practices
+
+### 1. Clear Step Separation
+```typescript
+// Good: Each step has a clear, distinct purpose
+const workflow = new Workflow("Clear Pipeline")
+  .addStep(dataGatherer)    // Only gathers data
+  .addStep(dataAnalyzer)    // Only analyzes data  
+  .addStep(reportWriter);   // Only writes reports
+
+// Avoid: Steps with overlapping responsibilities
+```
+
+### 2. Meaningful Input Transformations
+```typescript
+// Good: Clear transformation logic
+.addStep(analyst, (input, results) => {
+  const researchData = results[0].output;
+  return `Analyze trends and patterns in this research data: ${researchData}. Focus on actionable insights.`;
+})
+
+// Avoid: Vague transformations
+.addStep(analyst, (input, results) => {
+  return `Do something with: ${results[0].output}`;
+})
+```
+
+### 3. Error Recovery
+```typescript
+const executeWorkflowSafely = async (workflow: Workflow, input: string) => {
+  try {
+    return await workflow.run(input, { verbose: true });
+  } catch (error) {
+    console.error("Workflow failed:", error);
+    
+    // Reset and retry with simpler processing
+    workflow.reset();
+    return await workflow.run(input, { 
+      verbose: false,
+      rate_limit: 30 // Slower, more conservative
+    });
+  }
+};
+```
+
+### 4. Resource Management
+```typescript
+// Always reset workflow state between runs
+workflow.reset();
+const result = await workflow.run(newInput);
+```
+
+## Troubleshooting
+
+### Common Issues
+
+**Step Dependencies:**
+```typescript
+// Issue: Later steps don't get proper input
+// Solution: Use input transformations
+
+.addStep(secondAgent, (input, results) => {
+  // Explicitly pass needed data from previous steps
+  return `Process this with context: ${input}, Previous result: ${results[0].output}`;
+})
+```
+
+**Performance Issues:**
+```typescript
+// Issue: Workflow too slow
+// Solutions:
+const result = await workflow.run(input, {
+  rate_limit: 60,    // Increase if API allows
+  verbose: false,    // Reduce logging
+  stream: false      // Batch processing
+});
+```
+
+**Memory Issues:**
+```typescript
+// Issue: Long workflows consume too much memory
+// Solution: Reset between large batches
+
+for (const batch of largeBatches) {
+  workflow.reset(); // Clear previous state
+  const result = await workflow.run(batch);
+  // Process result
+}
+```
+
+**Context Loss:**
+```typescript
+// Issue: Important context lost between steps
+// Solution: Preserve context in transformations
+
+.addStep(finalStep, (originalInput, results) => {
+  const allContext = results.map(r => r.output).join('\n---\n');
+  return `Original task: ${originalInput}\n\nAll previous work:\n${allContext}\n\nNow create final output.`;
+})
+```
+
+See also: [Agent](./agent), [Team](./team), [AgentForge](./agent-forge) 
