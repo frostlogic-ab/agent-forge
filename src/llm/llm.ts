@@ -38,10 +38,11 @@ export class LLM {
 
   private constructor(
     protected readonly provider: LLMProvider,
-    protected readonly config: ConfigOptions
+    protected readonly config: ConfigOptions,
+    preConfiguredToken?: TokenJS
   ) {
     this.eventEmitter = new EventEmitter();
-    this.token = new TokenJS(this.config);
+    this.token = preConfiguredToken || new TokenJS(this.config);
   }
 
   static async create(
@@ -58,7 +59,7 @@ export class LLM {
         entry.featureSupport
       );
     }
-    return new LLM(provider, config);
+    return new LLM(provider, config, tempToken);
   }
 
   getEventEmitter(): EventEmitter {
