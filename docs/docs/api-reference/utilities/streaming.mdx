@@ -1,632 +1,309 @@
 ---
-title: Streaming Utilities
-description: Real-time streaming and console output utilities
+id: streaming
+title: Streaming
 ---
 
-# Streaming Utilities
+# Streaming
 
-Agent Forge provides comprehensive streaming utilities for real-time console output, LLM response streaming, and team communication monitoring. These utilities enable live visualization of agent interactions and LLM responses.
+The Streaming utility provides support for real-time response streaming from LLM providers, enabling responsive user interfaces and real-time data processing.
 
-## Console Streaming
+## Overview
 
-### enableConsoleStreaming()
+Streaming allows you to receive LLM responses in real-time chunks rather than waiting for the complete response, improving perceived performance and enabling interactive experiences.
 
-Enables real-time streaming of agent communications and LLM responses to the console.
+## Basic Usage
 
+### LLM Streaming
 ```typescript
-import { enableConsoleStreaming } from "agent-forge";
+import { LLM } from "agent-forge";
 
-// Enable global console streaming
-enableConsoleStreaming();
-```
+const llm = await LLM.create("openai", { apiKey: process.env.OPENAI_API_KEY });
 
-### disableConsoleStreaming()
-
-Disables console streaming and reverts to standard logging.
-
-```typescript
-import { disableConsoleStreaming } from "agent-forge";
-
-// Disable console streaming
-disableConsoleStreaming();
-```
-
-### Basic Usage
-```typescript
-import { enableConsoleStreaming } from "agent-forge";
-
-@llmProvider("openai", { apiKey: process.env.OPENAI_API_KEY })
-@forge()
-class StreamingTeam {
-  static forge: AgentForge;
-  
-  static async run() {
-    // Enable real-time output
-    enableConsoleStreaming();
-    
-    const agentClasses = [ManagerAgent, ResearchAgent];
-    await readyForge(StreamingTeam, agentClasses);
-    
-    return this.forge.runTeam(
-      "ManagerAgent",
-      ["ResearchAgent"],
-      "Analyze market trends",
-      {
-        stream: true,
-        enableConsoleStream: true
-      }
-    );
-  }
-}
-```
-
-## LLM Response Streaming
-
-### Stream Configuration
-
-Enable streaming for individual agents or entire teams:
-
-```typescript
-// Agent-level streaming
-@agent({
-  name: "StreamingAgent",
-  role: "Assistant",
-  description: "Agent with streaming responses",
-  objective: "Provide real-time responses",
+const response = await llm.chatStream({
+  messages: [{ role: "user", content: "Write a story" }],
   model: "gpt-4",
-  stream: true // Enable streaming for this agent
-})
-class StreamingAgent extends Agent {}
-
-// Team-level streaming
-const result = await forge.runTeam(
-  "ManagerAgent",
-  ["Agent1", "Agent2"],
-  "task",
-  {
-    stream: true, // Enable for all agents in team
-    enableConsoleStream: true // Show in console
+  onChunk: (chunk) => {
+    if (chunk.choices?.[0]?.delta?.content) {
+      process.stdout.write(chunk.choices[0].delta.content);
+    }
   }
-);
+});
 ```
 
-### Custom Stream Handlers
-
-Create custom handlers for streaming data:
-
+### Agent Streaming
 ```typescript
-import { globalEventEmitter, AgentForgeEvents } from "agent-forge";
+const agent = new Agent(config);
 
-class CustomStreamHandler {
-  private buffer = "";
-  private isStreaming = false;
-  
-  constructor() {
-    this.setupStreamListeners();
-  }
-  
-  private setupStreamListeners(): void {
-    globalEventEmitter.on(AgentForgeEvents.LLM_STREAM_CHUNK, (event) => {
-      this.handleStreamChunk(event);
-    });
-    
-    globalEventEmitter.on(AgentForgeEvents.LLM_STREAM_COMPLETE, (event) => {
-      this.handleStreamComplete(event);
-    });
-  }
-  
-  private handleStreamChunk(event: any): void {
-    if (!this.isStreaming) {
-      this.isStreaming = true;
-      process.stdout.write(`\n🤖 ${event.agentName}: `);
-    }
-    
-    // Process chunk
-    const chunk = event.chunk;
-    this.buffer += chunk;
-    
-    // Custom formatting
-    if (chunk.includes('\n')) {
-      this.formatAndDisplay();
-    } else {
-      process.stdout.write(chunk);
-    }
-  }
-  
-  private handleStreamComplete(event: any): void {
-    if (this.buffer.length > 0) {
-      this.formatAndDisplay();
-    }
-    
-    this.isStreaming = false;
-    this.buffer = "";
-    process.stdout.write('\n\n');
-  }
-  
-  private formatAndDisplay(): void {
-    // Custom formatting logic
-    const formatted = this.buffer
-      .replace(/\*\*(.*?)\*\*/g, '\x1b[1m$1\x1b[0m') // Bold
-      .replace(/\*(.*?)\*/g, '\x1b[3m$1\x1b[0m');    // Italic
-    
-    process.stdout.write(formatted);
-    this.buffer = "";
-  }
-}
+const result = await agent.run("Tell me about AI", {
+  stream: true
+});
 
-// Usage
-const streamHandler = new CustomStreamHandler();
-```
-
-## Advanced Streaming Features
-
-### Colored Console Output
-
-```typescript
-import { globalEventEmitter, AgentForgeEvents } from "agent-forge";
-
-class ColoredStreamHandler {
-  private colors = {
-    agent: '\x1b[36m',    // Cyan
-    manager: '\x1b[35m',  // Magenta
-    tool: '\x1b[33m',     // Yellow
-    error: '\x1b[31m',    // Red
-    success: '\x1b[32m',  // Green
-    reset: '\x1b[0m'      // Reset
-  };
-  
-  constructor() {
-    this.setupColoredStreaming();
-  }
-  
-  private setupColoredStreaming(): void {
-    globalEventEmitter.on(AgentForgeEvents.AGENT_COMMUNICATION, (event) => {
-      const color = this.getAgentColor(event.sender);
-      console.log(`${color}🤖 ${event.sender}:${this.colors.reset} ${event.message}`);
-    });
-    
-    globalEventEmitter.on(AgentForgeEvents.LLM_STREAM_CHUNK, (event) => {
-      const color = this.getAgentColor(event.agentName);
-      process.stdout.write(`${color}${event.chunk}${this.colors.reset}`);
-    });
-    
-    globalEventEmitter.on(AgentForgeEvents.TOOL_EXECUTION_COMPLETE, (event) => {
-      const color = event.error ? this.colors.error : this.colors.success;
-      const status = event.error ? '❌' : '✅';
-      console.log(`${color}${status} Tool: ${event.toolName}${this.colors.reset}`);
-    });
-  }
-  
-  private getAgentColor(agentName: string): string {
-    if (agentName.toLowerCase().includes('manager')) {
-      return this.colors.manager;
-    }
-    return this.colors.agent;
-  }
-}
-```
-
-### Progress Indicators
-
-```typescript
-class ProgressStreamHandler {
-  private activeStreams = new Map<string, {
-    startTime: number;
-    chunks: number;
-    totalChars: number;
-  }>();
-  
-  constructor() {
-    this.setupProgressTracking();
-  }
-  
-  private setupProgressTracking(): void {
-    globalEventEmitter.on(AgentForgeEvents.LLM_STREAM_CHUNK, (event) => {
-      this.updateProgress(event);
-    });
-    
-    globalEventEmitter.on(AgentForgeEvents.LLM_STREAM_COMPLETE, (event) => {
-      this.finalizeProgress(event);
-    });
-  }
-  
-  private updateProgress(event: any): void {
-    const { agentName, chunk } = event;
-    
-    if (!this.activeStreams.has(agentName)) {
-      this.activeStreams.set(agentName, {
-        startTime: Date.now(),
-        chunks: 0,
-        totalChars: 0
-      });
-      process.stdout.write(`\n🚀 ${agentName} starting response...\n`);
-    }
-    
-    const stream = this.activeStreams.get(agentName)!;
-    stream.chunks++;
-    stream.totalChars += chunk.length;
-    
-    // Show progress indicators
-    if (stream.chunks % 10 === 0) {
-      const duration = Date.now() - stream.startTime;
-      const charsPerSecond = (stream.totalChars / duration) * 1000;
-      process.stdout.write(`\r📊 ${agentName}: ${stream.totalChars} chars, ${charsPerSecond.toFixed(0)} chars/s`);
-    }
-  }
-  
-  private finalizeProgress(event: any): void {
-    const stream = this.activeStreams.get(event.agentName);
-    if (!stream) return;
-    
-    const duration = Date.now() - stream.startTime;
-    const avgCharsPerSecond = (stream.totalChars / duration) * 1000;
-    
-    console.log(`\n✅ ${event.agentName} completed:`);
-    console.log(`   Duration: ${duration}ms`);
-    console.log(`   Chunks: ${stream.chunks}`);
-    console.log(`   Characters: ${stream.totalChars}`);
-    console.log(`   Speed: ${avgCharsPerSecond.toFixed(0)} chars/s\n`);
-    
-    this.activeStreams.delete(event.agentName);
-  }
-}
-```
-
-### Team Communication Streaming
-
-```typescript
-class TeamCommunicationStreamer {
-  private teamLayout = new Map<string, { x: number; y: number }>();
-  private communicationLines: Array<{
-    from: string;
-    to: string;
-    message: string;
-    timestamp: number;
-  }> = [];
-  
-  constructor() {
-    this.setupTeamVisualization();
-  }
-  
-  private setupTeamVisualization(): void {
-    globalEventEmitter.on(AgentForgeEvents.AGENT_COMMUNICATION, (event) => {
-      this.visualizeCommunication(event);
-    });
-    
-    globalEventEmitter.on(AgentForgeEvents.TEAM_TASK_START, () => {
-      this.initializeLayout();
-    });
-  }
-  
-  private initializeLayout(): void {
-    console.clear();
-    console.log("🌐 Team Communication Dashboard");
-    console.log("━".repeat(50));
-  }
-  
-  private visualizeCommunication(event: any): void {
-    const { sender, receiver, message } = event;
-    const timestamp = new Date().toLocaleTimeString();
-    
-    // Add to communication history
-    this.communicationLines.push({
-      from: sender,
-      to: receiver || "Team",
-      message: message.substring(0, 50) + (message.length > 50 ? "..." : ""),
-      timestamp: Date.now()
-    });
-    
-    // Keep only recent communications
-    if (this.communicationLines.length > 10) {
-      this.communicationLines.shift();
-    }
-    
-    // Render dashboard
-    this.renderDashboard();
-  }
-  
-  private renderDashboard(): void {
-    // Move cursor to top
-    process.stdout.write('\x1b[H');
-    
-    console.log("🌐 Team Communication Dashboard");
-    console.log("━".repeat(50));
-    console.log("");
-    
-    // Show recent communications
-    console.log("📡 Recent Communications:");
-    this.communicationLines.forEach((line, index) => {
-      const arrow = line.to === "Team" ? "📢" : "→";
-      const time = new Date(line.timestamp).toLocaleTimeString();
-      console.log(`  ${time} ${line.from} ${arrow} ${line.to}: ${line.message}`);
-    });
-    
-    console.log("");
-    console.log("⏱️  Live updates...");
-  }
-}
-```
-
-## Real-time Monitoring
-
-### Performance Streaming
-
-```typescript
-class PerformanceStreamer {
-  private metrics = {
-    totalResponses: 0,
-    avgResponseTime: 0,
-    totalTokens: 0,
-    errorsCount: 0
-  };
-  
-  private responseTimes: number[] = [];
-  
-  constructor() {
-    this.setupPerformanceMonitoring();
-    this.startLiveMetrics();
-  }
-  
-  private setupPerformanceMonitoring(): void {
-    globalEventEmitter.on(AgentForgeEvents.LLM_RESPONSE, (event) => {
-      this.recordResponse(event);
-    });
-    
-    globalEventEmitter.on(AgentForgeEvents.TOOL_EXECUTION_COMPLETE, (event) => {
-      this.recordToolExecution(event);
-    });
-  }
-  
-  private recordResponse(event: any): void {
-    this.metrics.totalResponses++;
-    
-    if (event.duration) {
-      this.responseTimes.push(event.duration);
-      // Keep only last 100 response times
-      if (this.responseTimes.length > 100) {
-        this.responseTimes.shift();
-      }
-      this.updateAverageResponseTime();
-    }
-    
-    if (event.tokenCount) {
-      this.metrics.totalTokens += event.tokenCount;
-    }
-  }
-  
-  private recordToolExecution(event: any): void {
-    if (event.error) {
-      this.metrics.errorsCount++;
-    }
-  }
-  
-  private updateAverageResponseTime(): void {
-    const sum = this.responseTimes.reduce((a, b) => a + b, 0);
-    this.metrics.avgResponseTime = sum / this.responseTimes.length;
-  }
-  
-  private startLiveMetrics(): void {
-    // Update metrics display every 2 seconds
-    setInterval(() => {
-      this.displayMetrics();
-    }, 2000);
-  }
-  
-  private displayMetrics(): void {
-    if (this.metrics.totalResponses === 0) return;
-    
-    // Clear previous metrics (save cursor position)
-    process.stdout.write('\x1b[s'); // Save cursor position
-    process.stdout.write('\x1b[999;1H'); // Move to bottom
-    
-    // Display metrics bar
-    const metricsBar = [
-      `📊 Responses: ${this.metrics.totalResponses}`,
-      `⚡ Avg Time: ${this.metrics.avgResponseTime.toFixed(0)}ms`,
-      `🔤 Tokens: ${this.metrics.totalTokens}`,
-      `❌ Errors: ${this.metrics.errorsCount}`,
-      `📈 Success Rate: ${((1 - this.metrics.errorsCount / this.metrics.totalResponses) * 100).toFixed(1)}%`
-    ].join(" | ");
-    
-    console.log("\n" + "═".repeat(Math.min(metricsBar.length, 80)));
-    console.log(metricsBar);
-    
-    process.stdout.write('\x1b[u'); // Restore cursor position
-  }
-}
-```
-
-### WebSocket Streaming
-
-For real-time web applications:
-
-```typescript
-import WebSocket from 'ws';
-
-class WebSocketStreamer {
-  private wss: WebSocket.Server;
-  private clients = new Set<WebSocket>();
-  
-  constructor(port: number = 8080) {
-    this.wss = new WebSocket.Server({ port });
-    this.setupWebSocketServer();
-    this.setupEventForwarding();
-  }
-  
-  private setupWebSocketServer(): void {
-    this.wss.on('connection', (ws) => {
-      console.log('New WebSocket client connected');
-      this.clients.add(ws);
-      
-      // Send initial connection message
-      ws.send(JSON.stringify({
-        type: 'connection',
-        message: 'Connected to Agent Forge stream'
-      }));
-      
-      ws.on('close', () => {
-        this.clients.delete(ws);
-        console.log('WebSocket client disconnected');
-      });
-    });
-  }
-  
-  private setupEventForwarding(): void {
-    const events = Object.values(AgentForgeEvents);
-    
-    events.forEach(eventType => {
-      globalEventEmitter.on(eventType, (data) => {
-        this.broadcastToClients({
-          type: eventType,
-          data: data,
-          timestamp: Date.now()
-        });
-      });
-    });
-  }
-  
-  private broadcastToClients(message: any): void {
-    const messageStr = JSON.stringify(message);
-    
-    this.clients.forEach(client => {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(messageStr);
-      }
-    });
-  }
-  
-  close(): void {
-    this.wss.close();
-  }
-}
-
-// Usage
-const webSocketStreamer = new WebSocketStreamer(8080);
-console.log('WebSocket streaming server started on port 8080');
-```
-
-## Integration Examples
-
-### Complete Streaming Setup
-
-```typescript
-import { 
-  enableConsoleStreaming,
-  globalEventEmitter,
-  AgentForgeEvents 
-} from "agent-forge";
-
-class ComprehensiveStreamingSetup {
-  private colorHandler = new ColoredStreamHandler();
-  private progressHandler = new ProgressStreamHandler();
-  private teamStreamer = new TeamCommunicationStreamer();
-  private performanceStreamer = new PerformanceStreamer();
-  
-  constructor() {
-    enableConsoleStreaming();
-    this.setupCustomHandlers();
-  }
-  
-  private setupCustomHandlers(): void {
-    // Custom event processing
-    globalEventEmitter.on(AgentForgeEvents.TEAM_RUN_COMPLETE, (event) => {
-      console.log('\n🎉 Team run completed successfully!');
-      this.generateSummary(event);
-    });
-  }
-  
-  private generateSummary(event: any): void {
-    console.log('\n📋 Run Summary:');
-    console.log(`   Duration: ${event.duration}ms`);
-    console.log(`   Agents: ${event.agentCount}`);
-    console.log(`   Tasks: ${event.taskCount}`);
-    console.log(`   Success Rate: ${event.successRate}%`);
-  }
-}
-
-// Usage with team
-@Visualizer()
-@RateLimiter({ rateLimitPerSecond: 2 })
-@llmProvider("openai", { apiKey: process.env.OPENAI_API_KEY })
-@forge()
-class FullyStreamedTeam {
-  static forge: AgentForge;
-  
-  static async run() {
-    // Setup comprehensive streaming
-    const streamingSetup = new ComprehensiveStreamingSetup();
-    
-    const agentClasses = [ManagerAgent, ResearchAgent];
-    await readyForge(FullyStreamedTeam, agentClasses);
-    
-    return this.forge.runTeam(
-      "ManagerAgent",
-      ["ResearchAgent"],
-      "Analyze market trends with real-time monitoring",
-      {
-        stream: true,
-        enableConsoleStream: true,
-        verbose: true
-      }
-    );
-  }
-}
-```
-
-## Best Practices
-
-### Performance Considerations
-- **Buffer Management**: Avoid excessive buffering of streaming data
-- **Rate Limiting**: Consider rate limiting console output for very chatty applications
-- **Memory Usage**: Clean up event listeners and streaming handlers
-- **Error Handling**: Implement robust error handling for streaming operations
-
-### Development vs Production
-```typescript
-// Development: Rich streaming with all features
-if (process.env.NODE_ENV === 'development') {
-  enableConsoleStreaming();
-  new ColoredStreamHandler();
-  new ProgressStreamHandler();
-  new TeamCommunicationStreamer();
-}
-
-// Production: Minimal logging
-if (process.env.NODE_ENV === 'production') {
-  // Disable console streaming for better performance
-  disableConsoleStreaming();
-  
-  // Use structured logging instead
-  globalEventEmitter.on(AgentForgeEvents.AGENT_COMMUNICATION, (event) => {
-    console.log(JSON.stringify({
-      type: 'agent_communication',
-      agent: event.sender,
-      message: event.message,
-      timestamp: event.timestamp
-    }));
+// Listen for streaming events
+const eventEmitter = agent.getLLMProvider()?.getEventEmitter();
+if (eventEmitter) {
+  eventEmitter.on('llm-stream-chunk', (data) => {
+    process.stdout.write(data.chunk);
   });
 }
 ```
 
-### Error Handling
+## Stream Event Types
+
+### LLM Stream Chunk
 ```typescript
-class StreamingErrorHandler {
-  constructor() {
-    // Handle streaming errors gracefully
-    globalEventEmitter.on('error', (error) => {
-      console.error('🚨 Streaming error:', error.message);
-      this.fallbackToBasicLogging();
-    });
+interface LLMStreamChunk {
+  model: string;
+  agentName: string;
+  chunk: string;
+  timestamp: number;
+}
+```
+
+### LLM Stream Complete
+```typescript
+interface LLMStreamComplete {
+  content: string;
+  isComplete: boolean;
+  agentName: string;
+  duration: number;
+}
+```
+
+## Advanced Streaming
+
+### Custom Stream Handler
+```typescript
+class StreamHandler {
+  private buffer: string = '';
+  private onUpdate: (content: string) => void;
+  
+  constructor(onUpdate: (content: string) => void) {
+    this.onUpdate = onUpdate;
   }
   
-  private fallbackToBasicLogging(): void {
-    console.log('⚠️  Falling back to basic logging due to streaming error');
-    disableConsoleStreaming();
-    
-    // Setup basic event logging
-    globalEventEmitter.on(AgentForgeEvents.AGENT_COMMUNICATION, (event) => {
-      console.log(`[${event.timestamp}] ${event.sender}: ${event.message}`);
-    });
+  handleChunk(chunk: string): void {
+    this.buffer += chunk;
+    this.onUpdate(this.buffer);
+  }
+  
+  complete(): string {
+    const finalContent = this.buffer;
+    this.buffer = '';
+    return finalContent;
   }
 }
-``` 
+
+const handler = new StreamHandler((content) => {
+  console.log("Current content:", content);
+});
+
+const response = await llm.chatStream({
+  messages: [{ role: "user", content: "Explain quantum computing" }],
+  model: "gpt-4",
+  onChunk: (chunk) => {
+    if (chunk.choices?.[0]?.delta?.content) {
+      handler.handleChunk(chunk.choices[0].delta.content);
+    }
+  }
+});
+```
+
+### Streaming with UI Updates
+```typescript
+// Example for web applications
+class UIStreamingHandler {
+  private element: HTMLElement;
+  private content: string = '';
+  
+  constructor(elementId: string) {
+    this.element = document.getElementById(elementId)!;
+  }
+  
+  onChunk(chunk: string): void {
+    this.content += chunk;
+    this.element.textContent = this.content;
+    
+    // Auto-scroll to bottom
+    this.element.scrollTop = this.element.scrollHeight;
+  }
+  
+  onComplete(): void {
+    this.element.classList.add('streaming-complete');
+  }
+}
+
+const uiHandler = new UIStreamingHandler('response-container');
+
+await llm.chatStream({
+  messages: [{ role: "user", content: "Write a poem" }],
+  model: "gpt-4",
+  onChunk: (chunk) => {
+    if (chunk.choices?.[0]?.delta?.content) {
+      uiHandler.onChunk(chunk.choices[0].delta.content);
+    }
+  }
+});
+
+uiHandler.onComplete();
+```
+
+## Error Handling
+
+### Stream Error Recovery
+```typescript
+async function streamWithRetry(
+  llm: LLM,
+  messages: any[],
+  maxRetries: number = 3
+): Promise<string> {
+  let attempt = 0;
+  let lastError: Error;
+  
+  while (attempt < maxRetries) {
+    try {
+      const response = await llm.chatStream({
+        messages,
+        model: "gpt-4",
+        onChunk: (chunk) => {
+          if (chunk.choices?.[0]?.delta?.content) {
+            process.stdout.write(chunk.choices[0].delta.content);
+          }
+        }
+      });
+      
+      return response.content;
+    } catch (error) {
+      lastError = error as Error;
+      attempt++;
+      
+      if (attempt < maxRetries) {
+        console.log(`Stream failed, retrying... (${attempt}/${maxRetries})`);
+        await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+      }
+    }
+  }
+  
+  throw lastError!;
+}
+```
+
+## Performance Optimization
+
+### Chunked Processing
+```typescript
+class ChunkedProcessor {
+  private chunks: string[] = [];
+  private processInterval: NodeJS.Timeout | null = null;
+  
+  constructor(private onProcess: (chunks: string[]) => void) {
+    this.startProcessing();
+  }
+  
+  addChunk(chunk: string): void {
+    this.chunks.push(chunk);
+  }
+  
+  private startProcessing(): void {
+    this.processInterval = setInterval(() => {
+      if (this.chunks.length > 0) {
+        const toProcess = this.chunks.splice(0, 10); // Process 10 chunks at a time
+        this.onProcess(toProcess);
+      }
+    }, 100); // Process every 100ms
+  }
+  
+  stop(): void {
+    if (this.processInterval) {
+      clearInterval(this.processInterval);
+      this.processInterval = null;
+    }
+    
+    // Process remaining chunks
+    if (this.chunks.length > 0) {
+      this.onProcess(this.chunks);
+      this.chunks = [];
+    }
+  }
+}
+```
+
+## Integration Examples
+
+### Express.js Streaming API
+```typescript
+import express from 'express';
+
+const app = express();
+
+app.get('/stream', async (req, res) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  
+  const query = req.query.q as string;
+  
+  try {
+    await llm.chatStream({
+      messages: [{ role: "user", content: query }],
+      model: "gpt-4",
+      onChunk: (chunk) => {
+        if (chunk.choices?.[0]?.delta?.content) {
+          res.write(`data: ${JSON.stringify({ chunk: chunk.choices[0].delta.content })}\n\n`);
+        }
+      }
+    });
+    
+    res.write('data: {"done": true}\n\n');
+    res.end();
+  } catch (error) {
+    res.write(`data: {"error": "${error.message}"}\n\n`);
+    res.end();
+  }
+});
+```
+
+### WebSocket Streaming
+```typescript
+import WebSocket from 'ws';
+
+const wss = new WebSocket.Server({ port: 8080 });
+
+wss.on('connection', (ws) => {
+  ws.on('message', async (message) => {
+    const { query } = JSON.parse(message.toString());
+    
+    try {
+      await llm.chatStream({
+        messages: [{ role: "user", content: query }],
+        model: "gpt-4",
+        onChunk: (chunk) => {
+          if (chunk.choices?.[0]?.delta?.content) {
+            ws.send(JSON.stringify({
+              type: 'chunk',
+              content: chunk.choices[0].delta.content
+            }));
+          }
+        }
+      });
+      
+      ws.send(JSON.stringify({ type: 'complete' }));
+    } catch (error) {
+      ws.send(JSON.stringify({ type: 'error', message: error.message }));
+    }
+  });
+});
+```
+
+## Best Practices
+
+- **Buffer Management**: Handle chunks efficiently to avoid memory issues
+- **Error Recovery**: Implement retry logic for failed streams
+- **Rate Limiting**: Respect API rate limits even with streaming
+- **User Feedback**: Provide visual indicators for streaming state
+- **Graceful Degradation**: Have fallback for non-streaming responses
+
+## See Also
+
+- [Event Emitter](./event-emitter)
+- [LLM Class](../core-classes/llm)
+- [Agent Class](../core-classes/agent) 

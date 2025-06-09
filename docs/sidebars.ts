@@ -52,6 +52,7 @@ const sidebars: SidebarsConfig = {
       type: "category",
       label: "Advanced",
       items: [
+        "learn/advanced/advanced",
         "learn/advanced/rag-integration",
         "learn/advanced/distributed-agents",
         "learn/advanced/streaming",
@@ -94,7 +95,7 @@ const sidebars: SidebarsConfig = {
       type: "category",
       label: "Utilities",
       items: [
-        "api-reference/utilities/index",
+        "api-reference/utilities/utilities",
         "api-reference/utilities/rate-limiter",
         "api-reference/utilities/event-emitter",
         "api-reference/utilities/streaming",
