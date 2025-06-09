@@ -147,12 +147,17 @@ export class ChromaDbClient {
     }
 
     try {
+      // Only include embeddings if ALL chunks have embeddings to ensure consistency
+      const allHaveEmbeddings = validChunks.every(
+        (chunk) => chunk.embedding && chunk.embedding.length > 0
+      );
+
       await collection.add({
         ids: validChunks.map((chunk) => chunk.id),
         documents: validChunks.map((chunk) => chunk.content),
         metadatas: validChunks.map((chunk) => chunk.metadata),
-        embeddings: validChunks.some((chunk) => chunk.embedding)
-          ? validChunks.map((chunk) => chunk.embedding || [])
+        embeddings: allHaveEmbeddings
+          ? validChunks.map((chunk) => chunk.embedding as number[])
           : undefined,
       });
     } catch (error) {
