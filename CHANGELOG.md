@@ -1,4 +1,30 @@
 ## What's Changed
+* Update documentation to explicitly promote use of environment variables by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/42
+* remove yarn state from repository by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/43
+* A2a, Agent, LLMProvider and forge decorators by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/44
+* Add decorators for MCP and RateLimiter by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/45
+* add support for agentforge.config.json with option to extend model list by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/46
+* Rewrite simple-agent example and document how to use workflows by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/47
+* Reuse @RateLimiter decorator for llmProvider by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/48
+* Add new Visualizer util decorator to generate a timeline of agent events by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/49
+* Add @tool decorator to add tools to agents by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/50
+* Add RAG with ChromaDB for agents with @RAGChromaDB decorator by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/51
+* Add custom plugin support and decorator to use plugin on agent-forge with @plugin(new Plugin()) decorator by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/52
+* readyForge util now registers agents and handles init async and statically by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/53
+* include agents as classes and normalize a2a and local classes inclusion by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/54
+* accept any type for addAgent to accept classes that extend Agent by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/55
+* Export decorator metadata by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/56
+* Adds new A2A client options to customize the number of retries to get the status by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/57
+* Fixes a issue when remote A2A agent is in streaming mode, final result wasn't delivered by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/58
+* rewrite docs to match the new decorator style by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/59
+* Decorators, Plugins, A2A, Config, Visualizer, RAG with ChromaDB and fixes by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/60
+
+
+**Full Changelog**: https://github.com/frostlogic-ab/agent-forge/compare/v1.5.2...v2.0.0
+
+# [2.0.0](https://github.com/frostlogic-ab/agent-forge/compare/v1.5.2...v2.0.0) (2025-06-09)
+
+## What's Changed
 * Fixes a issue when remote A2A agent is in streaming mode, final result wasn't delivered by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/58
 
 
