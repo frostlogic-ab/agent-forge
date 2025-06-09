@@ -1,0 +1,318 @@
+---
+title: Utilities Overview
+description: Core utilities and helper functions in Agent Forge
+---
+
+# Utilities Reference
+
+Agent Forge provides a comprehensive set of utilities for performance optimization, event handling, and development assistance. These utilities support the framework's core functionality and provide developers with powerful tools for building robust agent applications.
+
+## Categories
+
+### Rate Limiting
+Performance and cost management utilities:
+
+- **[RateLimiter](./rate-limiter)** - Intelligent rate limiting for API calls and tool executions
+- **Token bucket algorithms** - Advanced rate limiting with burst support
+- **Tool-specific limits** - Granular control over different operation types
+
+### Event System
+Framework-wide event handling and communication:
+
+- **[EventEmitter](./event-emitter)** - Lightweight event emitter for agent communication
+- **Global event system** - Framework-wide event coordination
+- **Type-safe events** - Strongly typed event interfaces
+
+### Streaming
+Real-time communication and visualization:
+
+- **[Streaming Utilities](./streaming)** - Console streaming and real-time updates
+- **LLM response streaming** - Token-by-token response handling
+- **Team communication streaming** - Live agent interaction monitoring
+
+## Quick Examples
+
+### Rate Limiting
+```typescript
+import { RateLimiter } from "agent-forge";
+
+const limiter = new RateLimiter({
+  callsPerSecond: 2,
+  callsPerMinute: 100,
+  verbose: true
+});
+
+await limiter.waitForToken(); // Respects rate limits
+// Make API call
+```
+
+### Event Communication
+```typescript
+import { globalEventEmitter, AgentForgeEvents } from "agent-forge";
+
+// Listen for agent communications
+globalEventEmitter.on(AgentForgeEvents.AGENT_COMMUNICATION, (event) => {
+  console.log(`${event.sender}: ${event.message}`);
+});
+
+// Emit custom events
+globalEventEmitter.emit(AgentForgeEvents.LLM_STREAM_CHUNK, {
+  agentName: "MyAgent",
+  chunk: "Hello",
+  isDelta: true,
+  isComplete: false
+});
+```
+
+### Console Streaming
+```typescript
+import { enableConsoleStreaming } from "agent-forge";
+
+// Enable real-time console output
+enableConsoleStreaming();
+
+// Run team with streaming enabled
+const result = await forge.runTeam("Manager", ["Agent1", "Agent2"], "task", {
+  stream: true,
+  enableConsoleStream: true
+});
+```
+
+## Integration Patterns
+
+### Complete Monitoring Setup
+```typescript
+import { 
+  RateLimiter, 
+  globalEventEmitter, 
+  enableConsoleStreaming,
+  AgentForgeEvents 
+} from "agent-forge";
+
+// Rate limiting
+@RateLimiter({
+  rateLimitPerSecond: 2,
+  verbose: true,
+  toolSpecificLimits: {
+    "WebSearchTool": { rateLimitPerSecond: 0.5 }
+  }
+})
+@forge()
+class MonitoredTeam {
+  static forge: AgentForge;
+  
+  static async run() {
+    // Enable streaming
+    enableConsoleStreaming();
+    
+    // Monitor events
+    globalEventEmitter.on(AgentForgeEvents.AGENT_COMMUNICATION, (event) => {
+      console.log(`🤖 ${event.sender}: ${event.message}`);
+    });
+    
+    globalEventEmitter.on(AgentForgeEvents.LLM_STREAM_CHUNK, (event) => {
+      process.stdout.write(event.chunk);
+    });
+    
+    return this.forge.runTeam("Manager", ["Agent1"], "task", {
+      stream: true,
+      enableConsoleStream: true
+    });
+  }
+}
+```
+
+### Custom Rate Limiting Strategy
+```typescript
+import { RateLimiter } from "agent-forge";
+
+class AdaptiveRateLimiter {
+  private limiter: RateLimiter;
+  private errorCount = 0;
+  
+  constructor() {
+    this.limiter = new RateLimiter({
+      callsPerSecond: 2,
+      callsPerMinute: 100
+    });
+  }
+  
+  async waitForToken(): Promise<void> {
+    // Reduce rate on errors
+    if (this.errorCount > 3) {
+      await new Promise(resolve => setTimeout(resolve, 5000));
+    }
+    
+    await this.limiter.waitForToken();
+  }
+  
+  onError(): void {
+    this.errorCount++;
+  }
+  
+  onSuccess(): void {
+    this.errorCount = Math.max(0, this.errorCount - 1);
+  }
+}
+```
+
+## Framework Integration
+
+### With Decorators
+Most utilities integrate seamlessly with Agent Forge decorators:
+
+```typescript
+@RateLimiter({ rateLimitPerSecond: 1 })
+@Visualizer()
+@llmProvider("openai", { apiKey: process.env.OPENAI_API_KEY })
+@forge()
+class IntegratedTeam {
+  static forge: AgentForge;
+}
+```
+
+### Programmatic Usage
+Utilities can also be used programmatically:
+
+```typescript
+import { RateLimiter, enableConsoleStreaming } from "agent-forge";
+
+const limiter = new RateLimiter({ callsPerSecond: 2 });
+enableConsoleStreaming();
+
+// Use in custom implementations
+class CustomAgent {
+  private rateLimiter = limiter;
+  
+  async makeAPICall(): Promise<any> {
+    await this.rateLimiter.waitForToken();
+    // API call logic
+  }
+}
+```
+
+## Performance Considerations
+
+### Rate Limiting Best Practices
+- **Start Conservative**: Begin with lower limits and increase as needed
+- **Monitor Performance**: Use verbose logging to understand rate limiting behavior
+- **Tool-Specific Limits**: Different tools may have different optimal rates
+- **Error Handling**: Implement proper error handling for rate limit exceeded scenarios
+
+### Event System Optimization
+- **Selective Listening**: Only listen to events you need
+- **Memory Management**: Remove event listeners when no longer needed
+- **Batch Processing**: Group related events when possible
+- **Async Handling**: Handle events asynchronously to avoid blocking
+
+### Streaming Performance
+- **Buffer Management**: Manage streaming buffers appropriately
+- **Console Output**: Be mindful of console output volume in production
+- **Network Considerations**: Account for network latency in streaming scenarios
+
+## Development Utilities
+
+### Debugging with Events
+```typescript
+import { globalEventEmitter, AgentForgeEvents } from "agent-forge";
+
+// Comprehensive event monitoring for debugging
+const events = [
+  AgentForgeEvents.AGENT_COMMUNICATION,
+  AgentForgeEvents.LLM_STREAM_CHUNK,
+  AgentForgeEvents.TEAM_TASK_COMPLETE,
+  AgentForgeEvents.WORKFLOW_STEP_COMPLETE
+];
+
+events.forEach(event => {
+  globalEventEmitter.on(event, (data) => {
+    console.log(`[${event}]`, data);
+  });
+});
+```
+
+### Rate Limit Testing
+```typescript
+import { RateLimiter } from "agent-forge";
+
+async function testRateLimiting() {
+  const limiter = new RateLimiter({
+    callsPerSecond: 1,
+    verbose: true
+  });
+  
+  const startTime = Date.now();
+  
+  for (let i = 0; i < 5; i++) {
+    await limiter.waitForToken();
+    console.log(`Call ${i + 1} at ${Date.now() - startTime}ms`);
+  }
+}
+```
+
+## Error Handling
+
+### Rate Limiter Errors
+```typescript
+import { RateLimiter } from "agent-forge";
+
+const limiter = new RateLimiter({ callsPerSecond: 1 });
+
+try {
+  await limiter.waitForToken();
+  // API call
+} catch (error) {
+  console.error("Rate limiting error:", error);
+  // Implement fallback strategy
+}
+```
+
+### Event System Errors
+```typescript
+import { globalEventEmitter } from "agent-forge";
+
+globalEventEmitter.on('error', (error) => {
+  console.error("Event system error:", error);
+});
+
+// Emit with error handling
+try {
+  globalEventEmitter.emit('custom-event', data);
+} catch (error) {
+  console.error("Failed to emit event:", error);
+}
+```
+
+## Testing Utilities
+
+### Mock Rate Limiter
+```typescript
+class MockRateLimiter {
+  async waitForToken(): Promise<void> {
+    // No-op for testing
+  }
+}
+
+// Use in tests
+const originalLimiter = agent.rateLimiter;
+agent.rateLimiter = new MockRateLimiter();
+// Run tests
+agent.rateLimiter = originalLimiter;
+```
+
+### Event Testing
+```typescript
+import { EventEmitter } from "agent-forge";
+
+describe("Agent Communication", () => {
+  it("should emit communication events", (done) => {
+    const emitter = new EventEmitter();
+    
+    emitter.on("test-event", (data) => {
+      expect(data.message).toBe("test");
+      done();
+    });
+    
+    emitter.emit("test-event", { message: "test" });
+  });
+}); 

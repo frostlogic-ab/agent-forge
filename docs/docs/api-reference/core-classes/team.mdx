@@ -1,0 +1,557 @@
+---
+id: team
+title: Team
+---
+
+# Team
+
+The `Team` class enables coordinated multi-agent execution with a manager agent that delegates tasks to team members. Teams use hierarchical coordination where a manager agent decides how to distribute work among specialized agents.
+
+## Constructor
+
+```typescript
+constructor(manager: Agent, name = "Team", description = "A team of agents with a manager")
+```
+
+### Parameters
+
+- **`manager`** (`Agent`): The manager agent that coordinates the team
+- **`name`** (`string`, optional): Team name for identification
+- **`description`** (`string`, optional): Team description
+
+## Properties
+
+```typescript
+readonly manager: Agent              // Manager agent
+readonly agents: Map<string, Agent> // Team member agents
+readonly name: string               // Team name
+readonly description: string        // Team description
+```
+
+## Methods
+
+### Team Configuration
+
+#### setName()
+Set the team name.
+
+```typescript
+setName(name: string): Team
+```
+
+#### setDescription() 
+Set the team description.
+
+```typescript
+setDescription(description: string): Team
+```
+
+#### getName()
+Get the team name.
+
+```typescript
+getName(): string
+```
+
+#### getDescription()
+Get the team description.
+
+```typescript
+getDescription(): string
+```
+
+### Agent Management
+
+#### addAgent()
+Add an agent to the team.
+
+```typescript
+addAgent(agent: Agent): Team
+```
+
+#### addAgents()
+Add multiple agents to the team.
+
+```typescript
+addAgents(agents: Agent[]): Team
+```
+
+#### getAgent()
+Get a specific team member by name.
+
+```typescript
+getAgent(name: string): Agent | undefined
+```
+
+#### getAgents()
+Get all team member agents.
+
+```typescript
+getAgents(): Agent[]
+```
+
+#### getManager()
+Get the manager agent.
+
+```typescript
+getManager(): Agent
+```
+
+#### setManager()
+Set a new manager agent.
+
+```typescript
+setManager(manager: Agent): void
+```
+
+### Execution
+
+#### run()
+Execute the team with coordinated task delegation.
+
+```typescript
+async run(input: string, options?: TeamRunOptions): Promise<AgentResult>
+```
+
+**TeamRunOptions:**
+```typescript
+interface TeamRunOptions {
+  rate_limit?: number;           // API calls per minute limit
+  verbose?: boolean;             // Enable detailed logging
+  stream?: boolean;              // Enable streaming updates
+  enableConsoleStream?: boolean; // Enable console visualization
+  maxTurns?: number;            // Maximum coordination rounds
+  maxExecutionTime?: number;    // Timeout in milliseconds
+}
+```
+
+### Utility Methods
+
+#### reset()
+Reset team state and conversation history.
+
+```typescript
+reset(): void
+```
+
+#### getTeamRunLogger()
+Get the team execution logger (if available).
+
+```typescript
+getTeamRunLogger(): TeamRunLogger | undefined
+```
+
+## Usage Examples
+
+### Basic Team Setup
+
+```typescript
+import { Agent, Team } from "agent-forge";
+
+// Create manager
+const manager = new Agent({
+  name: "Project Manager",
+  role: "Team Coordinator", 
+  description: "Coordinates team tasks and synthesizes results",
+  objective: "Effectively delegate tasks and create comprehensive outputs",
+  model: "gpt-4",
+  temperature: 0.7
+});
+
+// Create team members
+const researcher = new Agent({
+  name: "Researcher",
+  role: "Research Specialist",
+  description: "Conducts thorough research on topics",
+  objective: "Find accurate and comprehensive information",
+  model: "gpt-4",
+  temperature: 0.3
+});
+
+const analyst = new Agent({
+  name: "Analyst", 
+  role: "Data Analyst",
+  description: "Analyzes data and identifies patterns",
+  objective: "Provide insightful analysis and recommendations",
+  model: "gpt-4",
+  temperature: 0.4
+});
+
+// Create and configure team
+const team = new Team(manager, "Research Team", "A team specialized in research and analysis")
+  .addAgent(researcher)
+  .addAgent(analyst);
+
+// Execute team task
+const result = await team.run("Analyze the impact of AI on the job market", {
+  verbose: true,
+  maxTurns: 5
+});
+
+console.log(result.output);
+```
+
+### Using with Decorators
+
+```typescript
+import { agent, tool, Agent, WebSearchTool, CalculatorTool } from "agent-forge";
+
+@agent({
+  name: "Team Manager",
+  role: "Project Coordinator",
+  description: "Manages team workflow and synthesizes results",
+  objective: "Coordinate team efforts for comprehensive outcomes",
+  model: "gpt-4"
+})
+class ManagerAgent extends Agent {}
+
+@tool(WebSearchTool)
+@agent({
+  name: "Researcher", 
+  role: "Research Specialist",
+  description: "Conducts web research and gathers information",
+  objective: "Find relevant and accurate information",
+  model: "gpt-4"
+})
+class ResearcherAgent extends Agent {}
+
+@tool(CalculatorTool)
+@agent({
+  name: "Analyst",
+  role: "Data Analyst", 
+  description: "Performs calculations and data analysis",
+  objective: "Provide quantitative insights",
+  model: "gpt-4"
+})
+class AnalystAgent extends Agent {}
+
+// Create team
+const manager = new ManagerAgent();
+const researcher = new ResearcherAgent();
+const analyst = new AnalystAgent();
+
+const team = new Team(manager)
+  .addAgents([researcher, analyst]);
+
+const result = await team.run("Calculate ROI for a $100k AI implementation project");
+```
+
+### Advanced Team Configuration
+
+```typescript
+// Team with streaming and detailed logging
+const result = await team.run("Create a market analysis report", {
+  verbose: true,              // Detailed execution logs
+  stream: true,               // Real-time updates
+  enableConsoleStream: true,  // Console visualization
+  maxTurns: 10,              // Allow up to 10 coordination rounds
+  maxExecutionTime: 300000,   // 5 minute timeout
+  rate_limit: 60             // Max 60 API calls per minute
+});
+```
+
+### Team with Specialized Roles
+
+```typescript
+import { Team, Agent, WebSearchTool, CalculatorTool, LanguageTranslationTool } from "agent-forge";
+
+// Create specialized agents
+const globalResearcher = new Agent({
+  name: "Global Researcher",
+  role: "International Research Specialist",
+  description: "Researches global markets and international data",
+  objective: "Provide comprehensive global market intelligence",
+  model: "gpt-4"
+}, [new WebSearchTool()]);
+
+const quantAnalyst = new Agent({
+  name: "Quantitative Analyst", 
+  role: "Financial Analysis Expert",
+  description: "Performs complex financial calculations and modeling",
+  objective: "Deliver precise quantitative analysis",
+  model: "gpt-4"
+}, [new CalculatorTool()]);
+
+const reportWriter = new Agent({
+  name: "Report Writer",
+  role: "Professional Writer",
+  description: "Creates polished reports and presentations", 
+  objective: "Produce clear, professional documentation",
+  model: "gpt-4",
+  temperature: 0.6
+});
+
+const teamCoordinator = new Agent({
+  name: "Team Coordinator",
+  role: "Project Manager",
+  description: "Coordinates complex multi-agent projects",
+  objective: "Ensure efficient collaboration and quality outputs",
+  model: "gpt-4",
+  temperature: 0.7
+});
+
+const marketAnalysisTeam = new Team(teamCoordinator, "Market Analysis Team")
+  .addAgents([globalResearcher, quantAnalyst, reportWriter]);
+
+// Execute complex analysis
+const result = await marketAnalysisTeam.run(
+  "Analyze the global electric vehicle market, including market size, growth projections, key players, and investment opportunities",
+  { verbose: true, maxTurns: 8 }
+);
+```
+
+## Team Coordination Patterns
+
+### Task Delegation Flow
+
+1. **Manager Analysis**: Manager agent analyzes the input and determines required tasks
+2. **Task Assignment**: Manager assigns specific tasks to appropriate team members
+3. **Parallel Execution**: Team members work on their assigned tasks
+4. **Progress Monitoring**: Manager monitors progress and may reassign or modify tasks
+5. **Result Synthesis**: Manager combines individual results into final output
+
+### Communication Patterns
+
+```typescript
+// Teams automatically handle:
+// - Task breakdown and assignment
+// - Inter-agent communication
+// - Dependency management
+// - Result aggregation
+// - Error handling and recovery
+
+const result = await team.run("Complex multi-faceted analysis", {
+  verbose: true  // See the communication flow
+});
+
+// Example communication flow:
+// Manager: "I need to analyze this topic. Researcher, please gather data. Analyst, prepare for quantitative analysis."
+// Researcher: "I found comprehensive data on market trends and consumer behavior."
+// Analyst: "Based on the research, I've calculated growth rates and market projections."
+// Manager: "Combining the research findings with quantitative analysis to create final report..."
+```
+
+## Error Handling
+
+```typescript
+try {
+  const result = await team.run("Analysis task", { maxTurns: 5 });
+} catch (error) {
+  if (error instanceof Error) {
+    console.error("Team execution failed:", error.message);
+    
+    // Handle specific scenarios
+    if (error.message.includes("timeout")) {
+      console.log("Team execution timed out - consider increasing maxExecutionTime");
+    }
+    
+    if (error.message.includes("max turns")) {
+      console.log("Team reached maximum coordination rounds");
+    }
+  }
+}
+```
+
+## Advanced Features
+
+### Team State Management
+
+```typescript
+// Teams maintain state across execution
+const team = new Team(manager).addAgents([researcher, analyst]);
+
+// First task
+await team.run("Research market trends");
+
+// Subsequent tasks build on previous context
+await team.run("Now analyze the risks we identified");
+
+// Reset team state if needed
+team.reset();
+await team.run("Start fresh analysis");
+```
+
+### Team Composition Strategies
+
+```typescript
+// Balanced team for general tasks
+const generalTeam = new Team(generalManager)
+  .addAgent(researcher)
+  .addAgent(analyst) 
+  .addAgent(writer);
+
+// Specialized team for technical tasks
+const techTeam = new Team(techLead)
+  .addAgent(codeAnalyst)
+  .addAgent(securityExpert)
+  .addAgent(performanceSpecialist);
+
+// Large team for complex projects
+const projectTeam = new Team(projectManager)
+  .addAgents([
+    researcher1, researcher2,    // Multiple researchers
+    analyst1, analyst2,          // Multiple analysts  
+    writer, reviewer,            // Writing and review
+    qualityAssurance            // QA specialist
+  ]);
+```
+
+### Performance Optimization
+
+```typescript
+// Optimize team performance
+const result = await team.run("Large analysis project", {
+  rate_limit: 30,              // Conservative rate limiting
+  maxTurns: 15,               // Allow more coordination
+  maxExecutionTime: 600000,    // 10 minute timeout for complex tasks
+  verbose: false,             // Reduce logging overhead
+  stream: false               // Disable streaming for performance
+});
+```
+
+## Integration with Other Classes
+
+### With AgentForge
+
+```typescript
+import { AgentForge } from "agent-forge";
+
+const forge = new AgentForge(llm);
+
+// Register team members
+await forge.registerAgents([manager, researcher, analyst]);
+
+// Use forge's team execution
+const result = await forge.runTeam(
+  "Team Manager",
+  ["Researcher", "Analyst"], 
+  "Market analysis task"
+);
+```
+
+### With Workflows
+
+```typescript
+import { Workflow } from "agent-forge";
+
+// Combine teams and workflows
+const workflow = new Workflow("Multi-Stage Analysis")
+  .addStep(researchTeam)     // Team for research phase
+  .addStep(analysisTeam)     // Team for analysis phase  
+  .addStep(reportingTeam);   // Team for reporting phase
+
+const result = await workflow.run("Comprehensive market study");
+```
+
+## Best Practices
+
+### 1. Manager Agent Design
+```typescript
+// Good: Specific coordination role
+const manager = new Agent({
+  name: "Research Coordinator",
+  role: "Research Team Manager", 
+  description: "Coordinates research tasks and synthesizes findings",
+  objective: "Lead team to produce comprehensive research outputs",
+  model: "gpt-4",
+  temperature: 0.7  // Higher temperature for creative coordination
+});
+
+// Avoid: Generic manager
+const manager = new Agent({
+  name: "Manager",
+  role: "Manager",
+  description: "Manages things",
+  objective: "Manage stuff"
+});
+```
+
+### 2. Team Member Specialization
+```typescript
+// Good: Clear specializations
+const researcher = new Agent({
+  name: "Market Researcher",
+  role: "Market Research Specialist",
+  description: "Specializes in market trends and consumer behavior research",
+  objective: "Provide accurate market intelligence",
+  model: "gpt-4",
+  temperature: 0.3  // Lower temperature for factual accuracy
+});
+
+// Good: Complementary skills
+const team = new Team(manager)
+  .addAgent(quantitativeAnalyst)  // Numbers and data
+  .addAgent(qualitativeResearcher) // Insights and trends
+  .addAgent(visualizationExpert);  // Charts and presentations
+```
+
+### 3. Resource Management
+```typescript
+// Always cleanup team resources
+try {
+  const result = await team.run(input, options);
+  // Process result
+} finally {
+  team.reset(); // Clear conversation history
+}
+```
+
+### 4. Error Recovery
+```typescript
+const runTeamWithRetry = async (team: Team, input: string, maxRetries = 3) => {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await team.run(input, { 
+        maxTurns: 5 + attempt,  // Increase coordination rounds on retry
+        verbose: attempt > 1    // Enable verbose logging after first failure
+      });
+    } catch (error) {
+      if (attempt === maxRetries) throw error;
+      
+      console.log(`Team attempt ${attempt} failed, retrying...`);
+      team.reset(); // Clear state before retry
+      await new Promise(resolve => setTimeout(resolve, 1000 * attempt)); // Backoff
+    }
+  }
+};
+```
+
+## Troubleshooting
+
+### Common Issues
+
+**Manager Not Delegating:**
+```typescript
+// Issue: Manager tries to do everything itself
+// Solution: Improve manager prompt or adjust team composition
+
+const manager = new Agent({
+  // ... config
+  objective: "Coordinate team members to complete tasks efficiently - delegate work to specialists rather than doing everything yourself"
+});
+```
+
+**Team Members Not Collaborating:**
+```typescript
+// Issue: Agents work in isolation
+// Solution: Use verbose mode to debug communication
+
+const result = await team.run(input, { 
+  verbose: true,  // See inter-agent communication
+  maxTurns: 8     // Allow more coordination rounds
+});
+```
+
+**Performance Issues:**
+```typescript
+// Issue: Team execution too slow
+// Solutions:
+const result = await team.run(input, {
+  rate_limit: 60,           // Increase rate limit if API allows
+  maxTurns: 5,             // Reduce coordination overhead
+  stream: false,           // Disable streaming
+  enableConsoleStream: false // Disable console output
+});
+```
+
+See also: [Agent](./agent), [AgentForge](./agent-forge), [Workflow](./workflow) 

@@ -1,0 +1,260 @@
+---
+id: agent-basics
+title: Agent Basics
+sidebar_position: 1
+---
+
+# Agent Basics
+
+Agents are the core building blocks of Agent Forge. An agent is an AI-powered entity that can understand tasks, reason about them, and take actions to complete them.
+
+## Creating an Agent
+
+All agents extend the base `Agent` class and use the `@agent` decorator for configuration:
+
+```typescript
+import { Agent, agent } from "agent-forge";
+
+@agent({
+  name: "My Assistant",
+  role: "Helpful Assistant",
+  description: "Provides assistance with various tasks",
+  objective: "Help users accomplish their goals effectively",
+  model: "gpt-4",
+  temperature: 0.7
+})
+class MyAssistant extends Agent {}
+```
+
+## Agent Configuration
+
+The `@agent` decorator accepts these configuration options:
+
+### Required Fields
+- **`name`** - Unique identifier for the agent
+- **`role`** - The agent's role or job title
+- **`description`** - What the agent does
+- **`objective`** - Primary goal or purpose
+- **`model`** - LLM model to use (e.g., "gpt-4", "gpt-3.5-turbo")
+
+### Optional Fields
+- **`temperature`** - Controls randomness (0.0-1.0, default: 0.7)
+- **`maxTokens`** - Maximum response length (default: model limit)
+
+```typescript
+@agent({
+  name: "Analyst",
+  role: "Data Analyst", 
+  description: "Analyzes data and provides insights",
+  objective: "Extract meaningful insights from data",
+  model: "gpt-4",
+  temperature: 0.3,  // Lower temperature for more focused responses
+  maxTokens: 2000    // Limit response length
+})
+class DataAnalyst extends Agent {}
+```
+
+## Running an Agent
+
+Use the `run()` method to interact with an agent:
+
+```typescript
+// Create and use an agent
+const assistant = new MyAssistant();
+const result = await assistant.run("What's the weather like?");
+
+console.log(result.output);
+console.log(`Took ${result.metadata.executionTime}ms`);
+```
+
+## Agent Response
+
+The `run()` method returns an `AgentResult` with:
+
+```typescript
+interface AgentResult {
+  output: string;           // The agent's response
+  metadata: {
+    executionTime: number;  // Time taken in milliseconds  
+    modelName: string;      // Model used
+    tokenUsage?: {
+      prompt: number;       // Input tokens
+      completion: number;   // Output tokens
+      total: number;        // Total tokens
+    };
+    toolCalls?: ToolCall[]; // Tools used (if any)
+  };
+}
+```
+
+## Agent Personality
+
+Configure your agent's behavior through the configuration:
+
+### Creative Agent
+```typescript
+@agent({
+  name: "Creative Writer",
+  role: "Content Creator",
+  description: "Writes creative and engaging content",
+  objective: "Create compelling stories and articles",
+  model: "gpt-4",
+  temperature: 0.9  // High creativity
+})
+class CreativeAgent extends Agent {}
+```
+
+### Analytical Agent
+```typescript
+@agent({
+  name: "Data Analyst", 
+  role: "Research Analyst",
+  description: "Provides detailed analysis and factual information",
+  objective: "Deliver accurate, data-driven insights",
+  model: "gpt-4",
+  temperature: 0.2  // Low creativity, high consistency
+})
+class AnalyticalAgent extends Agent {}
+```
+
+## Conversation History
+
+Agents maintain conversation context automatically:
+
+```typescript
+const agent = new MyAssistant();
+
+// First interaction
+await agent.run("My name is John");
+
+// Second interaction - agent remembers context
+const result = await agent.run("What's my name?");
+// Agent will respond: "Your name is John"
+
+// Reset conversation if needed
+agent.resetConversation();
+```
+
+## Agent Options
+
+Pass options to control agent behavior:
+
+```typescript
+const result = await agent.run("Explain quantum computing", {
+  stream: true,              // Enable streaming responses
+  maxTurns: 3,              // Limit conversation turns
+  maxExecutionTime: 30000   // 30 second timeout
+});
+```
+
+## Streaming Responses
+
+Enable real-time streaming for better user experience:
+
+```typescript
+import { globalEventEmitter, AgentForgeEvents } from "agent-forge";
+
+// Listen for streaming chunks
+globalEventEmitter.on(AgentForgeEvents.LLM_STREAM_CHUNK, (event) => {
+  if (event.isDelta) {
+    process.stdout.write(event.chunk); // Print each chunk
+  }
+});
+
+// Enable streaming
+const result = await agent.run("Tell me a story", { stream: true });
+```
+
+## Error Handling
+
+Handle errors gracefully:
+
+```typescript
+try {
+  const result = await agent.run("Complex task");
+  console.log(result.output);
+} catch (error) {
+  if (error.message.includes("rate limit")) {
+    console.log("Rate limited - trying again later");
+    // Implement retry logic
+  } else {
+    console.error("Agent error:", error.message);
+  }
+}
+```
+
+## Custom Agent Methods
+
+Extend agents with custom functionality:
+
+```typescript
+@agent({
+  name: "Calculator",
+  role: "Math Assistant", 
+  description: "Performs mathematical calculations",
+  objective: "Solve math problems accurately",
+  model: "gpt-4",
+  temperature: 0.1
+})
+class CalculatorAgent extends Agent {
+  async calculate(expression: string): Promise<number> {
+    const result = await this.run(`Calculate: ${expression}`);
+    return parseFloat(result.output);
+  }
+  
+  async solve(problem: string): Promise<string> {
+    return this.run(`Solve this math problem step by step: ${problem}`);
+  }
+}
+
+// Usage
+const calc = new CalculatorAgent();
+const answer = await calc.calculate("25 * 4 + 10");
+const solution = await calc.solve("Find the derivative of x²+3x+2");
+```
+
+## Best Practices
+
+### Clear Configuration
+Be specific about your agent's role and objective:
+
+```typescript
+// ✅ Good - Clear and specific
+@agent({
+  name: "Customer Support Agent",
+  role: "Customer Service Representative", 
+  description: "Handles customer inquiries and provides helpful solutions",
+  objective: "Resolve customer issues efficiently and professionally",
+  model: "gpt-4",
+  temperature: 0.5
+})
+
+// ❌ Vague - Unclear purpose
+@agent({
+  name: "Agent",
+  role: "Helper",
+  description: "Does stuff", 
+  objective: "Help",
+  model: "gpt-4"
+})
+```
+
+### Appropriate Temperature
+Choose temperature based on task type:
+- **0.0-0.3**: Factual, analytical tasks
+- **0.4-0.7**: Balanced creative and analytical 
+- **0.8-1.0**: Creative writing, brainstorming
+
+### Memory Management
+Reset conversation when context is no longer relevant:
+
+```typescript
+// For each new user session
+agent.resetConversation();
+```
+
+## Next Steps
+
+- [Adding Tools](../tools/adding-tools.mdx) - Give agents capabilities
+- [Agent Communication](../teams/team-basics.mdx) - Multi-agent systems
+- [Streaming](../advanced/streaming) - Real-time responses 

@@ -1,0 +1,390 @@
+---
+title: A2A Decorators
+description: Agent-to-Agent protocol decorators for distributed systems
+---
+
+# A2A Decorators
+
+Agent-to-Agent (A2A) decorators enable distributed agent systems by allowing agents to communicate across network boundaries. These decorators implement the A2A protocol for seamless agent interaction.
+
+## @a2aServer
+
+Exposes an agent as an A2A server, making it accessible to remote clients over HTTP.
+
+### Syntax
+```typescript
+@a2aServer(options?: A2AServerOptions, adapter?: AgentToTaskHandlerAdapter)
+@llmProvider(provider, config)
+@agent(agentConfig)
+class MyServerAgent extends Agent {}
+```
+
+### Parameters
+
+#### A2AServerOptions
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `host` | `string` | `"localhost"` | Server host address |
+| `port` | `number` | `3000` | Server port number |
+| `endpoint` | `string` | `"/a2a"` | A2A protocol endpoint |
+| `verbose` | `boolean` | `false` | Enable detailed logging |
+| `logger` | `Logger` | `console` | Custom logger instance |
+
+#### AgentToTaskHandlerAdapter
+Optional custom adapter for handling agent-to-task conversion. Uses `defaultAgentToTaskHandlerAdapter` if not provided.
+
+### Examples
+
+#### Basic A2A Server
+```typescript
+@a2aServer({ port: 3001 })
+@llmProvider("openai", { apiKey: process.env.OPENAI_API_KEY })
+@agent({
+  name: "HelpfulAssistant",
+  role: "General Assistant",
+  description: "A helpful assistant available over A2A",
+  objective: "Assist users with various tasks",
+  model: "gpt-4"
+})
+class HelpfulAssistantServer extends Agent {}
+```
+
+#### Advanced Server Configuration
+```typescript
+@a2aServer({
+  host: "0.0.0.0",
+  port: 8080,
+  endpoint: "/api/a2a",
+  verbose: true,
+  logger: customLogger
+})
+@llmProvider("anthropic", { apiKey: process.env.ANTHROPIC_API_KEY })
+@agent({
+  name: "SpecializedAgent",
+  role: "Domain Expert",
+  description: "Specialized agent for specific domain tasks",
+  objective: "Provide expert domain knowledge",
+  model: "claude-3-sonnet"
+})
+class SpecializedAgentServer extends Agent {}
+```
+
+#### Server with Tools
+```typescript
+@tool(WebSearchTool)
+@tool(CalculatorTool)
+@a2aServer({ port: 3002 })
+@llmProvider("openai", { apiKey: process.env.OPENAI_API_KEY })
+@agent({
+  name: "ToolEnabledAgent",
+  role: "Research Assistant",
+  description: "Agent with search and calculation capabilities",
+  objective: "Provide comprehensive research assistance",
+  model: "gpt-4"
+})
+class ToolEnabledServer extends Agent {}
+```
+
+### Agent Card
+
+The A2A server automatically exposes an agent card at `/.well-known/agent.json`:
+
+```json
+{
+  "name": "HelpfulAssistant",
+  "description": "A helpful assistant available over A2A",
+  "role": "General Assistant",
+  "objective": "Assist users with various tasks",
+  "model": "gpt-4",
+  "protocolVersion": "2.0",
+  "capabilities": [
+    "task/send",
+    "task/get", 
+    "task/cancel",
+    "agent/getCard",
+    "task/subscribeEvents"
+  ],
+  "metadata": {
+    "streamingSupported": true
+  }
+}
+```
+
+### Server Management
+
+```typescript
+const serverInstance = new HelpfulAssistantServer();
+
+// Server starts automatically on instantiation
+// Access server instance via .a2aServer property
+const server = serverInstance.a2aServer;
+
+// Stop server when done
+await server.stop();
+```
+
+---
+
+## @a2aClient
+
+Creates a remote agent client that communicates with an A2A server, providing transparent access to remote agent capabilities.
+
+### Syntax
+```typescript
+@a2aClient(options: A2AClientOptions, localAlias?: string)
+class RemoteAgent extends Agent {}
+```
+
+### Parameters
+
+#### A2AClientOptions
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| `serverUrl` | `string` | ✅ | Base URL of the A2A server |
+| `fetch` | `typeof fetch` | ❌ | Custom fetch implementation |
+| `taskStatusRetries` | `number` | ❌ | Max retries for task status (default: 10) |
+| `taskStatusRetryDelay` | `number` | ❌ | Delay between retries in ms (default: 1000) |
+
+#### localAlias
+Optional local name for the remote agent instance.
+
+### Examples
+
+#### Basic Remote Agent
+```typescript
+@a2aClient({ 
+  serverUrl: "http://localhost:3001/a2a" 
+})
+class RemoteHelpfulAssistant extends Agent {}
+```
+
+#### Remote Agent with Custom Configuration
+```typescript
+@a2aClient({
+  serverUrl: "https://api.example.com/agents/specialist",
+  taskStatusRetries: 15,
+  taskStatusRetryDelay: 2000,
+  fetch: customFetch
+}, "MySpecialistAgent")
+class RemoteSpecialistAgent extends Agent {}
+```
+
+#### Multiple Remote Agents
+```typescript
+@a2aClient({ 
+  serverUrl: "http://localhost:3001/a2a" 
+}, "RemoteResearcher")
+class RemoteResearchAgent extends Agent {}
+
+@a2aClient({ 
+  serverUrl: "http://localhost:3002/a2a" 
+}, "RemoteAnalyst") 
+class RemoteAnalysisAgent extends Agent {}
+```
+
+### Usage Patterns
+
+#### Creating Remote Agent Instances
+```typescript
+// Remote agents return promises from constructors
+const remoteAgent = await new RemoteHelpfulAssistant();
+
+// Or use with readyForge
+const agentClasses = [RemoteHelpfulAssistant, RemoteSpecialistAgent];
+await readyForge(MyTeam, agentClasses);
+```
+
+#### Using Remote Agents
+```typescript
+const remoteAgent = await new RemoteHelpfulAssistant();
+
+// Use exactly like local agents
+const result = await remoteAgent.run("Analyze this data", {
+  stream: true  // Streaming is supported
+});
+
+console.log(result.output);
+console.log("Tool calls:", result.metadata.toolCalls);
+```
+
+---
+
+## Distributed Team Example
+
+Combining A2A server and client decorators for distributed teams:
+
+### Server-Side Agents
+```typescript
+// Research server
+@tool(WebSearchTool)
+@a2aServer({ port: 3001 })
+@llmProvider("openai", { apiKey: process.env.OPENAI_API_KEY })
+@agent({
+  name: "ResearchAgent",
+  role: "Research Specialist", 
+  description: "Web research specialist",
+  objective: "Find accurate information online",
+  model: "gpt-4"
+})
+class ResearchServer extends Agent {}
+
+// Analysis server  
+@tool(CalculatorTool)
+@a2aServer({ port: 3002 })
+@llmProvider("anthropic", { apiKey: process.env.ANTHROPIC_API_KEY })
+@agent({
+  name: "AnalysisAgent",
+  role: "Data Analyst",
+  description: "Data analysis specialist", 
+  objective: "Analyze and interpret data",
+  model: "claude-3-sonnet"
+})
+class AnalysisServer extends Agent {}
+```
+
+### Client-Side Team
+```typescript
+@a2aClient({ serverUrl: "http://localhost:3001/a2a" }, "RemoteResearcher")
+class RemoteResearchAgent extends Agent {}
+
+@a2aClient({ serverUrl: "http://localhost:3002/a2a" }, "RemoteAnalyst") 
+class RemoteAnalysisAgent extends Agent {}
+
+@agent({
+  name: "TeamManager",
+  role: "Team Coordinator",
+  description: "Coordinates distributed team",
+  objective: "Manage and synthesize team results", 
+  model: "gpt-4"
+})
+class TeamManager extends Agent {}
+
+@llmProvider("openai", { apiKey: process.env.OPENAI_API_KEY })
+@forge()
+class DistributedTeam {
+  static forge: AgentForge;
+  
+  static async run() {
+    const agentClasses = [
+      TeamManager,
+      RemoteResearchAgent, 
+      RemoteAnalysisAgent
+    ];
+    
+    await readyForge(DistributedTeam, agentClasses);
+    
+    return this.forge.runTeam(
+      "TeamManager", 
+      ["RemoteResearcher", "RemoteAnalyst"],
+      "Research and analyze market trends in AI"
+    );
+  }
+}
+```
+
+### Authentication & Security
+
+#### Server-Side Authentication
+```typescript
+// Custom authentication adapter
+const authAdapter: AgentToTaskHandlerAdapter = (agent, logger, verbose) => {
+  return async function* (taskId, input, metadata, cancellationSignal) {
+    // Validate authentication headers
+    if (!metadata?.headers?.authorization) {
+      throw new Error("Authentication required");
+    }
+    
+    // Delegate to default adapter
+    const defaultHandler = defaultAgentToTaskHandlerAdapter(agent, logger, verbose);
+    yield* defaultHandler(taskId, input, metadata, cancellationSignal);
+  };
+};
+
+@a2aServer({ 
+  port: 3001,
+  verbose: true 
+}, authAdapter)
+@llmProvider("openai", { apiKey: process.env.OPENAI_API_KEY })
+@agent(agentConfig)
+class AuthenticatedServer extends Agent {}
+```
+
+#### Client-Side Authentication
+```typescript
+const authenticatedFetch = async (url: string, init?: RequestInit) => {
+  const headers = {
+    ...init?.headers,
+    'Authorization': `Bearer ${process.env.A2A_TOKEN}`
+  };
+  
+  return fetch(url, { ...init, headers });
+};
+
+@a2aClient({
+  serverUrl: "https://secure.example.com/a2a",
+  fetch: authenticatedFetch
+})
+class SecureRemoteAgent extends Agent {}
+```
+
+### Best Practices
+
+#### Server Configuration
+- **Security**: Use HTTPS in production environments
+- **Monitoring**: Enable verbose logging for debugging
+- **Resource Management**: Implement proper server shutdown procedures
+- **Load Balancing**: Consider multiple server instances for high availability
+
+#### Client Configuration  
+- **Error Handling**: Implement retry logic for network failures
+- **Timeout Configuration**: Set appropriate timeouts for long-running tasks
+- **Connection Pooling**: Reuse connections when possible
+- **Fallback Strategies**: Have backup servers or local agents available
+
+#### Network Considerations
+- **Latency**: Account for network latency in distributed operations
+- **Bandwidth**: Consider data size for streaming operations
+- **Reliability**: Implement circuit breaker patterns for unreliable networks
+- **Monitoring**: Monitor network performance and agent availability
+
+### Deployment
+
+#### Docker Deployment
+```dockerfile
+# Server Dockerfile
+FROM node:18
+WORKDIR /app
+COPY package*.json ./
+RUN npm install
+COPY . .
+EXPOSE 3001
+CMD ["node", "dist/server.js"]
+```
+
+#### Docker Compose
+```yaml
+version: '3.8'
+services:
+  research-agent:
+    build: ./research-server
+    ports:
+      - "3001:3001"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      
+  analysis-agent:
+    build: ./analysis-server
+    ports:
+      - "3002:3002"
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      
+  team-coordinator:
+    build: ./team-client
+    depends_on:
+      - research-agent
+      - analysis-agent
+    environment:
+      - RESEARCH_AGENT_URL=http://research-agent:3001/a2a
+      - ANALYSIS_AGENT_URL=http://analysis-agent:3002/a2a
+``` 

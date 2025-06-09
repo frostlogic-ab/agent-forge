@@ -1,0 +1,582 @@
+---
+id: agent-forge
+title: AgentForge
+---
+
+# AgentForge
+
+The `AgentForge` class is the main orchestrator of the framework. It manages agents, tools, workflows, teams, and plugins in a centralized way.
+
+## Constructor
+
+```typescript
+constructor(llmProvider?: LLM)
+```
+
+### Parameters
+
+- **`llmProvider`** (`LLM`, optional): Default language model provider for all agents
+
+## Properties
+
+```typescript
+readonly agents: Map<string, Agent>      // Registered agents
+readonly tools: ToolRegistry            // Tool registry
+readonly llmProvider?: LLM             // Default LLM provider  
+readonly pluginManager: PluginManager  // Plugin system manager
+```
+
+## Methods
+
+### Initialization
+
+#### initialize()
+Initialize the framework and all plugins.
+
+```typescript
+async initialize(): Promise<void>
+```
+
+#### shutdown()
+Gracefully shutdown the framework and cleanup resources.
+
+```typescript
+async shutdown(): Promise<void>
+```
+
+### Plugin Management
+
+#### registerPlugin()
+Register a plugin with the framework.
+
+```typescript
+async registerPlugin(plugin: Plugin): Promise<AgentForge>
+```
+
+#### getPluginManager()
+Get the plugin manager instance.
+
+```typescript
+getPluginManager(): PluginManager
+```
+
+### LLM Provider Management
+
+#### setDefaultLLMProvider()
+Set the default LLM provider for all agents.
+
+```typescript
+setDefaultLLMProvider(provider: LLM): AgentForge
+```
+
+#### getDefaultLLMProvider()
+Get the current default LLM provider.
+
+```typescript
+getDefaultLLMProvider(): LLM | undefined
+```
+
+### Tool Management
+
+#### registerTool()
+Register a single tool.
+
+```typescript
+registerTool(tool: Tool): AgentForge
+```
+
+#### registerTools()
+Register multiple tools at once.
+
+```typescript
+registerTools(tools: Tool[]): AgentForge
+```
+
+#### getTools()
+Get all registered tools.
+
+```typescript
+getTools(): Tool[]
+```
+
+### Agent Management
+
+#### registerAgent()
+Register an agent with the framework.
+
+```typescript
+async registerAgent(agent: Agent): Promise<AgentForge>
+```
+
+#### registerAgents()
+Register multiple agents at once.
+
+```typescript
+async registerAgents(agents: Agent[]): Promise<AgentForge>
+```
+
+#### getAgents()
+Get all registered agents.
+
+```typescript
+getAgents(): Agent[]
+```
+
+#### getAgent()
+Get a specific agent by name.
+
+```typescript
+getAgent(name: string): Agent | undefined
+```
+
+#### loadAgentsFromDirectory()
+Load agents from YAML files in a directory (deprecated).
+
+```typescript
+async loadAgentsFromDirectory(directoryPath: string): Promise<AgentForge>
+```
+
+### Execution Methods
+
+#### runAgent()
+Execute a specific agent by name.
+
+```typescript
+async runAgent(agentName: string, input: string): Promise<AgentResult>
+```
+
+#### runWorkflow()
+Execute agents in a sequential workflow.
+
+```typescript
+async runWorkflow(
+  agentNames: string[],
+  input: string,
+  options?: WorkflowRunOptions
+): Promise<AgentResult>
+```
+
+#### runTeam()
+Execute a team of agents with a manager.
+
+```typescript
+async runTeam(
+  managerName: string,
+  agentNames: string[],
+  input: string,
+  options?: TeamRunOptions
+): Promise<AgentResult>
+```
+
+#### runWithMode()
+Execute agents with a specific execution mode.
+
+```typescript
+async runWithMode(
+  mode: ExecutionMode,
+  managerOrFirst: string,
+  agentNames: string[],
+  input: string,
+  options?: TeamRunOptions | WorkflowRunOptions
+): Promise<AgentResult>
+```
+
+### Factory Methods
+
+#### createWorkflow()
+Create a new workflow instance.
+
+```typescript
+createWorkflow(name?: string, description?: string): Workflow
+```
+
+#### createTeam()
+Create a new team instance.
+
+```typescript
+createTeam(managerName: string, name?: string, description?: string): Team
+```
+
+## Usage Examples
+
+### Basic Setup
+
+```typescript
+import { AgentForge, LLM, Agent } from "agent-forge";
+
+// Create LLM provider
+const llm = await LLM.create("openai", { apiKey: process.env.OPENAI_API_KEY });
+
+// Create forge instance
+const forge = new AgentForge(llm);
+
+// Initialize
+await forge.initialize();
+
+// Register agents
+const researcher = new Agent({
+  name: "Researcher",
+  role: "Research Specialist",
+  description: "Conducts research on various topics",
+  objective: "Find accurate and comprehensive information",
+  model: "gpt-4"
+});
+
+await forge.registerAgent(researcher);
+
+// Run agent
+const result = await forge.runAgent("Researcher", "What are the latest AI trends?");
+console.log(result.output);
+
+// Cleanup
+await forge.shutdown();
+```
+
+### Using with Decorators
+
+The more common pattern is to use the `@forge()` decorator:
+
+```typescript
+import { agent, llmProvider, forge, Agent } from "agent-forge";
+
+@agent({
+  name: "Assistant",
+  role: "Helpful Assistant",
+  description: "A general-purpose assistant",
+  objective: "Help users with their questions",
+  model: "gpt-4"
+})
+class AssistantAgent extends Agent {}
+
+@llmProvider("openai", { apiKey: process.env.OPENAI_API_KEY })
+@forge()
+class MyApp {
+  static forge: AgentForge;
+
+  static async run() {
+    // The forge instance is automatically created and configured
+    const assistant = new AssistantAgent();
+    const result = await assistant.run("Hello!");
+    console.log(result.output);
+  }
+}
+```
+
+### Workflow Execution
+
+```typescript
+// Register multiple agents
+await forge.registerAgents([researcher, analyst, writer]);
+
+// Run as workflow (sequential)
+const result = await forge.runWorkflow(
+  ["Researcher", "Analyst", "Writer"],
+  "Analyze the renewable energy market",
+  { 
+    verbose: true,
+    stream: true 
+  }
+);
+```
+
+### Team Execution
+
+```typescript
+// Register team members and manager
+await forge.registerAgents([manager, researcher, analyst, writer]);
+
+// Run as team (coordinated by manager)
+const result = await forge.runTeam(
+  "Manager",           // Manager agent name
+  ["Researcher", "Analyst", "Writer"], // Team members
+  "Create a comprehensive report on electric vehicles",
+  {
+    verbose: true,
+    maxTurns: 10
+  }
+);
+```
+
+### Plugin Integration
+
+```typescript
+import { LoggingPlugin, MetricsPlugin } from "agent-forge/plugins";
+
+const forge = new AgentForge(llm);
+
+// Register plugins
+await forge.registerPlugin(new LoggingPlugin());
+await forge.registerPlugin(new MetricsPlugin());
+
+await forge.initialize();
+
+// Plugins automatically enhance all operations
+const result = await forge.runAgent("Assistant", "Hello!");
+```
+
+### Tool Registration
+
+```typescript
+import { WebSearchTool, CalculatorTool } from "agent-forge";
+
+const forge = new AgentForge(llm);
+
+// Register tools globally
+forge.registerTools([
+  new WebSearchTool(),
+  new CalculatorTool()
+]);
+
+// All agents can now use these tools
+```
+
+## Advanced Usage
+
+### Custom Execution Modes
+
+```typescript
+enum ExecutionMode {
+  SEQUENTIAL = "sequential",    // Workflow mode
+  HIERARCHICAL = "hierarchical" // Team mode
+}
+
+// Execute with specific mode
+const result = await forge.runWithMode(
+  ExecutionMode.HIERARCHICAL,
+  "Manager",
+  ["Agent1", "Agent2", "Agent3"],
+  "Complex multi-agent task",
+  { verbose: true }
+);
+```
+
+### Error Handling
+
+```typescript
+try {
+  await forge.initialize();
+  const result = await forge.runAgent("NonexistentAgent", "Hello");
+} catch (error) {
+  if (error instanceof Error) {
+    console.error("Execution failed:", error.message);
+    
+    // Handle specific errors
+    if (error.message.includes("not found")) {
+      console.log("Agent not registered");
+    }
+  }
+} finally {
+  await forge.shutdown();
+}
+```
+
+### Resource Management
+
+```typescript
+class ApplicationManager {
+  private forge: AgentForge;
+
+  async startup() {
+    this.forge = new AgentForge(llm);
+    await this.forge.initialize();
+    
+    // Register agents, tools, plugins
+    await this.setupAgents();
+    await this.setupTools();
+    await this.setupPlugins();
+  }
+
+  async shutdown() {
+    if (this.forge) {
+      await this.forge.shutdown();
+    }
+  }
+
+  private async setupAgents() {
+    // Agent registration logic
+  }
+
+  private async setupTools() {
+    // Tool registration logic  
+  }
+
+  private async setupPlugins() {
+    // Plugin registration logic
+  }
+}
+```
+
+## Helper Functions
+
+### readyForge()
+
+Utility function for initializing decorated classes:
+
+```typescript
+async function readyForge<T extends { new (...args: any[]): any }>(
+  TeamClass: T,
+  agentClassesOrInstances?: AgentClassOrInstance[],
+  ...args: ConstructorParameters<T>
+): Promise<InstanceType<T>>
+```
+
+**Usage:**
+```typescript
+@forge()
+class MyTeam {
+  static forge: AgentForge;
+}
+
+// Initialize with agents
+const teamInstance = await readyForge(MyTeam, [
+  ResearcherAgent,
+  AnalystAgent,
+  WriterAgent
+]);
+```
+
+## Configuration Patterns
+
+### Environment-based Configuration
+
+```typescript
+const getForgeConfig = () => {
+  const provider = process.env.LLM_PROVIDER as LLMProvider;
+  const apiKey = process.env.LLM_API_KEY;
+  
+  if (!provider || !apiKey) {
+    throw new Error("LLM configuration missing");
+  }
+  
+  return { provider, apiKey };
+};
+
+@llmProvider(getForgeConfig().provider, { apiKey: getForgeConfig().apiKey })
+@forge()
+class ConfiguredApp {
+  static forge: AgentForge;
+}
+```
+
+### Plugin Configuration
+
+```typescript
+@plugin(new LoggingPlugin())
+@plugin(new MetricsPlugin())
+@plugin(new CachingPlugin({ cacheTTL: 60000 }))
+@llmProvider("openai", { apiKey: process.env.OPENAI_API_KEY })
+@forge()
+class PluginEnabledApp {
+  static forge: AgentForge;
+}
+```
+
+## Performance Considerations
+
+### Batch Operations
+
+```typescript
+// Efficient: Register multiple agents at once
+await forge.registerAgents([agent1, agent2, agent3]);
+
+// Less efficient: Register agents individually
+await forge.registerAgent(agent1);
+await forge.registerAgent(agent2);
+await forge.registerAgent(agent3);
+```
+
+### Resource Cleanup
+
+```typescript
+// Always cleanup resources
+process.on('SIGINT', async () => {
+  console.log('Shutting down gracefully...');
+  await forge.shutdown();
+  process.exit(0);
+});
+
+process.on('SIGTERM', async () => {
+  await forge.shutdown();
+  process.exit(0);
+});
+```
+
+## Integration Examples
+
+### Express.js Integration
+
+```typescript
+import express from 'express';
+
+const app = express();
+const forge = new AgentForge(llm);
+
+app.post('/chat', async (req, res) => {
+  try {
+    const { agentName, message } = req.body;
+    const result = await forge.runAgent(agentName, message);
+    res.json({ response: result.output });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Initialize forge before starting server
+await forge.initialize();
+app.listen(3000);
+```
+
+### CLI Application
+
+```typescript
+import { Command } from 'commander';
+
+const program = new Command();
+const forge = new AgentForge(llm);
+
+program
+  .command('chat <agent> <message>')
+  .description('Chat with an agent')
+  .action(async (agentName, message) => {
+    await forge.initialize();
+    const result = await forge.runAgent(agentName, message);
+    console.log(result.output);
+    await forge.shutdown();
+  });
+
+program.parse();
+```
+
+## Troubleshooting
+
+### Common Issues
+
+**Initialization Order:**
+```typescript
+// Wrong: Using forge before initialization
+const forge = new AgentForge(llm);
+await forge.runAgent("Agent", "Hello"); // Error!
+
+// Correct: Initialize first
+await forge.initialize();
+await forge.runAgent("Agent", "Hello");
+```
+
+**Plugin Registration:**
+```typescript
+// Plugins should be registered before initialization
+await forge.registerPlugin(new LoggingPlugin());
+await forge.initialize(); // Plugins initialize here
+```
+
+**Memory Leaks:**
+```typescript
+// Always shutdown when done
+try {
+  // Your application logic
+} finally {
+  await forge.shutdown(); // Cleanup resources
+}
+```
+
+See also: [Agent](./agent), [Team](./team), [Workflow](./workflow), [Plugin System](../utilities/plugin) 

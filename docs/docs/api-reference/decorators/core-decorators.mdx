@@ -1,0 +1,276 @@
+---
+title: Core Decorators
+description: Essential decorators for basic Agent Forge functionality
+---
+
+# Core Decorators
+
+Core decorators provide the fundamental building blocks for Agent Forge applications. These decorators handle agent configuration, LLM provider setup, and framework initialization.
+
+## @agent
+
+Configures agent properties and behavior. Must be applied to classes that extend the `Agent` base class.
+
+### Syntax
+```typescript
+@agent(config: AgentConfig)
+class MyAgent extends Agent {}
+```
+
+### Parameters
+
+#### AgentConfig
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| `name` | `string` | ✅ | Unique identifier for the agent |
+| `role` | `string` | ✅ | The agent's role or persona |
+| `description` | `string` | ✅ | Brief description of the agent's purpose |
+| `objective` | `string` | ✅ | Primary goal or objective |
+| `model` | `string` | ✅ | LLM model identifier |
+| `temperature` | `number` | ❌ | Creativity level (0.0-1.0, default: 0.7) |
+| `maxTokens` | `number` | ❌ | Maximum tokens per response |
+
+### Examples
+
+#### Basic Agent
+```typescript
+@agent({
+  name: "ResearchAgent",
+  role: "Research Specialist",
+  description: "An agent specialized in conducting research",
+  objective: "Find accurate and relevant information",
+  model: "gpt-4",
+  temperature: 0.3
+})
+class ResearchAgent extends Agent {}
+```
+
+#### Creative Agent
+```typescript
+@agent({
+  name: "CreativeWriter",
+  role: "Creative Writing Assistant", 
+  description: "Helps with creative writing tasks",
+  objective: "Generate engaging and original content",
+  model: "gpt-4-turbo",
+  temperature: 0.9,
+  maxTokens: 2000
+})
+class CreativeAgent extends Agent {}
+```
+
+### Best Practices
+
+- **Descriptive Names**: Use clear, descriptive names that reflect the agent's purpose
+- **Specific Roles**: Define specific roles rather than generic ones
+- **Clear Objectives**: Write clear, actionable objectives
+- **Appropriate Temperature**: Use lower values (0.1-0.3) for factual tasks, higher (0.7-0.9) for creative tasks
+
+---
+
+## @llmProvider
+
+Sets the LLM provider and configuration for a class. Required before using most other decorators.
+
+### Syntax
+```typescript
+@llmProvider(provider: LLMProvider, config: ConfigOptions)
+class MyClass {}
+```
+
+### Parameters
+
+#### LLMProvider
+Supported providers from Token.js:
+- `"openai"` - OpenAI GPT models
+- `"anthropic"` - Anthropic Claude models  
+- `"google"` - Google Gemini models
+- `"azure"` - Azure OpenAI Service
+- `"groq"` - Groq models
+- `"ollama"` - Local Ollama models
+
+#### ConfigOptions
+Configuration varies by provider. Common options:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `apiKey` | `string` | API key for the provider |
+| `baseUrl` | `string` | Custom base URL (optional) |
+| `organizationId` | `string` | Organization ID (OpenAI only) |
+| `maxRetries` | `number` | Maximum retry attempts |
+| `timeout` | `number` | Request timeout in milliseconds |
+
+### Examples
+
+#### OpenAI Configuration
+```typescript
+@llmProvider("openai", {
+  apiKey: process.env.OPENAI_API_KEY,
+  organizationId: process.env.OPENAI_ORG_ID,
+  maxRetries: 3,
+  timeout: 30000
+})
+class OpenAIAgent extends Agent {}
+```
+
+#### Anthropic Configuration
+```typescript
+@llmProvider("anthropic", {
+  apiKey: process.env.ANTHROPIC_API_KEY,
+  maxRetries: 2
+})
+class ClaudeAgent extends Agent {}
+```
+
+#### Local Ollama Configuration
+```typescript
+@llmProvider("ollama", {
+  baseUrl: "http://localhost:11434",
+  timeout: 60000
+})
+class LocalAgent extends Agent {}
+```
+
+#### Azure OpenAI Configuration
+```typescript
+@llmProvider("azure", {
+  apiKey: process.env.AZURE_OPENAI_API_KEY,
+  baseUrl: process.env.AZURE_OPENAI_ENDPOINT,
+  organizationId: process.env.AZURE_OPENAI_DEPLOYMENT
+})
+class AzureAgent extends Agent {}
+```
+
+### Environment Variables
+
+It's recommended to use environment variables for sensitive configuration:
+
+```bash
+# .env file
+OPENAI_API_KEY=your_openai_api_key
+ANTHROPIC_API_KEY=your_anthropic_api_key  
+AZURE_OPENAI_API_KEY=your_azure_key
+AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com/
+```
+
+---
+
+## @forge
+
+Creates an AgentForge instance with automatic LLM provider setup. Must be used after `@llmProvider`.
+
+### Syntax
+```typescript
+@llmProvider(provider, config)
+@forge()
+class MyForge {
+  static forge: AgentForge;
+}
+```
+
+### Features
+
+- **Automatic Initialization**: Creates AgentForge instance with LLM provider
+- **Plugin Support**: Automatically registers plugins added with `@plugin`
+- **Rate Limiting**: Applies rate limiting if configured with `@RateLimiter`
+- **Lazy Loading**: Initializes only when first accessed
+
+### Examples
+
+#### Basic Forge
+```typescript
+@llmProvider("openai", { apiKey: process.env.OPENAI_API_KEY })
+@forge()
+class SimpleForge {
+  static forge: AgentForge;
+  
+  static async run() {
+    const agent = new MyAgent();
+    await this.forge.registerAgent(agent);
+    return this.forge.runAgent("MyAgent", "Hello!");
+  }
+}
+```
+
+#### Forge with Plugins
+```typescript
+@plugin(new LoggingPlugin())
+@plugin(new MetricsPlugin()) 
+@llmProvider("openai", { apiKey: process.env.OPENAI_API_KEY })
+@forge()
+class AdvancedForge {
+  static forge: AgentForge;
+}
+```
+
+#### Forge with Rate Limiting
+```typescript
+@RateLimiter({ rateLimitPerSecond: 2 })
+@llmProvider("openai", { apiKey: process.env.OPENAI_API_KEY })
+@forge()
+class RateLimitedForge {
+  static forge: AgentForge;
+}
+```
+
+### Usage with readyForge
+
+The `readyForge` utility function handles async initialization:
+
+```typescript
+@llmProvider("openai", { apiKey: process.env.OPENAI_API_KEY })
+@forge()
+class MyTeam {
+  static forge: AgentForge;
+  
+  static async run() {
+    const agentClasses = [ResearchAgent, WriterAgent];
+    await readyForge(MyTeam, agentClasses);
+    
+    return this.forge.runTeam("Manager", ["Researcher", "Writer"], "task");
+  }
+}
+```
+
+### Best Practices
+
+1. **Environment Configuration**: Always use environment variables for API keys
+2. **Error Handling**: Wrap forge operations in try-catch blocks
+3. **Resource Cleanup**: Properly shut down forge instances when done
+4. **Type Safety**: Use proper TypeScript types for better development experience
+
+### Common Patterns
+
+#### Team Management
+```typescript
+@llmProvider("openai", { apiKey: process.env.OPENAI_API_KEY })
+@forge()
+class TeamForge {
+  static forge: AgentForge;
+  
+  static async createTeam(managerName: string, agentNames: string[]) {
+    return this.forge.createTeam(managerName, "MyTeam", "Team description");
+  }
+  
+  static async runWorkflow(agentNames: string[], input: string) {
+    return this.forge.runWorkflow(agentNames, input, { stream: true });
+  }
+}
+```
+
+#### Multi-Provider Setup
+```typescript
+// Primary provider
+@llmProvider("openai", { apiKey: process.env.OPENAI_API_KEY })
+@forge()
+class PrimaryForge {
+  static forge: AgentForge;
+}
+
+// Fallback provider  
+@llmProvider("anthropic", { apiKey: process.env.ANTHROPIC_API_KEY })
+@forge()
+class FallbackForge {
+  static forge: AgentForge;
+}
+``` 

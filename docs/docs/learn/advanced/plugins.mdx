@@ -1,0 +1,516 @@
+---
+id: plugins
+title: Plugin System
+sidebar_position: 4
+---
+
+# Plugin System
+
+Agent Forge provides a powerful plugin system that allows you to extend functionality by hooking into various lifecycle events throughout the framework. Plugins can intercept and modify agent behavior, add logging, implement caching, gather metrics, and much more.
+
+## Overview
+
+The plugin system operates on a **hook-based architecture** where plugins register handlers for specific lifecycle events. When these events occur, all registered handlers are executed in priority order, allowing plugins to:
+
+- **Monitor** agent and tool execution
+- **Modify** inputs and outputs  
+- **Cache** results for performance
+- **Log** detailed execution information
+- **Collect** metrics and analytics
+- **Add security** validation
+
+## Quick Start
+
+### Using the @plugin Decorator
+
+The simplest way to add plugins is using the `@plugin` decorator:
+
+```typescript
+import { plugin } from "agent-forge";
+import { LoggingPlugin, MetricsPlugin } from "agent-forge/plugins";
+
+@plugin(new LoggingPlugin())
+@plugin(new MetricsPlugin())
+@llmProvider("openai", { apiKey: process.env.OPENAI_API_KEY })
+@forge()
+class MyApp {
+  static forge: AgentForge;
+}
+```
+
+### Built-in Plugins
+
+Agent Forge includes several built-in plugins ready to use:
+
+#### LoggingPlugin
+Provides comprehensive logging of all framework activities:
+
+```typescript
+import { LoggingPlugin } from "agent-forge/plugins";
+
+@plugin(new LoggingPlugin())
+class MyApp {
+  // Automatically logs:
+  // 🚀 Framework events (initialize, ready, shutdown)
+  // 🎯 Agent execution start/complete
+  // 🔧 Tool execution with parameters and results
+  // 👥 Team and workflow execution
+  // ❌ Errors with context
+}
+```
+
+#### MetricsPlugin
+Tracks performance metrics and token usage:
+
+```typescript
+import { MetricsPlugin } from "agent-forge/plugins";
+
+const metricsPlugin = new MetricsPlugin();
+
+@plugin(metricsPlugin)
+class MyApp {
+  static async run() {
+    // Your application logic...
+    
+    // Get metrics anytime
+    const metrics = metricsPlugin.getMetrics();
+    console.log({
+      agentRuns: metrics.agentRuns,
+      averageTime: metricsPlugin.getAverageExecutionTime(),
+      totalTokens: metricsPlugin.getTotalTokens(),
+      errors: metrics.errors
+    });
+  }
+}
+```
+
+## Available Hooks
+
+The plugin system provides hooks for all major lifecycle events:
+
+### Framework Lifecycle
+- **`framework:initialize`** - Framework is initializing
+- **`framework:ready`** - Framework is ready for use  
+- **`framework:shutdown`** - Framework is shutting down
+
+### Agent Lifecycle
+- **`agent:register`** - An agent is being registered
+- **`agent:before_run`** - Before an agent starts execution
+- **`agent:after_run`** - After an agent completes execution
+- **`agent:error`** - When an agent encounters an error
+
+### LLM Lifecycle
+- **`llm:before_request`** - Before making an LLM API request
+- **`llm:after_request`** - After receiving an LLM API response
+- **`llm:stream_start`** - When LLM streaming begins
+- **`llm:stream_end`** - When LLM streaming ends
+
+### Tool Lifecycle
+- **`tool:before_execute`** - Before a tool is executed
+- **`tool:after_execute`** - After a tool completes execution
+- **`tool:error`** - When a tool encounters an error
+
+### Team & Workflow Lifecycle
+- **`team:before_run`** - Before a team starts execution
+- **`team:after_run`** - After a team completes execution
+- **`workflow:before_run`** - Before a workflow starts execution
+- **`workflow:after_run`** - After a workflow completes execution
+
+## Creating Custom Plugins
+
+### Basic Plugin Structure
+
+All plugins extend the base `Plugin` class and implement the required methods:
+
+```typescript
+import { Plugin, PluginLifecycleHooks, type PluginHookData } from "agent-forge/plugins";
+
+export class MyCustomPlugin extends Plugin {
+  readonly name = "my-custom-plugin";
+  readonly version = "1.0.0";
+  readonly priority = 50; // Higher numbers run first
+
+  getHooks() {
+    return {
+      [PluginLifecycleHooks.AGENT_BEFORE_RUN]: this.handleAgentStart.bind(this),
+      [PluginLifecycleHooks.AGENT_AFTER_RUN]: this.handleAgentComplete.bind(this),
+    };
+  }
+
+  private handleAgentStart(data: PluginHookData): any {
+    const { agent, input } = data.payload;
+    this.log(`Agent ${agent.name} starting with: ${input}`);
+    
+    // Optionally modify the payload
+    return data.payload;
+  }
+
+  private handleAgentComplete(data: PluginHookData): any {
+    const { agent, result } = data.payload;
+    this.log(`Agent ${agent.name} completed with: ${result.output}`);
+    
+    return data.payload;
+  }
+
+  // Optional lifecycle methods
+  async initialize(context) {
+    this.log("Plugin initialized");
+  }
+
+  async destroy() {
+    this.log("Plugin destroyed");
+  }
+}
+```
+
+### Advanced Plugin Examples
+
+#### Caching Plugin
+
+```typescript
+import { Plugin, PluginLifecycleHooks, type PluginHookData } from "agent-forge/plugins";
+
+interface CacheEntry {
+  result: any;
+  timestamp: number;
+  ttl: number;
+}
+
+export class CachingPlugin extends Plugin {
+  readonly name = "caching";
+  readonly version = "1.0.0";
+  readonly priority = 50;
+
+  private cache = new Map<string, CacheEntry>();
+  private defaultTTL = 60000; // 1 minute
+
+  getHooks() {
+    return {
+      [PluginLifecycleHooks.AGENT_BEFORE_RUN]: this.checkCache.bind(this),
+      [PluginLifecycleHooks.AGENT_AFTER_RUN]: this.storeInCache.bind(this),
+    };
+  }
+
+  private checkCache(data: PluginHookData): any {
+    const { agent, input } = data.payload;
+    const cacheKey = this.generateCacheKey(agent.name, input);
+    const cached = this.cache.get(cacheKey);
+
+    if (cached && Date.now() - cached.timestamp < cached.ttl) {
+      this.log(`💨 Cache hit for agent ${agent.name}`);
+      
+      // Return cached result
+      return { 
+        ...data.payload, 
+        _useCachedResult: true,
+        _cachedResult: cached.result 
+      };
+    }
+
+    return data.payload;
+  }
+
+  private storeInCache(data: PluginHookData): any {
+    const { agent, input, result } = data.payload;
+    
+    // Don't cache if this was a cached result
+    if (data.payload._useCachedResult) {
+      return data.payload;
+    }
+
+    const cacheKey = this.generateCacheKey(agent.name, input);
+    this.cache.set(cacheKey, {
+      result,
+      timestamp: Date.now(),
+      ttl: this.defaultTTL
+    });
+
+    this.log(`💾 Cached result for agent ${agent.name}`);
+    return data.payload;
+  }
+
+  private generateCacheKey(agentName: string, input: string): string {
+    const inputHash = Buffer.from(input).toString('base64').substring(0, 50);
+    return `${agentName}:${inputHash}`;
+  }
+
+  // Public API
+  clearCache(): void {
+    this.cache.clear();
+    this.log("🗑️ Cache cleared");
+  }
+
+  getCacheStats() {
+    return {
+      size: this.cache.size,
+      // Add more stats...
+    };
+  }
+}
+```
+
+#### Security Plugin
+
+```typescript
+export class SecurityPlugin extends Plugin {
+  readonly name = "security";
+  readonly version = "1.0.0";
+  readonly priority = 90; // High priority for security checks
+
+  private allowedTools = ["WebSearchTool", "CalculatorTool"];
+  private sensitivePatterns = [
+    /\b\d{16}\b/, // Credit card numbers
+    /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/, // Email addresses
+    // Add more patterns...
+  ];
+
+  getHooks() {
+    return {
+      [PluginLifecycleHooks.AGENT_BEFORE_RUN]: this.validateInput.bind(this),
+      [PluginLifecycleHooks.TOOL_BEFORE_EXECUTE]: this.validateToolCall.bind(this),
+    };
+  }
+
+  private validateInput(data: PluginHookData): any {
+    const { input } = data.payload;
+    
+    if (this.containsSensitiveData(input)) {
+      const sanitized = this.sanitizeInput(input);
+      this.log("🛡️ Sanitized sensitive data from input", "warn");
+      return { ...data.payload, input: sanitized };
+    }
+
+    return data.payload;
+  }
+
+  private validateToolCall(data: PluginHookData): any {
+    const { toolName } = data.payload;
+    
+    if (!this.isToolAllowed(toolName)) {
+      this.log(`🚫 Blocked unauthorized tool: ${toolName}`, "error");
+      throw new Error(`Tool ${toolName} is not authorized for use`);
+    }
+
+    return data.payload;
+  }
+
+  private containsSensitiveData(input: string): boolean {
+    return this.sensitivePatterns.some(pattern => pattern.test(input));
+  }
+
+  private sanitizeInput(input: string): string {
+    let sanitized = input;
+    this.sensitivePatterns.forEach(pattern => {
+      sanitized = sanitized.replace(pattern, "[REDACTED]");
+    });
+    return sanitized;
+  }
+
+  private isToolAllowed(toolName: string): boolean {
+    return this.allowedTools.includes(toolName);
+  }
+}
+```
+
+## Plugin Configuration & Management
+
+### Plugin Priority
+
+Plugins execute in priority order (higher numbers first). Use this to ensure critical plugins like security run before others:
+
+```typescript
+export class SecurityPlugin extends Plugin {
+  readonly priority = 100; // Runs first
+}
+
+export class CachingPlugin extends Plugin {
+  readonly priority = 50; // Runs after security
+}
+
+export class LoggingPlugin extends Plugin {
+  readonly priority = 10; // Runs last
+}
+```
+
+### Plugin State Management
+
+Plugins can maintain state across hook executions:
+
+```typescript
+export class StatefulPlugin extends Plugin {
+  private executionCount = 0;
+  private startTimes = new Map<string, number>();
+
+  private trackExecution(data: PluginHookData): any {
+    this.executionCount++;
+    this.startTimes.set(data.payload.agent.name, Date.now());
+    return data.payload;
+  }
+
+  getStats() {
+    return {
+      totalExecutions: this.executionCount,
+      activeAgents: this.startTimes.size
+    };
+  }
+}
+```
+
+### Accessing AgentForge Context
+
+Plugins have access to the main AgentForge instance:
+
+```typescript
+export class ContextAwarePlugin extends Plugin {
+  async initialize(context) {
+    const forge = context.forge;
+    const allAgents = forge.getAgents();
+    this.log(`Initialized with ${allAgents.length} agents`);
+  }
+}
+```
+
+## Hook Data Structure
+
+Each hook receives a `PluginHookData` object:
+
+```typescript
+interface PluginHookData {
+  hook: PluginLifecycleHooks;  // The specific hook being triggered
+  payload: any;                // Hook-specific data
+  context?: PluginContext;     // Framework context
+}
+```
+
+### Common Payload Structures
+
+**Agent Hooks:**
+```typescript
+// agent:before_run, agent:after_run
+{
+  agent: Agent,
+  input: string,
+  result?: AgentResult  // Only in after_run
+}
+```
+
+**Tool Hooks:**
+```typescript
+// tool:before_execute, tool:after_execute  
+{
+  toolName: string,
+  parameters: Record<string, any>,
+  result?: any  // Only in after_execute
+}
+```
+
+**Team/Workflow Hooks:**
+```typescript
+// team:before_run, team:after_run
+{
+  team: Team,
+  input: string,
+  result?: AgentResult  // Only in after_run
+}
+```
+
+## Best Practices
+
+### 1. Handle Errors Gracefully
+```typescript
+private handleHook(data: PluginHookData): any {
+  try {
+    // Plugin logic here
+    return data.payload;
+  } catch (error) {
+    this.log(`Error in hook: ${error.message}`, "error");
+    // Return original payload to avoid breaking the chain
+    return data.payload;
+  }
+}
+```
+
+### 2. Use Descriptive Logging
+```typescript
+this.log(`🎯 Processing agent ${agent.name} with ${input.length} chars input`);
+```
+
+### 3. Clean Up Resources
+```typescript
+async destroy(): Promise<void> {
+  // Clear timers, close connections, etc.
+  this.timers.forEach(timer => clearInterval(timer));
+  await this.database?.close();
+}
+```
+
+### 4. Document Plugin Configuration
+```typescript
+interface MyPluginConfig {
+  /** Maximum cache size (default: 100) */
+  maxCacheSize?: number;
+  /** Cache TTL in milliseconds (default: 60000) */
+  cacheTTL?: number;
+}
+
+export class MyPlugin extends Plugin {
+  constructor(private config: MyPluginConfig = {}) {
+    super();
+    this.config = { maxCacheSize: 100, cacheTTL: 60000, ...config };
+  }
+}
+```
+
+### 5. Test Plugin Isolation
+Ensure plugins don't interfere with each other by testing with multiple plugins enabled.
+
+## Plugin Examples in Action
+
+Here's a complete example showing multiple plugins working together:
+
+```typescript
+import { 
+  agent, 
+  llmProvider, 
+  forge, 
+  plugin,
+  Agent,
+  LoggingPlugin,
+  MetricsPlugin 
+} from "agent-forge";
+
+// Custom plugins
+const cachingPlugin = new CachingPlugin({ cacheTTL: 30000 });
+const securityPlugin = new SecurityPlugin();
+
+@agent({
+  name: "Assistant",
+  role: "Helpful Assistant", 
+  description: "A multi-plugin enhanced assistant",
+  objective: "Help users with their questions",
+  model: "gpt-4",
+})
+class AssistantAgent extends Agent {}
+
+@plugin(securityPlugin)      // Priority 90 - runs first
+@plugin(cachingPlugin)       // Priority 50 - runs second  
+@plugin(new LoggingPlugin()) // Priority 100 - runs after security
+@plugin(new MetricsPlugin()) // Priority 0 - runs last
+@llmProvider("openai", { apiKey: process.env.OPENAI_API_KEY })
+@forge()
+class PluginExample {
+  static forge: AgentForge;
+
+  static async run() {
+    // Plugins automatically enhance all agent operations
+    const assistant = new AssistantAgent();
+    const result = await assistant.run("What is the capital of France?");
+    
+    // Access plugin data
+    console.log("Cache stats:", cachingPlugin.getCacheStats());
+    console.log("Security blocked tools:", securityPlugin.getBlockedTools());
+  }
+}
+```
+
+This example demonstrates how plugins can work together to provide caching, security, logging, and metrics without any changes to your agent code! 

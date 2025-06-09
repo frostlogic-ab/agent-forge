@@ -1,0 +1,386 @@
+---
+id: agent
+title: Agent
+---
+
+# Agent
+
+The `Agent` class is the fundamental building block of Agent Forge applications. Each agent represents an AI entity with specific capabilities, personality, and tools.
+
+## Constructor
+
+```typescript
+constructor(config?: AgentConfig, tools: Tool[] = [], llmProvider?: LLM)
+```
+
+### Parameters
+
+- **`config`** (`AgentConfig`, optional): Agent configuration object
+- **`tools`** (`Tool[]`, optional): Array of tools to attach to the agent
+- **`llmProvider`** (`LLM`, optional): Language model provider instance
+
+## Configuration
+
+### AgentConfig Interface
+
+```typescript
+interface AgentConfig {
+  name: string;           // Agent identifier
+  role: string;           // Agent's role (e.g., "Research Specialist")  
+  description: string;    // What the agent does
+  objective: string;      // Agent's primary goal
+  model: string;          // LLM model to use
+  temperature?: number;   // Creativity/randomness (0-1)
+  maxTokens?: number;     // Maximum response length
+}
+```
+
+## Properties
+
+### Core Properties
+
+```typescript
+readonly name: string;          // Agent's name
+readonly description: string;   // Agent's description  
+readonly role: string;          // Agent's role
+readonly objective: string;     // Agent's objective
+readonly model: string;         // LLM model identifier
+```
+
+### Methods
+
+#### run()
+
+Execute the agent with given input.
+
+```typescript
+async run(input: string, options?: AgentRunOptions): Promise<AgentResult>
+```
+
+**Parameters:**
+- `input`: The prompt or task for the agent
+- `options`: Optional execution settings
+
+**AgentRunOptions:**
+```typescript
+interface AgentRunOptions {
+  stream?: boolean;           // Enable streaming responses
+  maxTurns?: number;          // Maximum conversation turns
+  maxExecutionTime?: number;  // Timeout in milliseconds
+}
+```
+
+**Returns:** `AgentResult` object containing:
+```typescript
+interface AgentResult {
+  output: string;
+  metadata: {
+    tokenUsage?: {
+      prompt: number;
+      completion: number; 
+      total: number;
+    };
+    executionTime: number;
+    modelName: string;
+    toolCalls?: ToolCall[];
+  };
+}
+```
+
+#### Tool Management
+
+```typescript
+addTool(tool: Tool): void                    // Add a tool to the agent
+getTools(): Tool[]                          // Get all attached tools
+```
+
+#### LLM Provider Management
+
+```typescript
+setLLMProvider(provider: LLM): void         // Set language model provider
+getLLMProvider(): LLM | undefined          // Get current LLM provider
+```
+
+#### Conversation Management
+
+```typescript
+resetConversation(): void                   // Clear conversation history
+getConversation(): ChatCompletionMessageParam[]  // Get conversation history
+getConfig(): AgentConfig                    // Get agent configuration
+```
+
+## Usage Examples
+
+### Basic Agent Creation
+
+```typescript
+import { Agent } from "agent-forge";
+
+const agent = new Agent({
+  name: "Assistant",
+  role: "Helpful Assistant",
+  description: "A general-purpose AI assistant",
+  objective: "Help users with their questions and tasks",
+  model: "gpt-4",
+  temperature: 0.7
+});
+
+const result = await agent.run("What is the capital of France?");
+console.log(result.output); // "The capital of France is Paris."
+```
+
+### Agent with Tools
+
+```typescript
+import { Agent, WebSearchTool, CalculatorTool } from "agent-forge";
+
+const tools = [new WebSearchTool(), new CalculatorTool()];
+
+const agent = new Agent({
+  name: "Research Assistant", 
+  role: "Research Specialist",
+  description: "An agent that can search the web and perform calculations",
+  objective: "Find accurate information and solve mathematical problems",
+  model: "gpt-4",
+  temperature: 0.4
+}, tools);
+
+const result = await agent.run("Search for the latest GDP of Japan and calculate its growth rate compared to last year");
+```
+
+### Streaming Responses
+
+```typescript
+const result = await agent.run("Write a story about a robot", {
+  stream: true,
+  maxTokens: 500
+});
+
+// Listen for streaming chunks
+agent.getLLMProvider()?.getEventEmitter().on('streamChunk', (chunk) => {
+  process.stdout.write(chunk);
+});
+```
+
+### Using with Decorators
+
+```typescript
+import { agent, tool, llmProvider, Agent, WebSearchTool } from "agent-forge";
+
+@tool(WebSearchTool)
+@agent({
+  name: "Search Agent",
+  role: "Information Retrieval Specialist", 
+  description: "Specialized in finding information on the web",
+  objective: "Provide accurate and up-to-date information from reliable sources",
+  model: "gpt-4",
+  temperature: 0.3
+})
+class SearchAgent extends Agent {}
+
+// Usage
+const searchAgent = new SearchAgent();
+const result = await searchAgent.run("Find the latest news about AI developments");
+```
+
+## Error Handling
+
+Agents can throw various types of errors:
+
+```typescript
+try {
+  const result = await agent.run("Hello");
+} catch (error) {
+  if (error instanceof Error) {
+    console.error("Agent execution failed:", error.message);
+    
+    // Check for specific error types
+    if (error.message.includes("rate limit")) {
+      console.log("Rate limit exceeded, retrying in a moment...");
+      // Implement retry logic
+    }
+  }
+}
+```
+
+## Best Practices
+
+### 1. Clear Role Definition
+```typescript
+// Good: Specific and clear
+{
+  name: "Legal Document Analyzer",
+  role: "Legal Research Specialist",
+  description: "Analyzes legal documents and extracts key information",
+  objective: "Provide accurate legal document analysis and summaries"
+}
+
+// Avoid: Vague or generic
+{
+  name: "Agent",
+  role: "Helper", 
+  description: "Does stuff",
+  objective: "Help"
+}
+```
+
+### 2. Appropriate Temperature Settings
+```typescript
+// For factual tasks
+{ temperature: 0.1 }  // Low temperature for consistent, factual responses
+
+// For creative tasks  
+{ temperature: 0.8 }  // Higher temperature for more creative responses
+
+// For balanced tasks
+{ temperature: 0.5 }  // Moderate temperature for general use
+```
+
+### 3. Tool Selection
+```typescript
+// Match tools to agent purpose
+@tool(WebSearchTool)
+@tool(WebPageContentTool)
+@agent({
+  name: "Research Agent",
+  // ... config
+})
+class ResearchAgent extends Agent {}
+
+@tool(CalculatorTool)
+@tool(DataAnalysisTool)
+@agent({
+  name: "Data Analyst", 
+  // ... config
+})
+class DataAnalyst extends Agent {}
+```
+
+### 4. Resource Management
+```typescript
+// Clean up resources when done
+const agent = new Agent(config);
+try {
+  const result = await agent.run(input);
+  // Process result
+} finally {
+  // Clean up if needed
+  agent.resetConversation();
+}
+```
+
+## Common Patterns
+
+### Agent Factory Pattern
+```typescript
+class AgentFactory {
+  static createResearcher(): Agent {
+    return new Agent({
+      name: "Researcher",
+      role: "Research Specialist",
+      description: "Conducts thorough research on given topics",
+      objective: "Find accurate and comprehensive information",
+      model: "gpt-4",
+      temperature: 0.3
+    });
+  }
+  
+  static createWriter(): Agent {
+    return new Agent({
+      name: "Writer", 
+      role: "Content Creator",
+      description: "Creates engaging written content",
+      objective: "Produce high-quality, engaging content",
+      model: "gpt-4",
+      temperature: 0.7
+    });
+  }
+}
+```
+
+### Conversation Continuation
+```typescript
+const agent = new Agent(config);
+
+// First interaction
+await agent.run("Hello, I need help with a project");
+
+// Continue conversation (context is maintained)
+await agent.run("The project is about machine learning");
+
+// Get full conversation history
+const history = agent.getConversation();
+console.log(`Conversation has ${history.length} messages`);
+```
+
+## Integration with Other Classes
+
+### With Teams
+```typescript
+import { Team } from "agent-forge";
+
+const manager = new Agent(managerConfig);
+const researcher = new Agent(researcherConfig); 
+const analyst = new Agent(analystConfig);
+
+const team = new Team(manager)
+  .addAgent(researcher)
+  .addAgent(analyst);
+
+const result = await team.run("Analyze the market trends for electric vehicles");
+```
+
+### With Workflows
+```typescript
+import { Workflow } from "agent-forge";
+
+const workflow = new Workflow("Research Pipeline")
+  .addStep(researcher)
+  .addStep(analyst, (input, results) => {
+    return `Analyze this research data: ${results[0].output}`;
+  })
+  .addStep(writer, (input, results) => {
+    return `Write a report based on: ${results[1].output}`;
+  });
+
+const result = await workflow.run("Research electric vehicle market");
+```
+
+## Troubleshooting
+
+### Common Issues
+
+**No LLM Provider Set:**
+```typescript
+// Error: Agent has no LLM provider
+const agent = new Agent(config);
+await agent.run("Hello"); // Throws error
+
+// Solution: Set LLM provider
+import { LLM } from "agent-forge";
+const llm = await LLM.create("openai", { apiKey: "your-key" });
+agent.setLLMProvider(llm);
+```
+
+**Tool Execution Failures:**
+```typescript
+// Tools may fail if not properly configured
+@tool(WebSearchTool) // Requires internet access
+@agent(config)
+class MyAgent extends Agent {}
+
+// Check tool requirements and network connectivity
+```
+
+**Memory/Context Issues:**
+```typescript
+// Long conversations may hit context limits
+const agent = new Agent(config);
+
+// Periodically reset if needed
+if (agent.getConversation().length > 20) {
+  agent.resetConversation();
+}
+```
+
+See also: [AgentForge](./agent-forge), [Team](./team), [Workflow](./workflow) 

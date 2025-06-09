@@ -1,0 +1,75 @@
+---
+id: what-is-agent-forge
+title: What is Agent Forge?
+sidebar_position: 1
+---
+
+# What is Agent Forge?
+
+Agent Forge is a modern TypeScript framework for building AI agent systems using a **decorator-based architecture**. It simplifies the creation of single agents, multi-agent teams, and distributed agent networks.
+
+## Key Features
+
+### Decorator-Driven Development
+- **@agent** - Define agents with configuration
+- **@tool** - Add capabilities to agents  
+- **@llmProvider** - Configure LLM connections
+- **@forge** - Initialize your application
+
+### Multi-Agent Orchestration
+- **Teams** - Hierarchical agent coordination
+- **Workflows** - Sequential agent execution
+- **A2A Protocol** - Distributed agent networks
+
+### Rich Ecosystem
+- **Built-in Tools** - Web search, content extraction
+- **MCP Integration** - Model Context Protocol support
+- **RAG Support** - Knowledge base integration
+- **Plugin System** - Extensible architecture
+
+## Architecture Overview
+
+Agent Forge uses modern TypeScript decorators to provide a clean, declarative way to build agent systems:
+
+```typescript
+@tool(WebSearchTool)
+@agent({
+  name: "Research Assistant",
+  role: "Research Specialist", 
+  description: "Finds and analyzes information",
+  objective: "Provide accurate research results",
+  model: "gpt-4",
+  temperature: 0.4
+})
+class ResearchAgent extends Agent {}
+
+@llmProvider("openai", { apiKey: process.env.OPENAI_API_KEY })
+@forge()
+class MyApplication {
+  static forge: AgentForge;
+  
+  static async run() {
+    const agent = new ResearchAgent();
+    const result = await agent.run("Research the latest AI trends");
+    console.log(result.output);
+  }
+}
+
+await MyApplication.run();
+```
+
+## Why Decorator-Based?
+
+The decorator approach provides several advantages:
+
+- **Type Safety** - Full TypeScript support with IntelliSense
+- **Clean Code** - Configuration separated from logic  
+- **Composition** - Mix and match decorators as needed
+- **Scalability** - Easy to manage complex agent systems
+
+## Next Steps
+
+Ready to get started? Continue with:
+- [Installation Guide](../installation.mdx) - Set up your environment
+- [Your First Agent](../your-first-agent.mdx) - Build a simple agent
+- [Understanding Agents](../agents/agent-basics.mdx) - Learn agent fundamentals 
