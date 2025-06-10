@@ -232,6 +232,22 @@ export class Agent {
         }s). Here's what was determined so far: ${
           finalAnswer || "No conclusion reached yet."
         }`;
+      } else if (
+        error instanceof Error &&
+        error.message.includes("503 Service Unavailable")
+      ) {
+        throw new Error(
+          `LLM provider service is temporarily unavailable (503). This is usually a temporary issue with the provider. Please try again in a few moments. Original error: ${error.message}`
+        );
+      } else if (
+        error instanceof Error &&
+        error.message.includes(
+          "Cannot read properties of undefined (reading 'filter')"
+        )
+      ) {
+        throw new Error(
+          `Tool configuration error detected. This appears to be a compatibility issue with the Token.js library. Please check your tool configurations and ensure they are properly formatted. Original error: ${error.message}`
+        );
       } else {
         throw error; // Re-throw other errors
       }
@@ -283,6 +299,9 @@ export class Agent {
     while (currentTurn < maxTurns) {
       currentTurn++;
 
+      // Get optimized tools configuration for the current model
+      const toolsConfig = this.getValidatedToolsConfig();
+
       // Get response from LLM - choose between streaming and non-streaming
       let response: LLMResponse;
 
@@ -296,7 +315,7 @@ export class Agent {
           messages: this.conversation,
           temperature: this.config.temperature,
           max_tokens: this.config.maxTokens,
-          tools: this.tools.getAllConfigChatCompletion(),
+          tools: toolsConfig,
 
           onChunk: (chunk) => {
             // Process the chunk to remove common formatting issues
@@ -317,7 +336,7 @@ export class Agent {
           messages: this.conversation,
           temperature: this.config.temperature,
           max_tokens: this.config.maxTokens,
-          tools: this.tools.getAllConfigChatCompletion(),
+          tools: toolsConfig,
         });
       }
 
@@ -484,6 +503,9 @@ export class Agent {
 
       let finalLLMResponse: LLMResponse;
 
+      // Get optimized tools configuration for final response
+      const finalToolsConfig = this.getValidatedToolsConfig();
+
       if (stream) {
         // Use streaming for final response
         finalLLMResponse = await llmProvider.chatStream({
@@ -491,6 +513,7 @@ export class Agent {
           messages: [...this.conversation, finalMessage],
           temperature: this.config.temperature,
           max_tokens: this.config.maxTokens,
+          tools: finalToolsConfig,
 
           onChunk: (chunk) => {
             globalEventEmitter.emit(AgentForgeEvents.LLM_STREAM_CHUNK, {
@@ -510,6 +533,7 @@ export class Agent {
           messages: [...this.conversation, finalMessage],
           temperature: this.config.temperature,
           max_tokens: this.config.maxTokens,
+          tools: finalToolsConfig,
         });
       }
 
@@ -562,5 +586,75 @@ export class Agent {
     cleaned = cleaned.replace(/\,{2,}/g, ",");
 
     return cleaned;
+  }
+
+  /**
+   * Gets tools configuration with compatibility warnings
+   * @private
+   */
+  private getValidatedToolsConfig(): any {
+    const tools = this.tools.getAll();
+
+    if (tools.length === 0) {
+      return undefined;
+    }
+
+    const allConfigs = this.tools.getAllConfigChatCompletion();
+
+    // Show warnings for potential compatibility issues with any model
+    this.validateToolConfigsAndWarn(allConfigs);
+
+    // Always return all tools - don't filter based on model
+    return allConfigs;
+  }
+
+  /**
+   * Validate tool configurations and show warnings for all models
+   * @private
+   */
+  private validateToolConfigsAndWarn(configs: any[]): void {
+    if (configs.length > 8) {
+      console.warn(
+        `⚠️  You have ${configs.length} tools. Some LLMs perform better with fewer tools (≤8). Consider grouping related functionality.`
+      );
+    }
+
+    if (configs.length > 15) {
+      console.warn(
+        `⚠️  You have ${configs.length} tools which is quite high. This may impact LLM performance significantly.`
+      );
+    }
+
+    // Check for overly complex tools
+    configs.forEach((config) => {
+      const toolName = config?.function?.name || "unnamed";
+      const params = config?.function?.parameters;
+
+      if (params?.properties && Object.keys(params.properties).length > 10) {
+        console.warn(
+          `⚠️  Tool "${toolName}" has ${Object.keys(params.properties).length} parameters. LLMs may struggle with very complex schemas.`
+        );
+      }
+
+      // Check for missing descriptions
+      if (
+        !config?.function?.description ||
+        config.function.description.trim() === ""
+      ) {
+        console.warn(
+          `⚠️  Tool "${toolName}" has no description. This will significantly impact LLM tool selection accuracy.`
+        );
+      }
+
+      // Check for very long descriptions
+      if (
+        config?.function?.description &&
+        config.function.description.length > 500
+      ) {
+        console.warn(
+          `⚠️  Tool "${toolName}" has a very long description (${config.function.description.length} chars). Consider shortening for better LLM comprehension.`
+        );
+      }
+    });
   }
 }

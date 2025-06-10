@@ -84,7 +84,27 @@ export class ToolRegistry {
   }
 
   getAllConfigChatCompletion(): ChatCompletionTool[] {
-    return this.getAll().map((tool) => tool.getChatCompletionConfig());
+    const tools = this.getAll();
+
+    // Return empty array only if we have tools, otherwise let caller handle undefined
+    if (tools.length === 0) {
+      return [];
+    }
+
+    // Filter out any malformed tool configurations
+    return tools
+      .map((tool) => tool.getChatCompletionConfig())
+      .filter((config) => {
+        // Ensure the configuration is properly formed
+        return (
+          config &&
+          config.type === "function" &&
+          config.function &&
+          config.function.name &&
+          config.function.description &&
+          config.function.parameters
+        );
+      });
   }
 
   /**
