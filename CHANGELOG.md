@@ -1,4 +1,13 @@
 ## What's Changed
+* fix broken documentation links by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/61
+* fixes a issue where gemini 2.5 expects tools as undefined rather than empty array by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/62
+
+
+**Full Changelog**: https://github.com/frostlogic-ab/agent-forge/compare/v2.0.0...v2.0.1
+
+## [2.0.1](https://github.com/frostlogic-ab/agent-forge/compare/v2.0.0...v2.0.1) (2025-06-10)
+
+## What's Changed
 * Update documentation to explicitly promote use of environment variables by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/42
 * remove yarn state from repository by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/43
 * A2a, Agent, LLMProvider and forge decorators by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/44
