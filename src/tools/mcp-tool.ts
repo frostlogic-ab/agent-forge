@@ -270,7 +270,7 @@ export class MCPSdkClientWrapper extends MCPClientWrapper {
   }
 
   /**
-   * Process tools into MCPTool format
+   * Process tools into MCPTool format with compatibility warnings
    * @private
    */
   private processTools(toolsArray: any[]): MCPTool[] {
@@ -279,6 +279,10 @@ export class MCPSdkClientWrapper extends MCPClientWrapper {
     for (const tool of toolsArray) {
       const parameters = this.extractParameters(tool);
 
+      // Validate tool and show warnings if needed
+      this.validateToolAndWarn(tool, parameters);
+
+      // Always include the tool (don't filter)
       tools.push({
         name: tool.name || "",
         description: tool.description || "",
@@ -291,7 +295,60 @@ export class MCPSdkClientWrapper extends MCPClientWrapper {
   }
 
   /**
-   * Lists available tools from the MCP server
+   * Validate tool and show compatibility warnings for all models
+   * @private
+   */
+  private validateToolAndWarn(tool: any, parameters: ToolParameter[]): void {
+    const toolName = tool.name || "unnamed";
+
+    // Check for missing required fields
+    if (!tool.name || !tool.description) {
+      console.warn(
+        `⚠️  Tool "${toolName}" missing required fields (name/description). LLM may not use this tool correctly.`
+      );
+    }
+
+    // Check for tool name length (some models have limits)
+    if (tool.name && tool.name.length > 64) {
+      console.warn(
+        `⚠️  Tool "${toolName}" has a very long name (${tool.name.length} chars). Some LLMs may have issues with names over 64 characters.`
+      );
+    }
+
+    // Check for complex parameter schemas
+    if (parameters.length > 10) {
+      console.warn(
+        `⚠️  Tool "${toolName}" has many parameters (${parameters.length}). Some LLMs may struggle with complex schemas.`
+      );
+    }
+
+    // Check for missing parameter descriptions
+    const paramsWithoutDesc = parameters.filter(
+      (p) => !p.description || p.description.trim() === ""
+    );
+    if (paramsWithoutDesc.length > 0) {
+      console.warn(
+        `⚠️  Tool "${toolName}" has ${paramsWithoutDesc.length} parameters without descriptions. This may affect LLM tool calling accuracy.`
+      );
+    }
+
+    // Check if parameters were extracted properly
+    if (parameters.length === 0 && (tool.parameters || tool.inputSchema)) {
+      console.warn(
+        `⚠️  Tool "${toolName}" has parameter schema but no parameters were extracted. LLM may not be able to call this tool.`
+      );
+    }
+
+    // Check for very long descriptions
+    if (tool.description && tool.description.length > 500) {
+      console.warn(
+        `⚠️  Tool "${toolName}" has a very long description (${tool.description.length} chars). Consider shortening for better LLM comprehension.`
+      );
+    }
+  }
+
+  /**
+   * Lists available tools from the MCP server with enhanced debugging
    */
   async listTools(): Promise<MCPTool[]> {
     if (!this.running) {
@@ -299,6 +356,12 @@ export class MCPSdkClientWrapper extends MCPClientWrapper {
     }
 
     if (this.cachedTools) {
+      if (this.verbose) {
+        console.log(
+          "Using cached tools:",
+          this.cachedTools.map((t) => t.name)
+        );
+      }
       return this.cachedTools;
     }
 
@@ -323,16 +386,27 @@ export class MCPSdkClientWrapper extends MCPClientWrapper {
       const toolsArray = this.extractToolsArray(toolsResponse);
 
       if (this.verbose) {
-        console.log(`Received ${toolsArray.length || 0} tools from MCP server`);
+        console.log("Processing tools with validation...");
+        console.log(`Found ${toolsArray.length} tools from MCP server:`);
+        toolsArray.forEach((tool, index) => {
+          console.log(
+            `  ${index + 1}. ${tool.name || "unnamed"} - ${tool.description || "no description"}`
+          );
+        });
       }
 
       const tools = this.processTools(toolsArray);
 
       if (this.verbose) {
-        console.log(`Processed ${tools.length} tools from MCP server`);
-        if (tools.length > 0) {
-          console.log("Tool names:", tools.map((t) => t.name).join(", "));
-        }
+        console.log(`Successfully processed ${tools.length} tools:`);
+        tools.forEach((tool, index) => {
+          console.log(
+            `  ${index + 1}. ${tool.name} (${tool.parameters.length} parameters)`
+          );
+        });
+        console.log(
+          "All tools have been included - check warnings above for potential compatibility issues."
+        );
       }
 
       this.cachedTools = tools;
@@ -406,6 +480,58 @@ export class MCPSdkClientWrapper extends MCPClientWrapper {
       this.transport = null;
       this.cachedTools = null;
     }
+  }
+
+  /**
+   * Test method to verify warning system works correctly
+   * This helps diagnose tool visibility issues reported by users
+   * @internal
+   */
+  testToolWarnings(mockTools: any[]): void {
+    console.log("🧪 Testing tool warning system...");
+
+    // Test with the user's reported tools
+    const testTools =
+      mockTools.length > 0
+        ? mockTools
+        : [
+            {
+              name: "get_incidents",
+              description: "Get incidents from the system",
+              parameters: {
+                type: "object",
+                properties: {
+                  client: { type: "string", description: "Client name" },
+                  status: { type: "string", description: "Incident status" },
+                },
+              },
+            },
+            {
+              name: "get_incidents_details",
+              description: "Get detailed information about a specific incident",
+              parameters: {
+                type: "object",
+                properties: {
+                  incident_id: {
+                    type: "string",
+                    description: "The incident ID",
+                  },
+                  client: { type: "string", description: "Client name" },
+                },
+              },
+            },
+          ];
+
+    console.log(`Testing with ${testTools.length} tools...`);
+
+    // Process tools and show warnings
+    const processedTools = this.processTools(testTools);
+
+    console.log(
+      `✅ All ${processedTools.length} tools were processed and included`
+    );
+    console.log("Tool names:", processedTools.map((t) => t.name).join(", "));
+    console.log("🧪 Warning system test complete");
   }
 }
 

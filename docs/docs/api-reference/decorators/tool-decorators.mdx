@@ -12,6 +12,7 @@ Tool decorators provide seamless integration of tools and external capabilities 
 Adds tool classes to an agent, making them available for the agent to use during execution.
 
 ### Syntax
+
 ```typescript
 @tool(ToolClass)
 @tool(AnotherToolClass)
@@ -21,13 +22,14 @@ class MyAgent extends Agent {}
 
 ### Parameters
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
+| Parameter   | Type                           | Description            |
+| ----------- | ------------------------------ | ---------------------- |
 | `ToolClass` | `new (...args: any[]) => Tool` | Tool class constructor |
 
 ### Examples
 
 #### Single Tool
+
 ```typescript
 import { WebSearchTool } from "agent-forge";
 
@@ -37,45 +39,43 @@ import { WebSearchTool } from "agent-forge";
   role: "Research Specialist",
   description: "Agent with web search capabilities",
   objective: "Find accurate information online",
-  model: "gpt-4"
+  model: "gpt-4",
 })
 class ResearchAgent extends Agent {}
 ```
 
 #### Multiple Tools
+
 ```typescript
 import { WebSearchTool, WebPageContentTool } from "agent-forge";
 
 @tool(WebSearchTool)
 @tool(WebPageContentTool)
 @agent({
-  name: "ComprehensiveAgent", 
+  name: "ComprehensiveAgent",
   role: "Research and Analysis Specialist",
   description: "Agent with search and content analysis capabilities",
   objective: "Conduct thorough web-based research",
-  model: "gpt-4"
+  model: "gpt-4",
 })
 class ComprehensiveAgent extends Agent {}
 ```
 
 #### Custom Tool
+
 ```typescript
 class CalculatorTool extends Tool {
   constructor() {
-    super(
-      "Calculator",
-      "Perform mathematical calculations",
-      [
-        {
-          name: "expression",
-          type: "string", 
-          description: "Mathematical expression to evaluate",
-          required: true
-        }
-      ]
-    );
+    super("Calculator", "Perform mathematical calculations", [
+      {
+        name: "expression",
+        type: "string",
+        description: "Mathematical expression to evaluate",
+        required: true,
+      },
+    ]);
   }
-  
+
   protected async run(params: { expression: string }) {
     // Tool implementation
     return { result: eval(params.expression) };
@@ -88,7 +88,7 @@ class CalculatorTool extends Tool {
   role: "Mathematics Assistant",
   description: "Agent that can perform calculations",
   objective: "Help with mathematical problems",
-  model: "gpt-4"
+  model: "gpt-4",
 })
 class MathAgent extends Agent {}
 ```
@@ -98,23 +98,27 @@ class MathAgent extends Agent {}
 Agent Forge provides several built-in tools:
 
 #### WebSearchTool
+
 ```typescript
 import { WebSearchTool } from "agent-forge";
 
 @tool(WebSearchTool)
 class SearchAgent extends Agent {}
 ```
+
 - **Purpose**: Search the web using SearxNG instances
 - **Parameters**: `query` (string), `numResults` (number, optional)
 - **Returns**: Array of search results with titles, URLs, and snippets
 
-#### WebPageContentTool  
+#### WebPageContentTool
+
 ```typescript
 import { WebPageContentTool } from "agent-forge";
 
 @tool(WebPageContentTool)
 class ContentAgent extends Agent {}
 ```
+
 - **Purpose**: Extract content from web pages
 - **Parameters**: `url` (string), `extractMainContent` (boolean, optional)
 - **Returns**: Cleaned and structured page content
@@ -133,17 +137,17 @@ class WeatherTool extends Tool {
         name: "location",
         type: "string",
         description: "City or location for weather",
-        required: true
+        required: true,
       },
       {
         name: "units",
-        type: "string", 
+        type: "string",
         description: "Temperature units (celsius/fahrenheit)",
         required: false,
-        default: "celsius"
-      }
+        default: "celsius",
+      },
     ];
-    
+
     super(
       "Weather",
       "Get current weather information",
@@ -151,13 +155,13 @@ class WeatherTool extends Tool {
       "Weather data including temperature and conditions"
     );
   }
-  
+
   protected async run(params: { location: string; units?: string }) {
     // Implement weather API call
     return {
       location: params.location,
       temperature: "22°C",
-      condition: "Sunny"
+      condition: "Sunny",
     };
   }
 }
@@ -170,6 +174,7 @@ class WeatherTool extends Tool {
 Integrates Model Context Protocol (MCP) tools from external servers, enabling agents to use tools from remote MCP-compliant services.
 
 ### Syntax
+
 ```typescript
 @MCP(protocol, config)
 @agent(config)
@@ -179,121 +184,132 @@ class MyAgent extends Agent {}
 ### Parameters
 
 #### Protocol Types
+
 ```typescript
 enum MCPProtocolType {
-  STDIO = "stdio",           // Local process communication
-  SSE = "sse",              // Server-Sent Events
-  STREAMABLE_HTTP = "streamable_http"  // HTTP streaming
+  STDIO = "stdio", // Local process communication
+  SSE = "sse", // Server-Sent Events
+  STREAMABLE_HTTP = "streamable_http", // HTTP streaming
 }
 ```
 
 #### Configuration Objects
 
 ##### MCPStdioConfig
+
 For local process communication:
+
 ```typescript
 interface MCPStdioConfig {
-  command: string;           // Command to execute
-  args?: string[];          // Command arguments
-  env?: Record<string, string>;  // Environment variables
-  verbose?: boolean;        // Enable debug logging
+  command: string; // Command to execute
+  args?: string[]; // Command arguments
+  env?: Record<string, string>; // Environment variables
+  verbose?: boolean; // Enable debug logging
 }
 ```
 
 ##### MCPSseConfig
+
 For Server-Sent Events:
+
 ```typescript
 interface MCPSseConfig {
-  url: string;              // SSE endpoint URL
-  headers?: Record<string, string>;  // HTTP headers
-  verbose?: boolean;        // Enable debug logging
+  url: string; // SSE endpoint URL
+  headers?: Record<string, string>; // HTTP headers
+  verbose?: boolean; // Enable debug logging
 }
 ```
 
 ##### MCPStreamableHttpConfig
+
 For HTTP streaming:
+
 ```typescript
 interface MCPStreamableHttpConfig {
-  baseUrl: string | URL;    // Base URL for the service
-  headers?: Record<string, string>;  // HTTP headers
-  verbose?: boolean;        // Enable debug logging
-  timeout?: number;         // Request timeout
+  baseUrl: string | URL; // Base URL for the service
+  headers?: Record<string, string>; // HTTP headers
+  verbose?: boolean; // Enable debug logging
+  timeout?: number; // Request timeout
 }
 ```
 
 ### Examples
 
 #### Local MCP Server (STDIO)
+
 ```typescript
 @MCP(MCPProtocolType.STDIO, {
   command: "python",
   args: ["-m", "my_mcp_server"],
-  verbose: true
+  verbose: true,
 })
 @agent({
   name: "LocalMCPAgent",
   role: "Agent with Local Tools",
   description: "Agent using local MCP tools",
   objective: "Use specialized local tools",
-  model: "gpt-4"
+  model: "gpt-4",
 })
 class LocalMCPAgent extends Agent {}
 ```
 
 #### Remote MCP Server (SSE)
+
 ```typescript
 @MCP(MCPProtocolType.SSE, {
   url: "https://api.example.com/mcp/events",
   headers: {
-    "Authorization": "Bearer " + process.env.MCP_API_KEY
+    Authorization: "Bearer " + process.env.MCP_API_KEY,
   },
-  verbose: true
+  verbose: true,
 })
 @agent({
-  name: "RemoteMCPAgent", 
+  name: "RemoteMCPAgent",
   role: "Agent with Remote Tools",
   description: "Agent using remote MCP tools",
   objective: "Access cloud-based tool services",
-  model: "gpt-4"
+  model: "gpt-4",
 })
 class RemoteMCPAgent extends Agent {}
 ```
 
 #### HTTP Streaming MCP
+
 ```typescript
 @MCP(MCPProtocolType.STREAMABLE_HTTP, {
   baseUrl: "https://tools.example.com/api",
   headers: {
-    "X-API-Key": process.env.TOOLS_API_KEY
+    "X-API-Key": process.env.TOOLS_API_KEY,
   },
   timeout: 30000,
-  verbose: true
+  verbose: true,
 })
 @agent({
   name: "HTTPMCPAgent",
-  role: "Agent with HTTP Tools", 
+  role: "Agent with HTTP Tools",
   description: "Agent using HTTP-based MCP tools",
   objective: "Utilize web-based tool services",
-  model: "gpt-4"
+  model: "gpt-4",
 })
 class HTTPMCPAgent extends Agent {}
 ```
 
 #### Multiple MCP Sources
+
 ```typescript
 @MCP(MCPProtocolType.STDIO, {
   command: "python",
-  args: ["-m", "local_tools"]
+  args: ["-m", "local_tools"],
 })
 @MCP(MCPProtocolType.SSE, {
-  url: "https://api.remote-tools.com/mcp"
+  url: "https://api.remote-tools.com/mcp",
 })
 @agent({
   name: "MultiMCPAgent",
   role: "Multi-Tool Agent",
-  description: "Agent with tools from multiple MCP sources", 
+  description: "Agent with tools from multiple MCP sources",
   objective: "Access diverse tool capabilities",
-  model: "gpt-4"
+  model: "gpt-4",
 })
 class MultiMCPAgent extends Agent {}
 ```
@@ -307,11 +323,11 @@ MCP tools can be rate limited using the `@RateLimiter` decorator:
   rateLimitPerSecond: 2,
   rateLimitPerMinute: 60,
   toolSpecificLimits: {
-    "expensive_tool": {
+    expensive_tool: {
       rateLimitPerSecond: 0.5,
-      rateLimitPerMinute: 10
-    }
-  }
+      rateLimitPerMinute: 10,
+    },
+  },
 })
 @MCP(MCPProtocolType.SSE, { url: "https://api.example.com/mcp" })
 @agent({
@@ -319,7 +335,7 @@ MCP tools can be rate limited using the `@RateLimiter` decorator:
   role: "Rate Limited Agent",
   description: "Agent with rate-limited MCP tools",
   objective: "Use tools while respecting rate limits",
-  model: "gpt-4"
+  model: "gpt-4",
 })
 class RateLimitedMCPAgent extends Agent {}
 ```
@@ -327,21 +343,25 @@ class RateLimitedMCPAgent extends Agent {}
 ### Best Practices
 
 #### Tool Selection
+
 - **Built-in First**: Use built-in tools when they meet your needs
 - **Custom for Specific**: Create custom tools for domain-specific functionality
 - **MCP for External**: Use MCP for integrating with external services
 
 #### Performance
+
 - **Caching**: Implement caching in custom tools for expensive operations
 - **Rate Limiting**: Apply appropriate rate limits to prevent API abuse
 - **Error Handling**: Implement robust error handling in tool implementations
 
 #### Security
+
 - **Input Validation**: Always validate tool parameters
 - **API Keys**: Use environment variables for sensitive credentials
 - **Sandboxing**: Consider sandboxing for tools that execute code
 
 #### Development
+
 - **Tool Testing**: Test tools independently before agent integration
 - **Documentation**: Document custom tool parameters and return values
 - **Logging**: Use verbose mode during development for debugging
@@ -349,33 +369,93 @@ class RateLimitedMCPAgent extends Agent {}
 ### Common Patterns
 
 #### Research Pipeline
+
 ```typescript
 @tool(WebSearchTool)
-@tool(WebPageContentTool) 
+@tool(WebPageContentTool)
 @agent({
   name: "ResearchPipeline",
   role: "Research Coordinator",
   description: "Conducts comprehensive web research",
   objective: "Gather and analyze web-based information",
-  model: "gpt-4"
+  model: "gpt-4",
 })
 class ResearchPipeline extends Agent {}
 ```
 
 #### Data Analysis
+
 ```typescript
 @tool(CalculatorTool)
 @tool(ChartTool)
 @MCP(MCPProtocolType.STDIO, {
   command: "python",
-  args: ["-m", "data_analysis_tools"]
+  args: ["-m", "data_analysis_tools"],
 })
 @agent({
   name: "DataAnalyst",
-  role: "Data Analysis Specialist", 
+  role: "Data Analysis Specialist",
   description: "Performs data analysis and visualization",
   objective: "Extract insights from data",
-  model: "gpt-4"
+  model: "gpt-4",
 })
 class DataAnalyst extends Agent {}
-``` 
+```
+
+## Tool Compatibility Warnings
+
+Agent Forge automatically validates tool configurations and provides warnings about potential compatibility issues with LLMs. **All tools are included regardless of warnings** - the framework informs you of potential issues but lets you decide.
+
+### Common Warnings
+
+#### Tool Configuration Issues
+
+- **Missing descriptions**: Tools without descriptions significantly impact LLM accuracy
+- **Complex schemas**: Tools with >10 parameters may confuse some LLMs
+- **Long names**: Tool names >64 characters may cause issues with some models
+- **Long descriptions**: Descriptions >500 characters may hurt comprehension
+
+#### Tool Count Warnings
+
+- **8+ tools**: Some LLMs perform better with fewer tools
+- **15+ tools**: High tool counts may significantly impact LLM performance
+
+### Model-Specific Guidance
+
+The framework provides warnings for tools that may have compatibility issues across different LLM models, but all tools are always included.
+
+### Debugging Tools
+
+Enable verbose mode to see detailed tool processing:
+
+```typescript
+@MCP(MCPProtocolType.STDIO, {
+  command: "your-mcp-server",
+  verbose: true, // Shows tool validation and warnings
+})
+@agent(config)
+class DebuggingAgent extends Agent {}
+```
+
+Console output will show:
+
+- Raw tools received from MCP server
+- Detailed parameter information for each tool
+- Compatibility warnings for all tools
+- Model-specific guidance
+
+### Best Practices
+
+1. **Keep tools focused**: Each tool should do one thing well
+2. **Limit parameters**: Aim for ≤10 parameters per tool
+3. **Write clear descriptions**: Both tool and parameter descriptions matter
+4. **Test across models**: Different models may handle tools differently
+5. **Monitor warnings**: Address compatibility warnings to improve reliability
+
+### Warning Examples
+
+```
+⚠️  Tool "complex_analysis" has 15 parameters. LLMs may struggle with very complex schemas.
+⚠️  You have 12 tools. Some LLMs perform better with fewer tools (≤8).
+⚠️  Tool "data_processor" has no description. This will significantly impact LLM tool selection accuracy.
+```
