@@ -1,5 +1,6 @@
+import { z } from "zod";
 import type { ChatCompletionTool } from "token.js";
-import type { ToolConfig, ToolParameter } from "../types";
+import { ToolConfig, ToolParameter, ToolParameterSchema, ToolConfigSchema } from "../types";
 
 /**
  * Base class for all tools that can be used by agents
@@ -35,44 +36,42 @@ export abstract class Tool {
    * @returns True if the parameters are valid, throws an error otherwise
    */
   validateParams(params: Record<string, any>): boolean {
-    this.validateRequiredParams(params);
-    this.validateParamTypes(params);
-    return true;
-  }
+    const schema = z.object(
+      this.parameters.reduce((acc, param) => {
+        let paramSchema: z.ZodTypeAny;
+        switch (param.type) {
+          case "string":
+            paramSchema = z.string();
+            break;
+          case "number":
+            paramSchema = z.number();
+            break;
+          case "boolean":
+            paramSchema = z.boolean();
+            break;
+          case "array":
+            paramSchema = z.array(z.any()); // More specific array types could be added if needed
+            break;
+          case "object":
+            paramSchema = z.object({}); // More specific object schemas could be added if needed
+            break;
+          default:
+            paramSchema = z.any();
+        }
+        acc[param.name] = param.required ? paramSchema : paramSchema.optional();
+        return acc;
+      }, {} as Record<string, z.ZodTypeAny>)
+    );
 
-  private validateRequiredParams(params: Record<string, any>): void {
-    for (const param of this.parameters) {
-      if (
-        param.required &&
-        (params[param.name] === undefined || params[param.name] === null)
-      ) {
-        throw new Error(`Required parameter '${param.name}' is missing`);
+    try {
+      schema.parse(params);
+      return true;
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        throw new Error(`Tool parameter validation failed for ${this.name}: ${error.errors.map(e => e.message).join(", ")}`);
+      } else {
+        throw new Error(`Unknown error during tool parameter validation for ${this.name}: ${error}`);
       }
-    }
-  }
-
-  private validateParamTypes(params: Record<string, any>): void {
-    for (const [name, value] of Object.entries(params)) {
-      const paramDef = this.parameters.find((p) => p.name === name);
-      if (!paramDef) {
-        throw new Error(`Unknown parameter '${name}'`);
-      }
-      this.validateType(name, value, paramDef.type);
-    }
-  }
-
-  private validateType(name: string, value: unknown, type: string): void {
-    const typeMap: Record<string, (v: unknown) => boolean> = {
-      string: (v) => typeof v === "string",
-      number: (v) => typeof v === "number",
-      boolean: (v) => typeof v === "boolean",
-      array: (v) => Array.isArray(v),
-      object: (v) => typeof v === "object" && v !== null && !Array.isArray(v),
-    };
-
-    const validator = typeMap[type.toLowerCase()];
-    if (!validator || !validator(value)) {
-      throw new Error(`Parameter '${name}' must be a ${type}`);
     }
   }
 
@@ -119,12 +118,22 @@ export abstract class Tool {
    * @returns Tool configuration object
    */
   getConfig(): ToolConfig {
-    return {
+    const config: ToolConfig = {
       name: this.name,
       description: this.description,
       parameters: this.parameters,
       returnType: this.returnType,
     };
+    try {
+      ToolConfigSchema.parse(config);
+      return config;
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        throw new Error(`Tool configuration validation failed for ${this.name}: ${error.errors.map(e => e.message).join(", ")}`);
+      } else {
+        throw new Error(`Unknown error during tool configuration validation for ${this.name}: ${error}`);
+      }
+    }
   }
 
   getChatCompletionConfig(): ChatCompletionTool {

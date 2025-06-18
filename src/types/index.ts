@@ -1,3 +1,4 @@
+import { z } from "zod";
 import type { ChatCompletionMessageParam } from "token.js";
 import type { LLMProvider } from "token.js/dist/chat";
 
@@ -22,23 +23,12 @@ export interface AgentConfig {
 /**
  * Tool configuration object
  */
-export interface ToolConfig {
-  name: string;
-  description: string;
-  parameters?: ToolParameter[];
-  returnType?: string;
-}
+export interface ToolConfig extends z.infer<typeof ToolConfigSchema> {}
 
 /**
  * Tool parameter definition
  */
-export interface ToolParameter {
-  name: string;
-  type: string;
-  description: string;
-  required: boolean;
-  default?: any;
-}
+export interface ToolParameter extends z.infer<typeof ToolParameterSchema> {}
 
 /**
  * Result of an agent run
@@ -252,3 +242,5 @@ export interface RateLimiterConfig {
   verbose?: boolean;
   cacheTTL?: number;
 }
+
+
