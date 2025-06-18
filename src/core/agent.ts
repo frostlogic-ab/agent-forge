@@ -1,3 +1,4 @@
+import { AgentConfigurationError, AgentForgeError, LLMConnectionError, ToolExecutionError, ToolConfigurationError } from "./errors";
 import type { ChatCompletionMessageParam } from "token.js";
 import type { LLM } from "../llm/llm";
 import type { LLMResponse } from "../llm/llm";
@@ -54,7 +55,7 @@ export class Agent {
       // @ts-ignore
       const staticConfig = (this.constructor as any).agentConfig;
       if (!staticConfig) {
-        throw new Error(
+        throw new AgentConfigurationError(
           "AgentConfig must be provided either via constructor or @agent decorator."
         );
       }
@@ -171,7 +172,7 @@ export class Agent {
    */
   async run(input: string, options?: AgentRunOptions): Promise<AgentResult> {
     if (!this.llmProvider) {
-      throw new Error("No LLM provider set for the agent");
+      throw new LLMConnectionError("No LLM provider set for the agent", this.config.model);
     }
     const currentLlmProvider = this.llmProvider;
 
@@ -199,7 +200,7 @@ export class Agent {
       const timeoutPromise = new Promise<never>((_, reject) => {
         setTimeout(() => {
           reject(
-            new Error(`Agent execution timed out after ${maxExecutionTime}ms`)
+            new AgentForgeError(`Agent execution timed out after ${maxExecutionTime}ms`)
           );
         }, maxExecutionTime);
       });
@@ -232,12 +233,10 @@ export class Agent {
         }s). Here's what was determined so far: ${
           finalAnswer || "No conclusion reached yet."
         }`;
-      } else if (
-        error instanceof Error &&
-        error.message.includes("503 Service Unavailable")
-      ) {
-        throw new Error(
-          `LLM provider service is temporarily unavailable (503). This is usually a temporary issue with the provider. Please try again in a few moments. Original error: ${error.message}`
+      } else if (error instanceof Error && error.message.includes("503 Service Unavailable")) {
+        throw new LLMConnectionError(
+          `LLM provider service is temporarily unavailable (503). This is usually a temporary issue with the provider. Original error: ${error.message}`,
+          this.config.model
         );
       } else if (
         error instanceof Error &&
@@ -245,7 +244,7 @@ export class Agent {
           "Cannot read properties of undefined (reading 'filter')"
         )
       ) {
-        throw new Error(
+        throw new ToolConfigurationError(
           `Tool configuration error detected. This appears to be a compatibility issue with the Token.js library. Please check your tool configurations and ensure they are properly formatted. Original error: ${error.message}`
         );
       } else {

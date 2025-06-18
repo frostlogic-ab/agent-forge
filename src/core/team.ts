@@ -7,17 +7,18 @@ import {
 import { globalEventEmitter } from "../utils/event-emitter";
 import { RateLimiter } from "../utils/rate-limiter";
 import { enableConsoleStreaming } from "../utils/streaming";
-import { Agent, type AgentRunOptions } from "./agent";
-import { AgentInteractionHelper } from "./team/agent-interaction-helper";
-import { ManagerResponseParser } from "./team/manager-response-parser";
-import { TaskExecutor } from "./team/task-executor";
-import { TeamDeadlockHandler } from "./team/team-deadlock-handler";
+import { AgentConfigurationError, AgentForgeError, LLMConnectionError, ToolExecutionError, ToolConfigurationError } from "./errors";
 import { TeamDependencyGraph } from "./team/team-dependency-graph";
 import { TeamReporter } from "./team/team-reporter";
 import { TeamRunLogger } from "./team/team-run-logger";
 import { TeamTaskManager } from "./team/team-task-manager";
 import { writeTeamRunTimelineHtmlToFile } from "./team/team-timeline-generator";
 import { TASK_FORMAT_PROMPT } from "./team/team.constants";
+import { AgentInteractionHelper } from "./team/agent-interaction-helper";
+import { ManagerResponseParser } from "./team/manager-response-parser";
+import { TaskExecutor } from "./team/task-executor";
+import { TeamDeadlockHandler } from "./team/team-deadlock-handler";
+
 
 /**
  * Represents a team of agents with a manager
@@ -103,7 +104,7 @@ export class Team {
    */
   addAgent(agent: any): Team {
     if (!(agent instanceof Agent)) {
-      throw new Error(
+      throw new AgentConfigurationError(
         "Agent must be an instance of Agent class or extend Agent class"
       );
     }
@@ -119,7 +120,7 @@ export class Team {
   addAgents(agents: any[]): Team {
     for (const agent of agents) {
       if (!(agent instanceof Agent)) {
-        throw new Error(
+        throw new AgentConfigurationError(
           "Agent must be an instance of Agent class or extend Agent class"
         );
       }
