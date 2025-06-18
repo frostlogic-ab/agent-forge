@@ -1,7 +1,7 @@
 import { AgentConfigurationError, AgentForgeError, LLMConnectionError, ToolExecutionError, ToolConfigurationError } from "./errors";
 import type { ChatCompletionMessageParam } from "token.js";
-import type { LLM } from "../llm/llm";
-import type { LLMResponse } from "../llm/llm";
+import type { ILLMProvider } from "../llm/base-llm";
+import type { LLMResponse } from "../llm/types";
 import type { Tool } from "../tools/tool";
 import { ToolRegistry } from "../tools/tool-registry";
 import {
@@ -38,7 +38,7 @@ export interface AgentRunOptions {
 export class Agent {
   private config: AgentConfig;
   private tools: ToolRegistry;
-  private llmProvider?: LLM;
+  private llmProvider?: ILLMProvider;
   private conversation: ChatCompletionMessageParam[] = [];
 
   /**
@@ -47,7 +47,7 @@ export class Agent {
    * @param tools Optional additional tools to provide to the agent
    * @param llmProvider Optional LLM provider for the agent
    */
-  constructor(config?: AgentConfig, tools: Tool[] = [], llmProvider?: LLM) {
+  constructor(config?: AgentConfig, tools: Tool[] = [], llmProvider?: ILLMProvider) {
     // If config is not provided, try to get it from a static property (for decorator use)
     if (config) {
       this.config = config;
@@ -75,7 +75,7 @@ export class Agent {
    * Sets the LLM provider for the agent
    * @param provider The LLM provider to use
    */
-  setLLMProvider(provider: LLM): void {
+  setLLMProvider(provider: ILLMProvider): void {
     this.llmProvider = provider;
   }
 
@@ -83,7 +83,7 @@ export class Agent {
    * Gets the LLM provider for the agent
    * @returns The LLM provider or undefined if not set
    */
-  getLLMProvider(): LLM | undefined {
+  getLLMProvider(): ILLMProvider | undefined {
     return this.llmProvider;
   }
 

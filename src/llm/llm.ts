@@ -13,35 +13,17 @@ import type {
 } from "token.js/dist/chat";
 import { getExtendedModelList } from "../config/json-config-loader";
 import { AgentForgeEvents } from "../types";
-import { EventEmitter } from "../utils/event-emitter";
+import { BaseLLM, LLMResponse, LLMResponseToolCall } from "./base-llm";
 
-export interface LLMResponseToolCall {
-  id: string;
-  toolName: string;
-  parameters: Record<string, any>;
-}
-
-export interface LLMResponse {
-  content: string;
-  model: string;
-  tokenUsage?: {
-    completion: number;
-    prompt: number;
-    total: number;
-  };
-  toolCalls?: LLMResponseToolCall[];
-}
-
-export class LLM {
+export class LLM extends BaseLLM {
   protected readonly token: TokenJS;
-  protected eventEmitter: EventEmitter;
 
   private constructor(
     protected readonly provider: LLMProvider,
     protected readonly config: ConfigOptions,
     preConfiguredToken?: TokenJS
   ) {
-    this.eventEmitter = new EventEmitter();
+    super();
     this.token = preConfiguredToken || new TokenJS(this.config);
   }
 
@@ -60,10 +42,6 @@ export class LLM {
       );
     }
     return new LLM(provider, config, tempToken);
-  }
-
-  getEventEmitter(): EventEmitter {
-    return this.eventEmitter;
   }
 
   transformCompletionToLLMResponse(
@@ -229,11 +207,7 @@ export class LLM {
     const chunks: CompletionResponseChunk[] = [];
 
     for await (const chunk of completion) {
-      this.eventEmitter.emit(AgentForgeEvents.LLM_STREAM_CHUNK, {
-        model: params.model,
-        agentName: "Unknown",
-        chunk: chunk.choices?.[0]?.delta?.content,
-      });
+      this.emitStreamChunk(params.model, "Unknown", chunk.choices?.[0]?.delta?.content);
       params.onChunk(chunk);
       chunks.push(chunk);
     }
@@ -244,12 +218,10 @@ export class LLM {
 
     const response = this.transformCompletionChunksToLLMResponse(chunks);
 
-    this.eventEmitter.emit(AgentForgeEvents.LLM_STREAM_COMPLETE, {
-      content: response.content,
-      isComplete: true,
-      agentName: "Unknown",
-    });
+    this.emitStreamComplete(response.content, "Unknown");
 
     return response;
   }
 }
+
+

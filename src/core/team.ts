@@ -233,7 +233,7 @@ export class Team {
       const agentsToPatch = [this.manager, ...Array.from(this.agents.values())];
       for (const agent of agentsToPatch) {
         if (!this.originalAgentRuns.has(agent)) {
-          this.originalAgentRuns.set(agent, agent.run); // Store original
+          this.originalAgentRuns.set(agent, agent.run as Agent["run"]); // Store original
           agent.run = async (
             agentInput: string,
             agentOptions?: AgentRunOptions
