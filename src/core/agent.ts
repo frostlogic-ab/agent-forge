@@ -10,6 +10,18 @@ import {
   type ToolCall,
 } from "../types";
 import { globalEventEmitter } from "../utils/event-emitter";
+import { logger } from "./agent-logger";
+import { ErrorRecovery } from "./error-recovery";
+import {
+  AgentConfigurationError,
+  AgentForgeError,
+  AgentTimeoutError,
+  LLMConnectionError,
+  LLMResponseError,
+  RateLimitError,
+  ToolConfigurationError,
+  ToolExecutionError,
+} from "./errors";
 
 /**
  * Agent run options
@@ -54,7 +66,7 @@ export class Agent {
       // @ts-ignore
       const staticConfig = (this.constructor as any).agentConfig;
       if (!staticConfig) {
-        throw new Error(
+        throw new AgentConfigurationError(
           "AgentConfig must be provided either via constructor or @agent decorator."
         );
       }
@@ -171,14 +183,32 @@ export class Agent {
    */
   async run(input: string, options?: AgentRunOptions): Promise<AgentResult> {
     if (!this.llmProvider) {
-      throw new Error("No LLM provider set for the agent");
+      const error = new LLMConnectionError(
+        "No LLM provider set for the agent",
+        this.config.model,
+        { agentName: this.name }
+      );
+      logger.critical(
+        "Agent execution failed: No LLM provider",
+        this.name,
+        {},
+        error
+      );
+      throw error;
     }
-    const currentLlmProvider = this.llmProvider;
 
+    const currentLlmProvider = this.llmProvider;
     const stream = options?.stream || false;
     const maxTurns = options?.maxTurns || 10;
     const startTime = Date.now();
     const maxExecutionTime = options?.maxExecutionTime || 120000; // Default 2 minute timeout
+
+    // Start execution logging
+    const executionId = logger.logExecutionStart(this.name, input, {
+      stream,
+      maxTurns,
+      maxExecutionTime: `${maxExecutionTime}ms`,
+    });
 
     // Add user message to conversation
     this.conversation.push({
@@ -198,9 +228,16 @@ export class Agent {
       // Create a timeout promise
       const timeoutPromise = new Promise<never>((_, reject) => {
         setTimeout(() => {
-          reject(
-            new Error(`Agent execution timed out after ${maxExecutionTime}ms`)
+          const timeoutError = new AgentTimeoutError(
+            `Agent execution timed out after ${maxExecutionTime}ms`,
+            maxExecutionTime,
+            Date.now() - startTime,
+            {
+              agentName: this.name,
+              conversationLength: this.conversation.length,
+            }
           );
+          reject(timeoutError);
         }, maxExecutionTime);
       });
 
@@ -226,34 +263,144 @@ export class Agent {
         toolCalls.push(call);
       }
     } catch (error) {
-      if (error instanceof Error && error.message.includes("timed out")) {
+      const endTime = Date.now();
+      const executionTime = endTime - startTime;
+
+      logger.error(
+        `Agent execution failed: ${error instanceof Error ? error.message : String(error)}`,
+        this.name,
+        {
+          executionTime: `${executionTime}ms`,
+          conversationLength: this.conversation.length,
+          totalPromptTokens,
+          totalCompletionTokens,
+        },
+        error instanceof AgentForgeError ? error : undefined
+      );
+
+      // Handle specific error types
+      if (error instanceof AgentTimeoutError) {
         finalAnswer = `The agent process was terminated due to timeout (${
           maxExecutionTime / 1000
         }s). Here's what was determined so far: ${
           finalAnswer || "No conclusion reached yet."
         }`;
-      } else if (
-        error instanceof Error &&
-        error.message.includes("503 Service Unavailable")
-      ) {
-        throw new Error(
-          `LLM provider service is temporarily unavailable (503). This is usually a temporary issue with the provider. Please try again in a few moments. Original error: ${error.message}`
+
+        // Log completion with timeout
+        logger.logExecutionComplete(executionId, this.name, finalAnswer, {
+          prompt: totalPromptTokens,
+          completion: totalCompletionTokens,
+          total: totalPromptTokens + totalCompletionTokens,
+        });
+      } else if (error instanceof Error) {
+        // Transform generic errors into specific error types
+        if (
+          error.message.includes("503 Service Unavailable") ||
+          error.message.includes("Service Unavailable")
+        ) {
+          const llmError = new LLMConnectionError(
+            "LLM provider service is temporarily unavailable (503). This is usually a temporary issue with the provider.",
+            this.config.model,
+            {
+              agentName: this.name,
+              additionalData: { originalError: error.message },
+            }
+          );
+          logger.error("LLM service unavailable", this.name, {}, llmError);
+          throw llmError;
+        }
+
+        if (
+          error.message.includes("rate limit") ||
+          error.message.includes("Rate limit")
+        ) {
+          const rateLimitError = new RateLimitError(
+            `Rate limit exceeded for model ${this.config.model}`,
+            undefined,
+            undefined,
+            { agentName: this.name, model: this.config.model }
+          );
+          logger.error("Rate limit exceeded", this.name, {}, rateLimitError);
+          throw rateLimitError;
+        }
+
+        if (
+          error.message.includes(
+            "Cannot read properties of undefined (reading 'filter')"
+          )
+        ) {
+          const toolConfigError = new ToolConfigurationError(
+            "Tool configuration error detected. This appears to be a compatibility issue with the Token.js library. Please check your tool configurations and ensure they are properly formatted.",
+            undefined,
+            {
+              agentName: this.name,
+              additionalData: { originalError: error.message },
+            }
+          );
+          logger.error(
+            "Tool configuration error",
+            this.name,
+            {},
+            toolConfigError
+          );
+          throw toolConfigError;
+        }
+
+        // Wrap unknown errors in AgentForgeError
+        const wrappedError = new AgentForgeError(
+          `Unexpected error during agent execution: ${error.message}`,
+          "AGENT_EXECUTION_ERROR",
+          undefined,
+          {
+            agentName: this.name,
+            additionalData: { originalError: error.message },
+          }
         );
-      } else if (
-        error instanceof Error &&
-        error.message.includes(
-          "Cannot read properties of undefined (reading 'filter')"
-        )
-      ) {
-        throw new Error(
-          `Tool configuration error detected. This appears to be a compatibility issue with the Token.js library. Please check your tool configurations and ensure they are properly formatted. Original error: ${error.message}`
+        logger.error(
+          "Unexpected agent execution error",
+          this.name,
+          {},
+          wrappedError
         );
-      } else {
-        throw error; // Re-throw other errors
+        throw wrappedError;
       }
+
+      // Re-throw AgentForgeError instances, wrap everything else
+      if (error instanceof AgentForgeError) {
+        throw error;
+      }
+
+      // Handle any other error types that weren't caught above
+      const wrappedError = new AgentForgeError(
+        `Unhandled error during agent execution: ${error instanceof Error ? error.message : String(error)}`,
+        "AGENT_EXECUTION_ERROR",
+        undefined,
+        {
+          agentName: this.name,
+          additionalData: {
+            originalError:
+              error instanceof Error ? error.message : String(error),
+            errorType: typeof error,
+          },
+        }
+      );
+      logger.error(
+        "Unhandled agent execution error",
+        this.name,
+        {},
+        wrappedError
+      );
+      throw wrappedError;
     }
 
     const endTime = Date.now();
+
+    // Log successful completion
+    logger.logExecutionComplete(executionId, this.name, finalAnswer, {
+      prompt: totalPromptTokens,
+      completion: totalCompletionTokens,
+      total: totalPromptTokens + totalCompletionTokens,
+    });
 
     // Create the final result
     const result: AgentResult = {
@@ -304,40 +451,98 @@ export class Agent {
 
       // Get response from LLM - choose between streaming and non-streaming
       let response: LLMResponse;
+      const llmStartTime = Date.now();
 
-      if (stream) {
-        // Use streaming chat
-        // Define the agent name for use in the callback
-        const agentName = this.name;
+      try {
+        if (stream) {
+          // Use streaming chat
+          // Define the agent name for use in the callback
+          const agentName = this.name;
 
-        response = await llmProvider.chatStream({
-          model: this.config.model,
-          messages: this.conversation,
-          temperature: this.config.temperature,
-          max_tokens: this.config.maxTokens,
-          tools: toolsConfig,
+          response = await ErrorRecovery.withRetry(
+            () =>
+              llmProvider.chatStream({
+                model: this.config.model,
+                messages: this.conversation,
+                temperature: this.config.temperature,
+                max_tokens: this.config.maxTokens,
+                tools: toolsConfig,
 
-          onChunk: (chunk) => {
-            // Process the chunk to remove common formatting issues
-            // This is just for convenience - events will also be emitted
-            // from the provider for more advanced use cases
-            globalEventEmitter.emit(AgentForgeEvents.LLM_STREAM_CHUNK, {
-              agentName: agentName, // Use the captured agent name
-              chunk: chunk.choices?.[0]?.delta?.content,
-              isDelta: true,
-              isComplete: false,
-            });
-          },
-        });
-      } else {
-        // Use regular chat
-        response = await llmProvider.chat({
-          model: this.config.model,
-          messages: this.conversation,
-          temperature: this.config.temperature,
-          max_tokens: this.config.maxTokens,
-          tools: toolsConfig,
-        });
+                onChunk: (chunk) => {
+                  // Process the chunk to remove common formatting issues
+                  // This is just for convenience - events will also be emitted
+                  // from the provider for more advanced use cases
+                  globalEventEmitter.emit(AgentForgeEvents.LLM_STREAM_CHUNK, {
+                    agentName: agentName, // Use the captured agent name
+                    chunk: chunk.choices?.[0]?.delta?.content,
+                    isDelta: true,
+                    isComplete: false,
+                  });
+                },
+              }),
+            {
+              agentName: this.name,
+              operationName: `llm-chat-stream-${this.config.model}`,
+            }
+          );
+        } else {
+          // Use regular chat
+          response = await ErrorRecovery.withRetry(
+            () =>
+              llmProvider.chat({
+                model: this.config.model,
+                messages: this.conversation,
+                temperature: this.config.temperature,
+                max_tokens: this.config.maxTokens,
+                tools: toolsConfig,
+              }),
+            {
+              agentName: this.name,
+              operationName: `llm-chat-${this.config.model}`,
+            }
+          );
+        }
+
+        const llmExecutionTime = Date.now() - llmStartTime;
+
+        // Log successful LLM interaction
+        logger.logLLMInteraction(
+          this.name,
+          this.config.model,
+          response.tokenUsage,
+          llmExecutionTime
+        );
+      } catch (error) {
+        const llmExecutionTime = Date.now() - llmStartTime;
+
+        // Create specific LLM error
+        const llmError =
+          error instanceof LLMConnectionError ||
+          error instanceof LLMResponseError
+            ? error
+            : new LLMConnectionError(
+                error instanceof Error ? error.message : String(error),
+                this.config.model,
+                {
+                  agentName: this.name,
+                  executionTime: llmExecutionTime,
+                  additionalData: {
+                    originalError:
+                      error instanceof Error ? error.message : String(error),
+                  },
+                }
+              );
+
+        // Log LLM interaction error
+        logger.logLLMInteraction(
+          this.name,
+          this.config.model,
+          undefined,
+          llmExecutionTime,
+          llmError
+        );
+
+        throw llmError;
       }
 
       // Update token usage
@@ -396,11 +601,27 @@ export class Agent {
           try {
             // Extract parameters
             const params = responseToolCall.parameters;
+            const toolStartTime = Date.now();
 
-            // Execute the tool
-            const result = await this.tools.execute(
+            // Execute the tool with error recovery
+            const result = await ErrorRecovery.withRetry(
+              () => this.tools.execute(toolCall.function.name, params),
+              {
+                agentName: this.name,
+                operationName: `tool-execution-${toolCall.function.name}`,
+              }
+            );
+
+            const toolExecutionTime = Date.now() - toolStartTime;
+
+            // Log successful tool execution
+            logger.logToolExecution(
+              this.name,
               toolCall.function.name,
-              params
+              params,
+              result,
+              undefined,
+              toolExecutionTime
             );
 
             // Add the tool response as a properly formatted tool message
@@ -432,10 +653,40 @@ export class Agent {
               });
             }
           } catch (error) {
-            // If the tool execution fails, add an error message
-            const errorMessage = `Error: ${
-              error instanceof Error ? error.message : String(error)
-            }`;
+            const toolExecutionTime =
+              Date.now() - (responseToolCall.startTime || Date.now());
+
+            // Create specific tool execution error
+            const toolError =
+              error instanceof ToolExecutionError
+                ? error
+                : new ToolExecutionError(
+                    error instanceof Error ? error.message : String(error),
+                    toolCall.function.name,
+                    responseToolCall.parameters,
+                    {
+                      agentName: this.name,
+                      executionTime: toolExecutionTime,
+                      additionalData: {
+                        originalError:
+                          error instanceof Error
+                            ? error.message
+                            : String(error),
+                      },
+                    }
+                  );
+
+            // Log tool execution error
+            logger.logToolExecution(
+              this.name,
+              toolCall.function.name,
+              responseToolCall.parameters,
+              undefined,
+              toolError,
+              toolExecutionTime
+            );
+
+            const errorMessage = `Error: ${toolError.message}`;
 
             this.conversation.push({
               role: "tool",
@@ -444,14 +695,14 @@ export class Agent {
             });
 
             // Find the responseToolCall
-            const responseToolCall = response.toolCalls.find(
+            const foundResponseToolCall = response.toolCalls.find(
               (tc) => tc.toolName === toolCall.function.name
             );
 
-            if (responseToolCall) {
+            if (foundResponseToolCall) {
               // Add to our list of tool calls with the error
               agentToolCalls.push({
-                ...responseToolCall,
+                ...foundResponseToolCall,
                 id: toolCall.id,
                 result: errorMessage,
               });

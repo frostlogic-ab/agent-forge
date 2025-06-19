@@ -2,7 +2,7 @@
   "extendModelList": [
     {
       "provider": "gemini",
-      "name": "gemini-2.5-flash-preview-05-20",
+      "name": "gemini-2.5-flash",
       "featureSupport": {
         "streaming": true,
         "json": true,
@@ -12,7 +12,7 @@
     },
     {
       "provider": "gemini",
-      "name": "gemini-2.5-pro-preview-05-06",
+      "name": "gemini-2.5-pro",
       "featureSupport": {
         "streaming": true,
         "json": true,

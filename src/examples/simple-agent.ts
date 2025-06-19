@@ -1,5 +1,5 @@
 import * as dotenv from "dotenv";
-import { AgentForge, Agent, agent, llmProvider, LLMProvider, readyForge, forge, Visualizer } from "../index";
+import { AgentForge, Agent, agent, llmProvider, LLMProvider, readyForge, forge, Visualizer, LogLevel } from "../index";
 
 
 // Load environment variables from .env file at the project root
@@ -42,7 +42,13 @@ class ManagerAgent extends Agent {}
 
 @Visualizer()
 @llmProvider(process.env.LLM_PROVIDER as LLMProvider, {apiKey: process.env.LLM_API_KEY})
-@forge()
+@forge({
+  logger: {
+    level: LogLevel.DEBUG,  // Enable debug logging to see all LLM interactions
+    enableConsoleLogging: true,
+    enablePerformanceLogging: true
+  }
+})
 class SimpleAgent {
   static forge: AgentForge;
 

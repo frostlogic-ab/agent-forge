@@ -333,12 +333,17 @@ ${TASK_FORMAT_PROMPT}
           details: { result },
           timestamp: Date.now(),
         });
-        // Write timeline HTML file
+        // Write enhanced timeline HTML file with comprehensive logging data
         const filePath = await writeTeamRunTimelineHtmlToFile(
           this.teamRunLogger.getEvents()
         );
         // eslint-disable-next-line no-console
-        console.log(`\n[Visualizer] Team run timeline written to: ${filePath}`);
+        console.log(
+          `\n[Visualizer] Enhanced team run timeline written to: ${filePath}`
+        );
+        console.log(
+          "📊 Timeline includes: Performance metrics, error analysis, tool usage, and LLM interactions"
+        );
       }
 
       return result;

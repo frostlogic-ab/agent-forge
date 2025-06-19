@@ -4,6 +4,8 @@
  * @module TeamRunLogger
  */
 
+import { logger } from "../agent-logger";
+
 export interface TeamRunEvent {
   timestamp: number;
   type: string;
@@ -36,6 +38,17 @@ export class TeamRunLogger {
    */
   getEvents(): TeamRunEvent[] {
     return [...this.events];
+  }
+
+  /**
+   * Get enhanced logging data from AgentLogger
+   */
+  getEnhancedData() {
+    return {
+      recentLogs: logger.getRecentLogs(100),
+      errorLogs: logger.getErrorLogs(50),
+      errorStats: logger.getErrorStats(),
+    };
   }
 
   /**

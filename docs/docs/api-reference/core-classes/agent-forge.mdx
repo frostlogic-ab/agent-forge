@@ -237,7 +237,7 @@ await forge.shutdown();
 The more common pattern is to use the `@forge()` decorator:
 
 ```typescript
-import { agent, llmProvider, forge, Agent } from "agent-forge";
+import { agent, llmProvider, forge, Agent, LogLevel } from "agent-forge";
 
 @agent({
   name: "Assistant",
@@ -249,7 +249,13 @@ import { agent, llmProvider, forge, Agent } from "agent-forge";
 class AssistantAgent extends Agent {}
 
 @llmProvider("openai", { apiKey: process.env.OPENAI_API_KEY })
-@forge()
+@forge({
+  logger: {
+    level: LogLevel.INFO,  // Configure logging level
+    enablePerformanceLogging: true,
+    enableErrorAggregation: true
+  }
+})
 class MyApp {
   static forge: AgentForge;
 
@@ -433,6 +439,118 @@ const teamInstance = await readyForge(MyTeam, [
   AnalystAgent,
   WriterAgent
 ]);
+```
+
+## Logging Configuration
+
+AgentForge provides comprehensive logging capabilities that can be configured at the decorator level for fine-grained control over log output and performance tracking.
+
+### Basic Logging Setup
+
+```typescript
+import { LogLevel } from "agent-forge";
+
+@llmProvider("openai", { apiKey: process.env.OPENAI_API_KEY })
+@forge({
+  logger: {
+    level: LogLevel.DEBUG,  // Show all logs including LLM interactions
+    enableConsoleLogging: true,
+    enablePerformanceLogging: true,
+    enableErrorAggregation: true,
+    maxLogHistory: 1000
+  }
+})
+class VerboseApp {
+  static forge: AgentForge;
+}
+```
+
+### Log Levels
+
+- **`LogLevel.DEBUG` (0)**: Most verbose - shows everything including LLM interactions, tool calls, and internal operations
+- **`LogLevel.INFO` (1)**: Default level - shows informational messages, warnings, errors, and critical issues
+- **`LogLevel.WARNING` (2)**: Shows warnings, errors, and critical issues only
+- **`LogLevel.ERROR` (3)**: Shows only errors and critical issues
+- **`LogLevel.CRITICAL` (4)**: Shows only critical system errors
+
+### Environment-Specific Configurations
+
+```typescript
+// Development: Maximum visibility
+@forge({
+  logger: {
+    level: LogLevel.DEBUG,
+    enableConsoleLogging: true,
+    enablePerformanceLogging: true,
+    enableErrorAggregation: true,
+    maxLogHistory: 1000
+  }
+})
+class DevelopmentApp {}
+
+// Production: Errors and performance only
+@forge({
+  logger: {
+    level: LogLevel.ERROR,
+    enableConsoleLogging: true,
+    enablePerformanceLogging: false,  // Reduce overhead
+    enableErrorAggregation: true,
+    maxLogHistory: 100               // Conserve memory
+  }
+})
+class ProductionApp {}
+
+// Testing: Minimal logging
+@forge({
+  logger: {
+    level: LogLevel.CRITICAL,
+    enableConsoleLogging: false,
+    enablePerformanceLogging: false,
+    enableErrorAggregation: false,
+    maxLogHistory: 50
+  }
+})
+class TestApp {}
+```
+
+### Accessing Logger at Runtime
+
+```typescript
+import { AgentLogger } from "agent-forge";
+
+// Get the singleton logger instance
+const logger = AgentLogger.getInstance();
+
+// Change log level during runtime
+logger.updateConfig({ level: LogLevel.DEBUG });
+
+// Get recent logs
+const recentLogs = logger.getRecentLogs(50);
+
+// Get error statistics
+const errorStats = logger.getErrorStats();
+
+// Export logs for analysis
+const logData = logger.exportLogs();
+```
+
+### Timeline Visualization with Logging
+
+For optimal timeline generation with the `@Visualizer` decorator, use DEBUG level to capture all LLM interactions:
+
+```typescript
+@Visualizer()
+@llmProvider("openai", { apiKey: process.env.OPENAI_API_KEY })
+@forge({
+  logger: {
+    level: LogLevel.DEBUG,  // Essential for rich timeline data
+    enablePerformanceLogging: true,
+    enableErrorAggregation: true
+  }
+})
+class TimelineApp {
+  static forge: AgentForge;
+}
 ```
 
 ## Configuration Patterns
