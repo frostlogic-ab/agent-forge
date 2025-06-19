@@ -222,8 +222,15 @@ export class RemoteA2AAgent extends Agent {
           );
         }
         if (currentTask.status.state !== A2ATaskStates.COMPLETED) {
+          if (attempts >= maxAttempts) {
+            const timeoutSeconds =
+              (this.taskStatusRetryDelay * maxAttempts) / 1000;
+            throw new Error(
+              `Polling for remote agent task status timed out after ${maxAttempts} attempts (${timeoutSeconds}s). Final state: ${currentTask.status.state}`
+            );
+          }
           throw new Error(
-            `Remote agent task did not complete. Final state: ${currentTask.status.state}`
+            `Remote agent task did not complete for an unexpected reason. Final state: ${currentTask.status.state}`
           );
         }
 
