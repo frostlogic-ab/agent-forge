@@ -5,7 +5,9 @@ import { SummarizerAgent } from "./agents/summarizer.agent";
 import { RemoteHelpfulAssistant } from "./agents/remote.agent";
 import { AgentForge, readyForge } from "../../core/agent-forge";
 import { configuredProvider, configuredApiKey } from "./provider";
+import { Visualizer } from "../../";
 
+@Visualizer()
 @llmProvider(configuredProvider, { apiKey: configuredApiKey })
 @forge()
 class TeamExample {

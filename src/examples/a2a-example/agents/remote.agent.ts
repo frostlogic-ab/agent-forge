@@ -8,5 +8,5 @@ import { Agent } from "../../../core/agent";
  * @a2aClient({ serverUrl: "http://localhost:41241/a2a" })
  * class RemoteHelpfulAssistant extends Agent { ... }
  */
-@a2aClient({ serverUrl: "http://localhost:41241/a2a" })
+@a2aClient({ serverUrl: "http://localhost:41241/a2a", taskStatusRetries: 60 }, 'RemoteHelpfulAssistant')
 export class RemoteHelpfulAssistant extends Agent {}
