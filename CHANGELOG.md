@@ -1,4 +1,12 @@
 ## What's Changed
+* show helpful error when timeout of running remote agent is reached by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/64
+
+
+**Full Changelog**: https://github.com/frostlogic-ab/agent-forge/compare/v2.0.1...v2.0.2
+
+## [2.0.2](https://github.com/frostlogic-ab/agent-forge/compare/v2.0.1...v2.0.2) (2025-06-19)
+
+## What's Changed
 * fix broken documentation links by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/61
 * fixes a issue where gemini 2.5 expects tools as undefined rather than empty array by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/62
 
