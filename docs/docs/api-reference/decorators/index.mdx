@@ -76,6 +76,23 @@ class MyTeam {
 }
 ```
 
+### Logging Configuration
+```typescript
+import { LogLevel } from "agent-forge";
+
+@llmProvider("openai", { apiKey: process.env.OPENAI_API_KEY })
+@forge({
+  logger: {
+    level: LogLevel.DEBUG,  // See all LLM interactions for timeline
+    enableConsoleLogging: true,
+    enablePerformanceLogging: true
+  }
+})
+class VerboseApp {
+  static forge: AgentForge;
+}
+```
+
 ### Distributed Agent Network
 ```typescript
 // Server

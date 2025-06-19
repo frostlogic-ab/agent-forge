@@ -130,6 +130,7 @@ export enum AgentForgeEvents {
   EXECUTION_COMPLETE = "execution:complete",
   LLM_STREAM_CHUNK = "llm:stream_chunk",
   LLM_STREAM_COMPLETE = "llm:stream_complete",
+  AGENT_LOG = "agent:log",
 }
 
 /**

@@ -157,16 +157,33 @@ AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com/
 
 ## @forge
 
-Creates an AgentForge instance with automatic LLM provider setup. Must be used after `@llmProvider`.
+Creates an AgentForge instance with automatic LLM provider setup. Must be used after `@llmProvider`. Optionally accepts configuration for logging and other framework settings.
 
 ### Syntax
 ```typescript
 @llmProvider(provider, config)
-@forge()
+@forge(config?: ForgeConfig)
 class MyForge {
   static forge: AgentForge;
 }
 ```
+
+### Parameters
+
+#### ForgeConfig
+| Property | Type | Description |
+|----------|------|-------------|
+| `logger` | `Partial<LoggerConfig>` | Optional logger configuration |
+
+#### LoggerConfig
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `level` | `LogLevel` | `LogLevel.INFO` | Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL) |
+| `enableConsoleLogging` | `boolean` | `true` | Show logs in console |
+| `enableEventEmission` | `boolean` | `true` | Emit log events |
+| `enablePerformanceLogging` | `boolean` | `true` | Track performance metrics |
+| `enableErrorAggregation` | `boolean` | `true` | Count error occurrences |
+| `maxLogHistory` | `number` | `1000` | Maximum logs to keep in memory |
 
 ### Features
 
@@ -189,6 +206,56 @@ class SimpleForge {
     await this.forge.registerAgent(agent);
     return this.forge.runAgent("MyAgent", "Hello!");
   }
+}
+```
+
+#### Forge with Logging Configuration
+```typescript
+import { LogLevel } from "agent-forge";
+
+@llmProvider("openai", { apiKey: process.env.OPENAI_API_KEY })
+@forge({
+  logger: {
+    level: LogLevel.DEBUG,  // Enable debug logging to see all LLM interactions
+    enableConsoleLogging: true,
+    enablePerformanceLogging: true,
+    enableErrorAggregation: true,
+    maxLogHistory: 500
+  }
+})
+class VerboseForge {
+  static forge: AgentForge;
+}
+```
+
+#### Environment-Specific Configuration
+```typescript
+// Development environment - debug everything
+@llmProvider("openai", { apiKey: process.env.OPENAI_API_KEY })
+@forge({
+  logger: {
+    level: LogLevel.DEBUG,
+    enableConsoleLogging: true,
+    enablePerformanceLogging: true,
+    maxLogHistory: 1000
+  }
+})
+class DevForge {
+  static forge: AgentForge;
+}
+
+// Production environment - errors only
+@llmProvider("openai", { apiKey: process.env.OPENAI_API_KEY })
+@forge({
+  logger: {
+    level: LogLevel.ERROR,
+    enableConsoleLogging: true,
+    enablePerformanceLogging: false,  // Disable for performance
+    maxLogHistory: 100               // Keep fewer logs
+  }
+})
+class ProdForge {
+  static forge: AgentForge;
 }
 ```
 

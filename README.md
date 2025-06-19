@@ -133,12 +133,88 @@ class TeamExample {
 TeamExample.run();
 ```
 
+## Logging Configuration
+
+Agent Forge provides comprehensive logging capabilities with configurable levels. You can control logging behavior at the decorator level for fine-grained control:
+
+### Basic Logging Configuration
+
+```ts
+import { forge, llmProvider, LogLevel } from "agent-forge";
+
+@llmProvider("openai", { apiKey: process.env.OPENAI_API_KEY })
+@forge({
+  logger: {
+    level: LogLevel.DEBUG,  // Enable debug logging
+    enableConsoleLogging: true,
+    enablePerformanceLogging: true
+  }
+})
+class MyApplication {
+  static forge: AgentForge;
+}
+```
+
+### Available Log Levels
+
+- **`LogLevel.DEBUG`** (0) - Most verbose, shows everything including LLM interactions
+- **`LogLevel.INFO`** (1) - Default level, shows info, warnings, errors, critical  
+- **`LogLevel.WARNING`** (2) - Shows warnings, errors, critical
+- **`LogLevel.ERROR`** (3) - Shows only errors and critical issues
+- **`LogLevel.CRITICAL`** (4) - Shows only critical errors
+
+### Logger Configuration Options
+
+```ts
+interface ForgeConfig {
+  logger?: {
+    level: LogLevel;                 // Logging level
+    enableConsoleLogging: boolean;   // Console output
+    enableEventEmission: boolean;    // Event emission
+    enablePerformanceLogging: boolean; // Performance tracking
+    enableErrorAggregation: boolean; // Error counting
+    maxLogHistory: number;           // Log history size
+  };
+}
+```
+
+### Environment-Specific Examples
+
+```ts
+// Development: Debug everything
+@forge({
+  logger: {
+    level: LogLevel.DEBUG,
+    enableConsoleLogging: true,
+    enablePerformanceLogging: true,
+    enableErrorAggregation: true,
+    maxLogHistory: 1000
+  }
+})
+class DevEnvironment {}
+
+// Production: Errors only
+@forge({
+  logger: {
+    level: LogLevel.ERROR,
+    enableConsoleLogging: true,
+    enablePerformanceLogging: false,
+    enableErrorAggregation: true,
+    maxLogHistory: 100
+  }
+})
+class ProductionEnvironment {}
+
+// Default behavior (no config needed)
+@forge() // Uses LogLevel.INFO with default settings
+```
+
 ### 2. Workflows: Step-by-Step Task Automation
 
 Agent Forge supports workflows, allowing you to define a sequence of agent steps for complex, multi-stage tasks. Workflows are ideal when you want to chain agent outputs, such as research followed by summarization.
 
 ```ts
-import { forge, llmProvider, agent, readyForge } from "agent-forge";
+import { forge, llmProvider, agent, readyForge, LogLevel } from "agent-forge";
 import { AgentForge, Agent, LLMProvider } from "agent-forge";
 import * as dotenv from "dotenv";
 
@@ -168,7 +244,12 @@ class SummarizerAgent extends Agent {}
 @llmProvider(process.env.LLM_PROVIDER as LLMProvider, {
   apiKey: process.env.LLM_API_KEY,
 })
-@forge()
+@forge({
+  logger: {
+    level: LogLevel.INFO,  // Balanced logging for workflow tracking
+    enablePerformanceLogging: true
+  }
+})
 class WorkflowExample {
   static forge: AgentForge;
 
@@ -997,7 +1078,7 @@ npm run example:plugins
 - `@agent(config)`: Attach agent config to a class.
 - `@tool(ToolClass)`: Add a tool to an agent. Can be used multiple times to add multiple tools.
 - `@llmProvider(provider, config)`: Set LLM provider for a class.
-- `@forge()`: Attach a static AgentForge instance to a class.
+- `@forge(config?)`: Attach a static AgentForge instance to a class with optional configuration including logging levels.
 - `@plugin(pluginInstance)`: Register a plugin with the framework.
 - `@a2aServer(options)`: Expose an agent as an A2A server.
 - `@a2aClient(options)`: Connect an agent to a remote A2A server.
