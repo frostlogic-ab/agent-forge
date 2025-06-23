@@ -216,11 +216,12 @@ import { LogLevel } from "agent-forge";
 @llmProvider("openai", { apiKey: process.env.OPENAI_API_KEY })
 @forge({
   logger: {
-    level: LogLevel.DEBUG,  // Enable debug logging to see all LLM interactions
-    enableConsoleLogging: true,
-    enablePerformanceLogging: true,
-    enableErrorAggregation: true,
-    maxLogHistory: 500
+    level: LogLevel.DEBUG,  // Enable debug logging to see all LLM interactions. Default: LogLevel.INFO
+    enableConsoleLogging: true, // Default: true
+    enableEventEmission: true, // Default: true
+    enablePerformanceLogging: true, // Default: true
+    enableErrorAggregation: true, // Default: true
+    maxLogHistory: 500 // Default: 1000
   }
 })
 class VerboseForge {

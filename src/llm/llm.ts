@@ -213,6 +213,7 @@ export class LLM {
   async chatStream(
     params: Omit<CompletionStreaming<any>, "provider" | "stream"> & {
       onChunk: (chunk: CompletionResponseChunk) => void;
+      agentName?: string;
     }
   ): Promise<LLMResponse> {
     params.messages = this.validateMessages(params.messages);
@@ -231,7 +232,7 @@ export class LLM {
     for await (const chunk of completion) {
       this.eventEmitter.emit(AgentForgeEvents.LLM_STREAM_CHUNK, {
         model: params.model,
-        agentName: "Unknown",
+        agentName: params.agentName || "Unknown",
         chunk: chunk.choices?.[0]?.delta?.content,
       });
       params.onChunk(chunk);
@@ -247,7 +248,7 @@ export class LLM {
     this.eventEmitter.emit(AgentForgeEvents.LLM_STREAM_COMPLETE, {
       content: response.content,
       isComplete: true,
-      agentName: "Unknown",
+      agentName: params.agentName || "Unknown",
     });
 
     return response;

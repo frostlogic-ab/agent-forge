@@ -132,11 +132,29 @@ export class AgentLogger {
     );
 
     if (error) {
-      entry.error = error.toLogObject();
+      // Safely handle errors that may not have toLogObject method
+      entry.error =
+        typeof error.toLogObject === "function"
+          ? error.toLogObject()
+          : {
+              name: error.name || "Error",
+              code: error.code || "UNKNOWN_ERROR",
+              message: error.message || String(error),
+              severity: "error" as any,
+              context: {
+                agentName: agentName || null,
+                model: null,
+                toolName: null,
+                additionalData: { originalError: String(error) },
+              },
+              timestamp: Date.now(),
+              recoverable: false,
+              stack: error.stack || undefined,
+            };
 
       // Aggregate error counts
       if (this.config.enableErrorAggregation) {
-        const errorKey = `${error.code}:${agentName || "unknown"}`;
+        const errorKey = `${error.code || "UNKNOWN_ERROR"}:${agentName || "unknown"}`;
         this.errorCounts.set(
           errorKey,
           (this.errorCounts.get(errorKey) || 0) + 1
@@ -164,11 +182,29 @@ export class AgentLogger {
     );
 
     if (error) {
-      entry.error = error.toLogObject();
+      // Safely handle errors that may not have toLogObject method
+      entry.error =
+        typeof error.toLogObject === "function"
+          ? error.toLogObject()
+          : {
+              name: error.name || "Error",
+              code: error.code || "UNKNOWN_ERROR",
+              message: error.message || String(error),
+              severity: "critical" as any,
+              context: {
+                agentName: agentName || null,
+                model: null,
+                toolName: null,
+                additionalData: { originalError: String(error) },
+              },
+              timestamp: Date.now(),
+              recoverable: false,
+              stack: error.stack || undefined,
+            };
 
       // Aggregate error counts
       if (this.config.enableErrorAggregation) {
-        const errorKey = `${error.code}:${agentName || "unknown"}`;
+        const errorKey = `${error.code || "UNKNOWN_ERROR"}:${agentName || "unknown"}`;
         this.errorCounts.set(
           errorKey,
           (this.errorCounts.get(errorKey) || 0) + 1
@@ -266,7 +302,7 @@ export class AgentLogger {
     if (error) {
       this.error(message, agentName, context, error);
     } else {
-      this.debug(message, agentName, context);
+      this.info(message, agentName, context);
     }
   }
 

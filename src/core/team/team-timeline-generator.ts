@@ -1113,7 +1113,7 @@ function generateErrorAnalysisSection(errorLogs: LogEntry[], errorTrends: any) {
               <div class="error-summary">
                 <span class="error-timestamp">${new Date(log.timestamp).toLocaleTimeString()}</span>
                 <span class="error-message">${log.message}</span>
-                <span class="error-context">${log.context?.agentName || "System"}</span>
+                <span class="error-context">${log.agentName || "System"}</span>
               </div>
               <div class="error-details" id="error-details-${idx}" style="display: none;">
                 <pre>${JSON.stringify(log.context || {}, null, 2)}</pre>
@@ -1143,13 +1143,13 @@ function generateAgentLogsSection(logs: LogEntry[]) {
               <span class="log-level ${LogLevel[log.level].toLowerCase()}">${LogLevel[log.level]}</span>
               <span class="log-timestamp">${new Date(log.timestamp).toLocaleTimeString()}</span>
               <span class="log-message">${log.message}</span>
-              <span class="log-agent">${log.context?.agentName || "System"}</span>
+              <span class="log-agent">${log.agentName || "System"}</span>
             </div>
             <div class="log-details" id="log-details-${idx}" style="display: none;">
               <div class="log-context">
                 <strong>Execution ID:</strong> ${log.context?.executionId || "N/A"}<br/>
-                <strong>Agent:</strong> ${log.context?.agentName || "N/A"}<br/>
-                <strong>Performance:</strong> ${log.executionTime || 0}ms<br/>
+                <strong>Agent:</strong> ${log.agentName || "N/A"}<br/>
+                <strong>Performance:</strong> ${log.context?.executionTime || "0ms"}<br/>
                 ${log.context ? `<strong>Context:</strong><pre>${JSON.stringify(log.context, null, 2)}</pre>` : ""}
               </div>
             </div>

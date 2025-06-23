@@ -467,6 +467,7 @@ export class Agent {
                 temperature: this.config.temperature,
                 max_tokens: this.config.maxTokens,
                 tools: toolsConfig,
+                agentName: this.name, // Pass the agent name to the LLM
 
                 onChunk: (chunk) => {
                   // Process the chunk to remove common formatting issues
@@ -765,6 +766,7 @@ export class Agent {
           temperature: this.config.temperature,
           max_tokens: this.config.maxTokens,
           tools: finalToolsConfig,
+          agentName: this.name, // Pass the agent name to the LLM
 
           onChunk: (chunk) => {
             globalEventEmitter.emit(AgentForgeEvents.LLM_STREAM_CHUNK, {

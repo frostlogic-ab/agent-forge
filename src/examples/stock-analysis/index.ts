@@ -8,6 +8,7 @@ import { ManagerAgent } from "./agents/manager.agent";
 import { WriterAgent } from "./agents/writer.agent";
 import { ResearchAgent } from "./agents/research.agent";
 import { RateLimiter, Visualizer } from "../../utils/decorators";
+import { LogLevel } from "../../core/agent-logger";
 
 @Visualizer()
 @RateLimiter({
@@ -35,7 +36,7 @@ class StockAnalysisTeam {
     team.addAgent(StockAnalysisTeam.forge.getAgent("Report writer")!);
     team.addAgent(StockAnalysisTeam.forge.getAgent("Financial researcher")!);
 
-    const report = await team.run("Write a report on the stock price of Apple", { verbose: true });
+    const report = await team.run("Write a report on the stock price of Apple", { verbose: true, maxExecutionTime: 200000 });
     console.log(report);
     // process.exit(0);
   }
