@@ -306,13 +306,13 @@ const result = await forge.runTeam(
 ### Plugin Integration
 
 ```typescript
-import { LoggingPlugin, MetricsPlugin } from "agent-forge/plugins";
+import { CustomLoggingPlugin, CustomMetricsPlugin } from "./plugins";
 
 const forge = new AgentForge(llm);
 
 // Register plugins
-await forge.registerPlugin(new LoggingPlugin());
-await forge.registerPlugin(new MetricsPlugin());
+await forge.registerPlugin(new CustomLoggingPlugin());
+await forge.registerPlugin(new CustomMetricsPlugin());
 
 await forge.initialize();
 
@@ -579,8 +579,8 @@ class ConfiguredApp {
 ### Plugin Configuration
 
 ```typescript
-@plugin(new LoggingPlugin())
-@plugin(new MetricsPlugin())
+@plugin(new CustomLoggingPlugin())
+@plugin(new CustomMetricsPlugin())
 @plugin(new CachingPlugin({ cacheTTL: 60000 }))
 @llmProvider("openai", { apiKey: process.env.OPENAI_API_KEY })
 @forge()

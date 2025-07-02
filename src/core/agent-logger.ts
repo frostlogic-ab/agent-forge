@@ -1,3 +1,5 @@
+import type { PluginManager } from "../plugins/plugin-manager";
+import { PluginLifecycleHooks } from "../plugins/plugin-manager";
 import { AgentForgeEvents } from "../types";
 import { globalEventEmitter } from "../utils/event-emitter";
 import type { AgentForgeError, ErrorLogObject, ErrorSeverity } from "./errors";
@@ -52,8 +54,12 @@ export class AgentLogger {
   private logHistory: LogEntry[] = [];
   private errorCounts: Map<string, number> = new Map();
   private performanceMetrics: Map<string, PerformanceMetric> = new Map();
+  private pluginManager?: PluginManager;
 
-  private constructor(config: Partial<LoggerConfig> = {}) {
+  private constructor(
+    config: Partial<LoggerConfig> = {},
+    pluginManager?: PluginManager
+  ) {
     this.config = {
       level: LogLevel.INFO,
       enableConsoleLogging: true,
@@ -63,14 +69,18 @@ export class AgentLogger {
       maxLogHistory: 1000,
       ...config,
     };
+    this.pluginManager = pluginManager;
   }
 
   /**
    * Get or create the singleton logger instance
    */
-  static getInstance(config?: Partial<LoggerConfig>): AgentLogger {
+  static getInstance(
+    config?: Partial<LoggerConfig>,
+    pluginManager?: PluginManager
+  ): AgentLogger {
     if (!AgentLogger.instance) {
-      AgentLogger.instance = new AgentLogger(config);
+      AgentLogger.instance = new AgentLogger(config, pluginManager);
     }
     return AgentLogger.instance;
   }
@@ -80,6 +90,13 @@ export class AgentLogger {
    */
   updateConfig(config: Partial<LoggerConfig>): void {
     this.config = { ...this.config, ...config };
+  }
+
+  /**
+   * Set the plugin manager for the logger
+   */
+  setPluginManager(pluginManager: PluginManager): void {
+    this.pluginManager = pluginManager;
   }
 
   /**
@@ -162,7 +179,10 @@ export class AgentLogger {
       }
     }
 
-    this.processLogEntry(entry);
+    void this.processLogEntry(entry).catch((error) => {
+      // Avoid infinite recursion by using console directly for logging errors
+      console.error("Error processing log entry:", error);
+    });
   }
 
   /**
@@ -212,7 +232,10 @@ export class AgentLogger {
       }
     }
 
-    this.processLogEntry(entry);
+    void this.processLogEntry(entry).catch((error) => {
+      // Avoid infinite recursion by using console directly for logging errors
+      console.error("Error processing log entry:", error);
+    });
   }
 
   /**
@@ -403,7 +426,10 @@ export class AgentLogger {
     }
 
     const entry = this.createLogEntry(level, message, agentName, context);
-    this.processLogEntry(entry);
+    void this.processLogEntry(entry).catch((error) => {
+      // Avoid infinite recursion by using console directly for logging errors
+      console.error("Error processing log entry:", error);
+    });
   }
 
   /**
@@ -427,13 +453,40 @@ export class AgentLogger {
   /**
    * Process and output a log entry
    */
-  private processLogEntry(entry: LogEntry): void {
+  private async processLogEntry(entry: LogEntry): Promise<void> {
     // Add to history
     this.logHistory.push(entry);
 
     // Maintain history size limit
     if (this.logHistory.length > this.config.maxLogHistory) {
       this.logHistory = this.logHistory.slice(-this.config.maxLogHistory);
+    }
+
+    // Execute plugin hooks
+    if (this.pluginManager) {
+      try {
+        // Execute general log entry hook
+        await this.pluginManager.executeHook(
+          PluginLifecycleHooks.LOG_ENTRY_CREATED,
+          { entry, logger: this }
+        );
+
+        // Execute specific hooks for error and critical levels
+        if (entry.level === LogLevel.ERROR) {
+          await this.pluginManager.executeHook(
+            PluginLifecycleHooks.LOG_ERROR_OCCURRED,
+            { entry, logger: this }
+          );
+        } else if (entry.level === LogLevel.CRITICAL) {
+          await this.pluginManager.executeHook(
+            PluginLifecycleHooks.LOG_CRITICAL_OCCURRED,
+            { entry, logger: this }
+          );
+        }
+      } catch (error) {
+        // Avoid infinite recursion by using console directly for plugin errors
+        console.error("Error executing logging plugin hooks:", error);
+      }
     }
 
     // Console logging

@@ -44,10 +44,10 @@ class LoggedApp {
 
 #### Multiple Plugins
 ```typescript
-import { LoggingPlugin, MetricsPlugin } from "agent-forge";
+import { MyLoggingPlugin, MyMetricsPlugin } from "./plugins";
 
-@plugin(new LoggingPlugin())
-@plugin(new MetricsPlugin())
+@plugin(new MyLoggingPlugin())
+@plugin(new MyMetricsPlugin())
 @llmProvider("openai", { apiKey: process.env.OPENAI_API_KEY })
 @forge()
 class MonitoredApp {
@@ -57,8 +57,14 @@ class MonitoredApp {
 
 #### Custom Plugin Configuration
 ```typescript
-@plugin(new LoggingPlugin())
-@plugin(new MetricsPlugin())
+@plugin(new CustomLoggingPlugin({
+  logLevel: "debug",
+  outputFormat: "json"
+}))
+@plugin(new CustomMetricsPlugin({
+  enableTokenTracking: true,
+  enablePerformanceMetrics: true
+}))
 @plugin(new CustomSecurityPlugin({
   allowedDomains: ["example.com", "api.trusted.com"],
   maxRequestSize: 1024 * 1024 // 1MB
@@ -70,91 +76,91 @@ class SecureApp {
 }
 ```
 
-## Built-in Plugins
+## Plugin System with Logging Hooks
 
-Agent Forge provides several built-in plugins for common functionality:
+Agent Forge provides a powerful plugin system with lifecycle hooks, including new logging hooks that allow plugins to intercept and process log entries in real-time.
 
-### LoggingPlugin
+### Logging Lifecycle Hooks
 
-Provides comprehensive logging of agent activities, LLM calls, and tool executions.
+The framework includes specialized hooks for logging that enable plugins to:
 
-#### Usage
+- **`LOG_ENTRY_CREATED`**: Process all log entries as they are created
+- **`LOG_ERROR_OCCURRED`**: Handle error-level log entries specifically  
+- **`LOG_CRITICAL_OCCURRED`**: Handle critical-level log entries with priority
+
+These hooks enable plugins to send logs to external systems, filter sensitive data, aggregate metrics, or transform log formats.
+
+### Using Logging Hooks
+
+Create plugins that respond to logging events:
+
 ```typescript
-import { LoggingPlugin } from "agent-forge";
+export class LoggingPlugin extends Plugin {
+  readonly name = "logging";
+  readonly version = "1.0.0";
 
-@plugin(new LoggingPlugin())
-@forge()
-class LoggedApp {
-  static forge: AgentForge;
+  getHooks() {
+    return {
+      [PluginLifecycleHooks.LOG_ENTRY_CREATED]: this.onLogEntry.bind(this),
+      [PluginLifecycleHooks.LOG_ERROR_OCCURRED]: this.onErrorLog.bind(this),
+      [PluginLifecycleHooks.LOG_CRITICAL_OCCURRED]: this.onCriticalLog.bind(this),
+    };
+  }
+
+  private async onLogEntry(data: PluginHookData): Promise<any> {
+    const { entry, logger } = data.payload;
+    // Process any log entry
+    console.log(`[${entry.level}] ${entry.message}`);
+    return data.payload;
+  }
+
+  private async onErrorLog(data: PluginHookData): Promise<any> {
+    const { entry, logger } = data.payload;
+    // Handle error logs specifically
+    await this.sendAlert(entry);
+    return data.payload;
+  }
+
+  private async onCriticalLog(data: PluginHookData): Promise<any> {
+    const { entry, logger } = data.payload;
+    // Handle critical logs with highest priority
+    await this.sendUrgentAlert(entry);
+    return data.payload;
+  }
+
+  private async sendAlert(entry: any): Promise<void> {
+    // Send alert for error logs
+  }
+
+  private async sendUrgentAlert(entry: any): Promise<void> {
+    // Send urgent alert for critical logs
+  }
 }
 ```
 
-#### Features
-- **Agent Lifecycle**: Logs agent registration, runs, and errors
-- **LLM Interactions**: Logs all LLM requests and responses
-- **Tool Executions**: Logs tool calls with parameters and results
-- **Framework Events**: Logs framework initialization and shutdown
-- **Performance Tracking**: Tracks execution times for operations
+### Hook Data Format
 
-#### Log Output Example
-```
-[LOGGING] Agent registered: ResearchAgent
-[LOGGING] Agent ResearchAgent started with input: "Find AI trends"
-[LOGGING] LLM request to openai: 450 tokens
-[LOGGING] Tool WebSearchTool called with params: {"query": "AI trends 2024"}
-[LOGGING] Tool WebSearchTool completed in 1.2s
-[LOGGING] LLM response from openai: 320 tokens in 2.1s
-[LOGGING] Agent ResearchAgent completed in 5.3s
-```
+The logging hooks receive data in this format:
 
-### MetricsPlugin
-
-Collects and tracks performance metrics for agents, tools, and LLM usage.
-
-#### Usage
 ```typescript
-import { MetricsPlugin } from "agent-forge";
-
-@plugin(new MetricsPlugin())
-@forge()
-class MetricsApp {
-  static forge: AgentForge;
+interface LoggingHookData {
+  entry: LogEntry;    // The log entry being created
+  logger: AgentLogger; // The logger instance
 }
-```
 
-#### Features
-- **Execution Metrics**: Agent run counts, execution times, success rates
-- **Token Usage**: Prompt and completion token tracking
-- **Tool Metrics**: Tool call counts and performance
-- **Error Tracking**: Error counts and types
-- **Real-time Stats**: Live performance statistics
-
-#### Accessing Metrics
-```typescript
-const metricsPlugin = MyApp.forge.getPluginManager().getPlugin("metrics") as MetricsPlugin;
-
-if (metricsPlugin) {
-  const metrics = metricsPlugin.getMetrics();
-  
-  console.log(`Agent runs: ${metrics.agentRuns}`);
-  console.log(`Total tokens: ${metrics.tokenUsage.prompt + metrics.tokenUsage.completion}`);
-  console.log(`Average execution time: ${metricsPlugin.getAverageExecutionTime()}ms`);
-  console.log(`Error rate: ${(metrics.errors / metrics.agentRuns) * 100}%`);
-}
-```
-
-#### Metrics Data Structure
-```typescript
-interface PluginMetrics {
-  agentRuns: number;
-  totalExecutionTime: number;
-  toolCalls: number;
-  errors: number;
-  tokenUsage: {
+interface LogEntry {
+  level: LogLevel;
+  message: string;
+  timestamp: number;
+  agentName?: string;
+  context?: Record<string, any>;
+  error?: ErrorLogObject;
+  executionTime?: number;
+  tokenUsage?: {
     prompt: number;
     completion: number;
+    total: number;
   };
-  lastResetTime: number;
 }
 ```
 
@@ -257,6 +263,113 @@ export class CachingPlugin extends Plugin {
 }
 ```
 
+#### External Logging Plugin
+```typescript
+export class ExternalLoggingPlugin extends Plugin {
+  readonly name = "external-logging";
+  readonly version = "1.0.0";
+  readonly priority = 50;
+
+  private logQueue: any[] = [];
+  private batchSize = 10;
+  private flushInterval = 5000; // 5 seconds
+
+  constructor(private config: {
+    endpoint: string;
+    apiKey: string;
+    batchSize?: number;
+    flushInterval?: number;
+  }) {
+    super();
+    this.batchSize = config.batchSize || 10;
+    this.flushInterval = config.flushInterval || 5000;
+    this.startBatchProcessor();
+  }
+
+  getHooks() {
+    return {
+      [PluginLifecycleHooks.LOG_ENTRY_CREATED]: this.handleLogEntry.bind(this),
+      [PluginLifecycleHooks.LOG_ERROR_OCCURRED]: this.handleErrorLog.bind(this),
+      [PluginLifecycleHooks.LOG_CRITICAL_OCCURRED]: this.handleCriticalLog.bind(this),
+    };
+  }
+
+  private async handleLogEntry(data: PluginHookData): Promise<any> {
+    const { entry } = data.payload;
+    await this.queueLogEntry(entry);
+    return data.payload;
+  }
+
+  private async handleErrorLog(data: PluginHookData): Promise<any> {
+    const { entry } = data.payload;
+    // Add priority flag for error logs
+    await this.queueLogEntry({ ...entry, priority: "high" });
+    return data.payload;
+  }
+
+  private async handleCriticalLog(data: PluginHookData): Promise<any> {
+    const { entry } = data.payload;
+    // Send critical logs immediately, bypassing batch queue
+    await this.sendToExternalSystem([{ ...entry, priority: "critical" }]);
+    return data.payload;
+  }
+
+  private async queueLogEntry(entry: any): Promise<void> {
+    this.logQueue.push(this.transformLogEntry(entry));
+    
+    if (this.logQueue.length >= this.batchSize) {
+      await this.flushQueue();
+    }
+  }
+
+  private transformLogEntry(entry: any) {
+    return {
+      timestamp: new Date(entry.timestamp).toISOString(),
+      level: entry.level,
+      message: entry.message,
+      agentName: entry.agentName,
+      context: entry.context,
+      error: entry.error,
+      source: "agent-forge",
+    };
+  }
+
+  private async flushQueue(): Promise<void> {
+    if (this.logQueue.length === 0) return;
+    
+    const batch = this.logQueue.splice(0, this.batchSize);
+    await this.sendToExternalSystem(batch);
+  }
+
+  private async sendToExternalSystem(logs: any[]): Promise<void> {
+    try {
+      const response = await fetch(this.config.endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${this.config.apiKey}`,
+        },
+        body: JSON.stringify({ logs }),
+      });
+
+      if (!response.ok) {
+        this.log(`Failed to send logs: ${response.statusText}`, "error");
+      }
+    } catch (error) {
+      this.log(`Error sending logs: ${error}`, "error");
+    }
+  }
+
+  private startBatchProcessor(): void {
+    setInterval(() => {
+      this.flushQueue().catch(error => {
+        this.log(`Batch flush error: ${error}`, "error");
+      });
+    }, this.flushInterval);
+  }
+}
+```
+
 #### Security Plugin
 ```typescript
 export class SecurityPlugin extends Plugin {
@@ -353,11 +466,16 @@ Plugins can hook into various framework events:
 - `WORKFLOW_BEFORE_RUN` - Before workflow execution
 - `WORKFLOW_AFTER_RUN` - After workflow execution
 
+### Logging Hooks
+- `LOG_ENTRY_CREATED` - When any log entry is created
+- `LOG_ERROR_OCCURRED` - When error-level logs are created
+- `LOG_CRITICAL_OCCURRED` - When critical-level logs are created
+
 ### Complete Plugin Example
 
 ```typescript
-@plugin(new LoggingPlugin())
-@plugin(new MetricsPlugin())
+@plugin(new CustomLoggingPlugin())
+@plugin(new CustomMetricsPlugin())
 @plugin(new CachingPlugin())
 @plugin(new SecurityPlugin())
 @tool(WebSearchTool)
@@ -372,9 +490,9 @@ class ComprehensiveApp {
     await readyForge(ComprehensiveApp, agentClasses);
     
     // All plugins are active:
-    // - Logging: Comprehensive logging
-    // - Metrics: Performance tracking
-    // - Caching: Result caching
+    // - Custom Logging: Sends logs to external systems via logging hooks
+    // - Custom Metrics: Performance tracking and token usage monitoring
+    // - Caching: Result caching for improved performance
     // - Security: Input validation and tool restrictions
     
     const result = await this.forge.runTeam(
@@ -385,7 +503,7 @@ class ComprehensiveApp {
     
     // Access plugin data
     const metrics = this.forge.getPluginManager()
-      .getPlugin("metrics") as MetricsPlugin;
+      .getPlugin("custom-metrics") as CustomMetricsPlugin;
       
     if (metrics) {
       console.log("Performance metrics:", metrics.getMetrics());

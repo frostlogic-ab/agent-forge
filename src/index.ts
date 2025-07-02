@@ -69,14 +69,11 @@ export {
   Plugin,
   PluginManager,
   PluginLifecycleHooks,
-  LoggingPlugin,
-  MetricsPlugin,
 } from "./plugins";
 export type {
   PluginContext,
   PluginHookData,
   PluginHookHandler,
-  PluginMetrics,
 } from "./plugins";
 
 // Streaming exports

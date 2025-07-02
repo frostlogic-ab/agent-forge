@@ -262,8 +262,8 @@ class ProdForge {
 
 #### Forge with Plugins
 ```typescript
-@plugin(new LoggingPlugin())
-@plugin(new MetricsPlugin()) 
+@plugin(new CustomLoggingPlugin())
+@plugin(new CustomMetricsPlugin()) 
 @llmProvider("openai", { apiKey: process.env.OPENAI_API_KEY })
 @forge()
 class AdvancedForge {
