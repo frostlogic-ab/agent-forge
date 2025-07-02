@@ -599,11 +599,11 @@ export class Agent {
             );
           }
 
-          try {
-            // Extract parameters
-            const params = responseToolCall.parameters;
-            const toolStartTime = Date.now();
+          // Extract parameters
+          const params = responseToolCall.parameters;
+          const toolStartTime = Date.now();
 
+          try {
             // Execute the tool with error recovery
             const result = await ErrorRecovery.withRetry(
               () => this.tools.execute(toolCall.function.name, params),
@@ -654,8 +654,7 @@ export class Agent {
               });
             }
           } catch (error) {
-            const toolExecutionTime =
-              Date.now() - (responseToolCall.startTime || Date.now());
+            const toolExecutionTime = Date.now() - toolStartTime;
 
             // Create specific tool execution error
             const toolError =
