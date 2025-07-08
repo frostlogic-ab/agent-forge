@@ -3,13 +3,13 @@ import type { MCPClientWrapper } from "./mcp-tool";
 import { Agent } from "../core/agent";
 import type { RateLimiterConfig } from "../types";
 import {
+  MCPManager,
   type MCPProtocolType,
   type MCPSseConfig,
   type MCPStdioConfig,
   type MCPStreamableHttpConfig,
   MCPToolWrapper,
   createMCPClient,
-  MCPManager,
 } from "./mcp-tool";
 import type { Tool } from "./tool";
 
