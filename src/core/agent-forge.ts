@@ -11,6 +11,7 @@ import {
 } from "../types";
 import { enableConsoleStreaming } from "../utils/streaming";
 import { Agent } from "./agent";
+import { logger } from "./agent-logger";
 import { Team } from "./team";
 import { Workflow } from "./workflow";
 
@@ -52,6 +53,9 @@ export class AgentForge {
    * Initializes the framework and executes initialization hooks
    */
   async initialize(): Promise<void> {
+    // Set the plugin manager on the logger to enable logging hooks
+    logger.setPluginManager(this.pluginManager);
+
     await this.pluginManager.executeHook(
       PluginLifecycleHooks.FRAMEWORK_INITIALIZE,
       { forge: this }

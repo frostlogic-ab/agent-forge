@@ -9,10 +9,7 @@ import {
   AgentForge,
   Agent,
   LLMProvider,
-  LoggingPlugin,
-  MetricsPlugin,
   WebSearchTool,
-  type PluginMetrics,
   type Plugin,
 } from "../../index";
 import { SecurityPlugin } from "./plugins/security-plugin";
@@ -53,8 +50,6 @@ class SummarizerAgent extends Agent {}
 class ManagerAgent extends Agent {}
 
 // Configure the forge with plugins
-@plugin(new LoggingPlugin())
-@plugin(new MetricsPlugin())
 @plugin(new SecurityPlugin())
 @plugin(new CachingPlugin())
 @llmProvider(process.env.LLM_PROVIDER as LLMProvider, {
@@ -124,34 +119,10 @@ class PluginExample {
       process.exit(1);
     }
 
-    // Display metrics collected by the MetricsPlugin
-    console.log("\n📊 Plugin Metrics:");
-    const metricsPlugin = PluginExample.forge.getPluginManager().getPlugin('metrics') as MetricsPlugin;
-    if (metricsPlugin) {
-      const metrics: PluginMetrics = metricsPlugin.getMetrics();
-      console.log(`  🏃 Agent Runs: ${metrics.agentRuns}`);
-      console.log(`  ⏱️  Total Execution Time: ${metrics.totalExecutionTime}ms`);
-      console.log(`  ⚡ Average Execution Time: ${metricsPlugin.getAverageExecutionTime().toFixed(2)}ms`);
-      console.log(`  🔧 Tool Calls: ${metrics.toolCalls}`);
-      console.log(`  ❌ Errors: ${metrics.errors}`);
-      console.log(`  🎫 Total Tokens: ${metricsPlugin.getTotalTokens()}`);
-      console.log(`    📝 Prompt Tokens: ${metrics.tokenUsage.prompt}`);
-      console.log(`    💬 Completion Tokens: ${metrics.tokenUsage.completion}`);
-    }
-
+  
     // Demonstrate plugin management
     console.log("\n🔧 Plugin Management Demo:");
     
-    // Disable and re-enable a plugin
-    const loggingPlugin = PluginExample.forge.getPluginManager().getPlugin('logging');
-    if (loggingPlugin) {
-      console.log(`  📝 Logging Plugin Status: ${loggingPlugin.enabled ? 'Enabled' : 'Disabled'}`);
-      loggingPlugin.disable();
-      console.log(`  📝 Logging Plugin Status: ${loggingPlugin.enabled ? 'Enabled' : 'Disabled'}`);
-      loggingPlugin.enable();
-      console.log(`  📝 Logging Plugin Status: ${loggingPlugin.enabled ? 'Enabled' : 'Disabled'}`);
-    }
-
     // Shutdown framework
     await PluginExample.forge.shutdown();
     console.log("\n✅ Plugin Example Complete");

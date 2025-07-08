@@ -183,36 +183,6 @@ try {
 }
 ```
 
-## Custom Agent Methods
-
-Extend agents with custom functionality:
-
-```typescript
-@agent({
-  name: "Calculator",
-  role: "Math Assistant", 
-  description: "Performs mathematical calculations",
-  objective: "Solve math problems accurately",
-  model: "gpt-4",
-  temperature: 0.1
-})
-class CalculatorAgent extends Agent {
-  async calculate(expression: string): Promise<number> {
-    const result = await this.run(`Calculate: ${expression}`);
-    return parseFloat(result.output);
-  }
-  
-  async solve(problem: string): Promise<string> {
-    return this.run(`Solve this math problem step by step: ${problem}`);
-  }
-}
-
-// Usage
-const calc = new CalculatorAgent();
-const answer = await calc.calculate("25 * 4 + 10");
-const solution = await calc.solve("Find the derivative of x²+3x+2");
-```
-
 ## Best Practices
 
 ### Clear Configuration

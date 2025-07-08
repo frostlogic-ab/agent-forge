@@ -69,14 +69,11 @@ export {
   Plugin,
   PluginManager,
   PluginLifecycleHooks,
-  LoggingPlugin,
-  MetricsPlugin,
 } from "./plugins";
 export type {
   PluginContext,
   PluginHookData,
   PluginHookHandler,
-  PluginMetrics,
 } from "./plugins";
 
 // Streaming exports
@@ -105,6 +102,7 @@ export type { RateLimiterConfig } from "./types";
 
 // Decorators
 export { agent, llmProvider, forge } from "./core/decorators";
+export type { ForgeConfig } from "./core/decorators";
 export { RateLimiter, Visualizer } from "./utils/decorators";
 export { a2aClient, a2aServer } from "./a2a/decorators";
 export { MCP, tool } from "./tools/decorators";
@@ -117,3 +115,29 @@ export {
 } from "./config/json-config-loader";
 
 export { readyForge } from "./core/agent-forge";
+
+// Error handling and logging exports
+export {
+  AgentForgeError,
+  LLMConnectionError,
+  ToolExecutionError,
+  AgentConfigurationError,
+  PluginError,
+  ToolConfigurationError,
+  AgentTimeoutError,
+  RateLimitError,
+  LLMResponseError,
+  ErrorSeverity,
+  DEFAULT_RECOVERY_STRATEGIES,
+} from "./core/errors";
+export type {
+  ErrorContext,
+  ErrorLogObject,
+  ErrorRecoveryStrategy,
+} from "./core/errors";
+
+export { AgentLogger, LogLevel } from "./core/agent-logger";
+export type { LogEntry, LoggerConfig } from "./core/agent-logger";
+
+export { ErrorRecovery, ErrorAnalyzer } from "./core/error-recovery";
+export type { ErrorAnalysisResult, ErrorTrends } from "./core/error-recovery";

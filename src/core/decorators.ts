@@ -5,6 +5,7 @@ import type { AgentConfig } from "../types";
 import { RateLimiter as RateLimiterClass } from "../utils/rate-limiter";
 import { Agent } from "./agent";
 import { AgentForge } from "./agent-forge";
+import { AgentLogger, LogLevel, type LoggerConfig } from "./agent-logger";
 
 /**
  * Agent config decorator. Attaches the config and LLM provider as static properties to the class.
@@ -53,16 +54,31 @@ export function llmProvider(
 }
 
 /**
+ * Configuration options for the forge decorator
+ */
+export interface ForgeConfig {
+  /** Logger configuration */
+  logger?: Partial<LoggerConfig>;
+}
+
+/**
  * Forge decorator. Attaches a static AgentForge instance to the class in a type-safe way.
  *
  * Requires @llmProvider to be used on the class to set the LLM provider and config.
+ *
+ * @param config Optional configuration for the forge instance
  *
  * Usage:
  *   @llmProvider("openai", { apiKey: "..." })
  *   @forge()
  *   class MyForge {}
+ *
+ *   // With logging configuration
+ *   @llmProvider("openai", { apiKey: "..." })
+ *   @forge({ logger: { level: LogLevel.DEBUG } })
+ *   class MyForge {}
  */
-export function forge() {
+export function forge(config: ForgeConfig = {}) {
   return <T extends { new (...args: any[]): object }>(target: T) => {
     return class extends target {
       static forge: AgentForge;
@@ -80,6 +96,12 @@ export function forge() {
         // Only initialize static forge once
         if (!(this.constructor as any).forge) {
           (this.constructor as any).forgeReady = (async () => {
+            // Configure logger if settings provided
+            if (config.logger) {
+              const logger = AgentLogger.getInstance();
+              logger.updateConfig(config.logger);
+            }
+
             const llm = await LLM.create(provider, providerConfig);
             // If a rate limiter config is present, wrap LLM methods
             if (rateLimiterConfig) {

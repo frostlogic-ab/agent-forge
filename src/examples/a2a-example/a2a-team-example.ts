@@ -21,9 +21,9 @@ class TeamExample {
       await readyForge(TeamExample, agentClasses);
 
       const team = TeamExample.forge.createTeam("ManagerAgent", "Team", "A team of agents that can help with a variety of tasks.")
-        .addAgent(TeamExample.forge.getAgent("ResearcherAgent")!)
-        .addAgent(TeamExample.forge.getAgent("SummarizerAgent")!)
-        .addAgent(TeamExample.forge.getAgent("RemoteHelpfulAssistant")!);
+        .addAgent(TeamExample.forge.getAgent("ResearcherAgent"))
+        .addAgent(TeamExample.forge.getAgent("SummarizerAgent"))
+        .addAgent(TeamExample.forge.getAgent("RemoteHelpfulAssistant"));
 
       const result = await team.run("What is the status of AI in 2025? Make a full report and summarized", { verbose: true });
       console.log(result);

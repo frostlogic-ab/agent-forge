@@ -28,6 +28,11 @@ export enum PluginLifecycleHooks {
   TEAM_AFTER_RUN = "team:after_run",
   WORKFLOW_BEFORE_RUN = "workflow:before_run",
   WORKFLOW_AFTER_RUN = "workflow:after_run",
+
+  // Logging lifecycle
+  LOG_ENTRY_CREATED = "log:entry_created",
+  LOG_ERROR_OCCURRED = "log:error_occurred",
+  LOG_CRITICAL_OCCURRED = "log:critical_occurred",
 }
 
 export interface PluginContext {
