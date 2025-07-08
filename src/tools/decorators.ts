@@ -9,6 +9,7 @@ import {
   type MCPStreamableHttpConfig,
   MCPToolWrapper,
   createMCPClient,
+  MCPManager,
 } from "./mcp-tool";
 import type { Tool } from "./tool";
 
@@ -98,75 +99,52 @@ export function MCP(
     }
     (target as any).mcpConfigs.push({ protocol, config });
 
+    // Check if the class has already been wrapped
+    if ((target as any).__hasMCPWrapper) {
+      return target;
+    }
+    (target as any).__hasMCPWrapper = true;
+
     return class extends target {
-      private __mcpClients: MCPClientWrapper[] = [];
+      private __mcpManager?: MCPManager;
+
       constructor(...args: any[]) {
         super(...args);
-        if (
-          (this as any).tools &&
-          ((target as any).mcpConfigs?.length ?? 0) > 0
-        ) {
-          (async () => {
-            for (const { protocol, config } of (target as any).mcpConfigs) {
-              const client = createMCPClient(protocol, config);
-              await client.initialize();
-              const mcpTools = await client.listTools();
-              // Get rate limiter config from the class
-              const rateLimiterConfig: RateLimiterConfig | undefined = (
-                target as any
-              ).rateLimiterConfig;
-              for (const mcpTool of mcpTools) {
-                let rateLimiter: any;
-                // Tool-specific limits
-                for (const [pattern, limit] of Object.entries(
-                  rateLimiterConfig?.toolSpecificLimits || {}
-                ) as [string, any][]) {
-                  if (
-                    mcpTool.name.includes(pattern) &&
-                    typeof limit === "object" &&
-                    limit !== null
-                  ) {
-                    rateLimiter =
-                      new (require("../utils/rate-limiter").RateLimiter)({
-                        ...(limit as object),
-                        verbose: rateLimiterConfig?.verbose,
-                        toolName: mcpTool.name,
-                      });
-                    break;
-                  }
-                }
-                // Global limits if no tool-specific
-                if (
-                  !rateLimiter &&
-                  (rateLimiterConfig?.rateLimitPerSecond ||
-                    rateLimiterConfig?.rateLimitPerMinute)
-                ) {
-                  rateLimiter =
-                    new (require("../utils/rate-limiter").RateLimiter)({
-                      callsPerSecond: rateLimiterConfig.rateLimitPerSecond,
-                      callsPerMinute: rateLimiterConfig.rateLimitPerMinute,
-                      verbose: rateLimiterConfig.verbose,
-                      toolName: mcpTool.name,
-                    });
-                }
-                const wrapper = new MCPToolWrapper(
-                  mcpTool,
-                  client,
-                  rateLimiter,
-                  { cacheTTL: rateLimiterConfig?.cacheTTL }
-                );
-                this.addTool(wrapper);
-              }
-              this.__mcpClients.push(client);
-            }
-          })();
+
+        if ((target as any).mcpConfigs?.length > 0) {
+          this.initializeMCPTools();
         }
       }
-      async closeMCPClients() {
-        for (const client of this.__mcpClients) {
-          await client.close();
+
+      private async initializeMCPTools() {
+        const rateLimiterConfig: RateLimiterConfig | undefined = (
+          this.constructor as any
+        ).rateLimiterConfig;
+
+        this.__mcpManager = new MCPManager({
+          rateLimitPerSecond: rateLimiterConfig?.rateLimitPerSecond,
+          rateLimitPerMinute: rateLimiterConfig?.rateLimitPerMinute,
+          toolSpecificLimits: rateLimiterConfig?.toolSpecificLimits,
+          verbose: rateLimiterConfig?.verbose,
+        });
+
+        for (const { protocol, config } of (this.constructor as any)
+          .mcpConfigs) {
+          const client = createMCPClient(protocol, config);
+          await this.__mcpManager.addClient(client);
         }
-        this.__mcpClients = [];
+
+        const mcpTools = this.__mcpManager.getTools();
+        for (const mcpTool of mcpTools) {
+          this.addTool(mcpTool);
+        }
+      }
+
+      async closeMCPClients() {
+        if (this.__mcpManager) {
+          await this.__mcpManager.close();
+          this.__mcpManager = undefined;
+        }
       }
     };
   };
