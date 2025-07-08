@@ -1,4 +1,12 @@
 ## What's Changed
+* add robust logging by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/65
+
+
+**Full Changelog**: https://github.com/frostlogic-ab/agent-forge/compare/v2.0.2...v2.1.0
+
+# [2.1.0](https://github.com/frostlogic-ab/agent-forge/compare/v2.0.2...v2.1.0) (2025-07-08)
+
+## What's Changed
 * show helpful error when timeout of running remote agent is reached by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/64
 
 
