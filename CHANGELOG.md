@@ -1,4 +1,12 @@
 ## What's Changed
+* fix tool names in tool example to match expected names by llms by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/66
+
+
+**Full Changelog**: https://github.com/frostlogic-ab/agent-forge/compare/v2.1.0...v2.1.1
+
+## [2.1.1](https://github.com/frostlogic-ab/agent-forge/compare/v2.1.0...v2.1.1) (2025-09-04)
+
+## What's Changed
 * add robust logging by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/65
 
 
