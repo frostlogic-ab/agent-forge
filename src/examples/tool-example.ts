@@ -29,8 +29,8 @@ class CalculatorTool extends Tool {
     ];
 
     super(
-      "Calculator",
-      "Evaluate mathematical expressions",
+      "calculate",
+      "Evaluate mathematical expressions and perform calculations",
       parameters,
       "The result of the evaluated expression"
     );
@@ -38,11 +38,19 @@ class CalculatorTool extends Tool {
 
   protected async run(params: { expression: string }): Promise<any> {
     try {
+      // Basic math operations only for safety
+      const cleanExpression = params.expression.replace(/[^0-9+\-*/().\s]/g, '');
+      if (cleanExpression !== params.expression) {
+        return {
+          error: "Expression contains invalid characters. Only numbers, +, -, *, /, and parentheses are allowed.",
+        };
+      }
+      
       // Warning: Using eval is unsafe in a real application. This is just for demonstration.
       // In a real-world scenario, use a proper mathematical expression parser.
       // eslint-disable-next-line no-eval
-      const result = eval(params.expression);
-      return { result };
+      const result = eval(cleanExpression);
+      return { result: `The answer is ${result}` };
     } catch (error) {
       return {
         error: `Failed to evaluate expression: ${
@@ -66,7 +74,7 @@ class WeatherTool extends Tool {
     ];
 
     super(
-      "Weather",
+      "get_weather",
       "Get current weather information for a location",
       parameters,
       "Weather information including temperature, conditions, and forecast"
@@ -122,9 +130,9 @@ class WeatherTool extends Tool {
   name: "Assistant",
   role: "Helpful Assistant",
   description:
-    "A helpful assistant that can do calculations, and check the weather.",
+    "A helpful assistant that can perform mathematical calculations using the 'calculate' tool and get weather information using the 'get_weather' tool.",
   objective:
-    "Help the user with their questions using the available tools when appropriate.",
+    "Help the user with their questions using the available tools when appropriate. Use the calculate tool for math problems and the get_weather tool for weather queries.",
   model: process.env.LLM_API_MODEL!,
   temperature: 0.7,
 })
