@@ -1,4 +1,14 @@
 ## What's Changed
+* chore(deps): bump axios from 1.9.0 to 1.12.0 in the npm_and_yarn group across 1 directory by @dependabot[bot] in https://github.com/frostlogic-ab/agent-forge/pull/67
+
+## New Contributors
+* @dependabot[bot] made their first contribution in https://github.com/frostlogic-ab/agent-forge/pull/67
+
+**Full Changelog**: https://github.com/frostlogic-ab/agent-forge/compare/v2.1.1...v2.1.2
+
+## [2.1.2](https://github.com/frostlogic-ab/agent-forge/compare/v2.1.1...v2.1.2) (2025-09-13)
+
+## What's Changed
 * fix tool names in tool example to match expected names by llms by @CGeorges in https://github.com/frostlogic-ab/agent-forge/pull/66
 
 
