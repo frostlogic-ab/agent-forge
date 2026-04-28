@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/frostlogic-ab-agent-forge-badge.png)](https://mseep.ai/app/frostlogic-ab-agent-forge)
+
 # Agent Forge 🔨
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
